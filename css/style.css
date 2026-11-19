@@ -24,14 +24,13 @@
   --rail-w: 248px;
   color-scheme: light;
 }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
+/* light is the default; dark only when the visitor picks it (toggle in the rail / top bar) */
+:root[data-theme="dark"] {
     --ink: #e7ecf0; --ink-2: #c3ccd4; --muted: #94a1ad; --line: #34414c; --line-2: #2a3540;
     --floor: #151d24; --panel: #1c262f; --panel-2: #222d37;
     --green: #3fb48b; --green-2: #5ccaa1; --green-soft: #183a30; --amber: #f0b43a; --amber-ink: #f0c56a; --amber-soft: #3a3018;
     --red: #ef6a62; --red-soft: #3d2221; --accent-ink: #0d1a14;
     --wall: #dde4ea; --robot: #4cc497; --path: #f0b43a; --ray: #4cc497; --grid: #26313b; color-scheme: dark;
-  }
 }
 
 * { box-sizing: border-box; }
@@ -98,6 +97,7 @@ main > h1 + p.muted, .page-head p { font-size: 1.04rem; color: var(--ink-2); max
   .app.nav-open .rail { transform: none; }
   .topbar { display: flex; align-items: center; gap: 10px; padding: 10px 16px; background: var(--panel); border-block-end: 1px solid var(--line); position: sticky; top: 0; z-index: 30; }
   .topbar .brand { padding: 0; font-size: 1.05rem; }
+  .topbar .theme-toggle { margin-inline-start: auto; }
   main { padding: 20px 16px 40px; }
   .site-footer { padding: 14px 16px 22px; }
 }
@@ -224,3 +224,6 @@ td.num, th.num { text-align: end; font-variant-numeric: tabular-nums; }
 .toast.bad { background: var(--red); color: #fff; }
 .toast.ok { background: var(--green); color: #fff; }
 .kbd { font: .8rem var(--mono); border: 1px solid var(--line); border-radius: 3px; padding: 0 4px; }
+
+.theme-toggle { width: 100%; justify-content: center; }
+.topbar .theme-toggle { width: auto; }
