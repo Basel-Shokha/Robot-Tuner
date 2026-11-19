@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title data-i18n="nav.troubleshoot">Troubleshooting</title>
+<link rel="stylesheet" href="css/style.css"><link rel="icon" href="img/icon.svg">
+</head>
+<body data-page="troubleshoot">
+<main>
+  <h1 data-i18n="ts.h1"></h1>
+  <p class="muted" data-i18n="ts.intro"></p>
+  <div id="list" class="grid-2"></div>
+</main>
+<script type="module">
+import { page, $, el, t } from './js/common.js';
+await page();
+// symptom -> things to try -> playground preset that reproduces it
+const ITEMS = [
+  ['wobble', 'p_high'], ['drift', 'p_low'], ['overshoot', 'no_d'], ['late', 'too_fast'],
+  ['cant_turn', 'saturation'], ['one_side', 'mismatch'], ['swing_after', 'i_windup'], ['gaps', 'good'],
+];
+for (const [k, preset] of ITEMS) {
+  const tries = t(`ts.${k}.try`).split('|');
+  $('#list').append(el('div', { class: 'card' },
+    el('h3', { text: t(`ts.${k}.sym`) }),
+    el('p', { class: 'muted', text: t(`ts.${k}.why`) }),
+    el('ul', {}, ...tries.map((x) => el('li', { text: x }))),
+    el('a', { class: 'btn small', href: `playground.html?preset=${preset}`, text: t('ts.reproduce') })));
+}
+</script>
+</body>
+</html>
