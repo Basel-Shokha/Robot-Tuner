@@ -75,7 +75,7 @@ function buildSide() {
   // endless
   const E = $('#env-endless'); E.innerHTML = '';
   E.append(el('h3', { text: t('corr.endless_h') }),
-    slider({ key: 'corr.width', unit: 'mm', min: 120, max: 600, step: 5, value: env.width_mm, onInput: (v) => { env.width_mm = v; changed(); } }),
+    slider({ key: 'corr.width', unit: 'mm', min: 120, max: 1500, step: 5, value: env.width_mm, onInput: (v) => { env.width_mm = v; changed(); } }),
     el('div', { class: 'row' }, el('span', { text: t('corr.seed') + ': ' + env.seed }), el('button', { class: 'small', text: t('corr.new_corridor'), onclick: () => { env.seed = 1 + Math.floor(Math.random() * 99999); changed(); buildSide(); } })));
   // track
   const T = $('#env-track'); T.innerHTML = '';
@@ -83,7 +83,7 @@ function buildSide() {
   sel.value = env.track.imported ? 'custom' : env.track.points ? 'custom' : env.track.preset;
   sel.addEventListener('change', () => { env.track.imported = null; if (sel.value !== 'custom') { env.track.preset = sel.value; env.track.points = null; } else env.track.points = (TRACK_PRESETS[env.track.preset] || TRACK_PRESETS.straight).map((p) => p.slice()); changed(); });
   T.append(el('h3', { text: t('corr.track_h') }), el('label', { class: 'field' }, el('span', { text: t('corr.track_shape') }), sel),
-    slider({ key: 'corr.width', unit: 'mm', min: 120, max: 600, step: 5, value: env.track.width_mm, onInput: (v) => { env.track.width_mm = v; changed(); } }),
+    slider({ key: 'corr.width', unit: 'mm', min: 120, max: 1500, step: 5, value: env.track.width_mm, onInput: (v) => { env.track.width_mm = v; changed(); } }),
     slider({ key: 'corr.radius', unit: 'mm', min: 50, max: 1500, step: 10, value: env.track.radius_mm, onInput: (v) => { env.track.radius_mm = v; changed(); } }),
     el('div', { class: 'row' },
       el('button', { class: 'small', text: drawing ? t('corr.draw_done') : t('corr.draw'), onclick: () => { drawing = !drawing; if (drawing && !env.track.points) env.track.points = [[0, 0], [1, 0]]; $('#draw-help').hidden = !drawing; changed(); buildSide(); } }),
