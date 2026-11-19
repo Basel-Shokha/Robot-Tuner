@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title data-i18n="nav.playground">Playground</title>
+<link rel="stylesheet" href="css/style.css"><link rel="icon" href="img/icon.svg">
+</head>
+<body data-page="playground">
+<main>
+  <h1 data-i18n="pg.h1"></h1>
+  <p class="muted" data-i18n="pg.intro"></p>
+  <div class="tool wide-side">
+    <div class="side">
+      <div class="card stack" id="gains"></div>
+      <div class="card stack"><h3 data-i18n="pg.presets_h"></h3><div class="row" id="presets"></div><p id="preset-desc" class="muted"></p></div>
+      <div class="card stack" id="sweep"></div>
+      <div class="card stack"><h3 data-i18n="pg.env_h"></h3><p class="muted" id="env-sum"></p><a class="btn small" href="corridor.html" data-i18n="pg.edit_env"></a></div>
+    </div>
+    <div class="stack">
+      <div class="row">
+        <button class="primary" id="run" data-i18n="sim.run"></button>
+        <button id="reset" data-i18n="sim.reset"></button>
+        <label class="row"><span data-i18n="sim.speed"></span>
+          <select id="rate"><option value="0.25">0.25×</option><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="4">4×</option></select></label>
+        <span class="spacer"></span>
+        <button id="save-gains" data-i18n="pg.save_gains"></button>
+      </div>
+      <div class="canvas-wrap"><canvas id="cv"></canvas><div class="overlay" id="ov"></div></div>
+      <div id="legend" class="legend"></div>
+      <div class="plots" id="plots"></div>
+      <div class="card" id="table" hidden></div>
+    </div>
+  </div>
+</main>
+<script type="module" src="js/playground.js"></script>
+</body>
+</html>
