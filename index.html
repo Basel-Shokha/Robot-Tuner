@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title data-i18n="home.title">Robot Tuner</title>
+<link rel="stylesheet" href="css/style.css">
+<link rel="icon" href="img/icon.svg">
+</head>
+<body data-page="index">
+<main>
+  <section class="hero">
+    <div>
+      <h1 data-i18n="home.h1"></h1>
+      <p class="lead" data-i18n="home.lead"></p>
+      <div class="row">
+        <a class="btn primary" href="builder.html" data-i18n="home.cta_build"></a>
+        <a class="btn" href="playground.html" data-i18n="home.cta_play"></a>
+      </div>
+    </div>
+    <div class="card">
+      <h2 data-i18n="home.scope_h"></h2>
+      <p><span class="pill ok" data-i18n="home.in_scope"></span></p>
+      <ul>
+        <li data-i18n="home.in_1"></li><li data-i18n="home.in_2"></li><li data-i18n="home.in_3"></li>
+      </ul>
+      <p><span class="pill bad" data-i18n="home.out_scope"></span></p>
+      <ul>
+        <li data-i18n="home.out_1"></li><li data-i18n="home.out_2"></li><li data-i18n="home.out_3"></li><li data-i18n="home.out_4"></li>
+      </ul>
+    </div>
+  </section>
+
+  <h2 data-i18n="home.workflow_h"></h2>
+  <div class="features">
+    <a class="card feature" href="builder.html"><span class="n">1</span><h3 data-i18n="nav.builder"></h3><p data-i18n="home.f_builder"></p></a>
+    <a class="card feature" href="measure.html"><span class="n">2</span><h3 data-i18n="nav.measure"></h3><p data-i18n="home.f_measure"></p></a>
+    <a class="card feature" href="corridor.html"><span class="n">3</span><h3 data-i18n="nav.corridor"></h3><p data-i18n="home.f_corridor"></p></a>
+    <a class="card feature" href="train.html"><span class="n">4</span><h3 data-i18n="nav.train"></h3><p data-i18n="home.f_train"></p></a>
+    <a class="card feature" href="playground.html"><span class="n">5</span><h3 data-i18n="nav.playground"></h3><p data-i18n="home.f_playground"></p></a>
+    <a class="card feature" href="troubleshoot.html"><span class="n">5b</span><h3 data-i18n="nav.troubleshoot"></h3><p data-i18n="home.f_troubleshoot"></p></a>
+    <a class="card feature" href="tutorial.html"><span class="n">6</span><h3 data-i18n="nav.tutorial"></h3><p data-i18n="home.f_tutorial"></p></a>
+    <a class="card feature" href="maze.html"><span class="n">7</span><h3 data-i18n="nav.maze"></h3><p data-i18n="home.f_maze"></p></a>
+  </div>
+
+  <div class="card">
+    <h2 data-i18n="home.how_h"></h2>
+    <p data-i18n="home.how_1"></p>
+    <p data-i18n-html="home.how_2"></p>
+  </div>
+</main>
+<script type="module">
+import { page } from './js/common.js';
+await page();
+</script>
+</body>
+</html>
