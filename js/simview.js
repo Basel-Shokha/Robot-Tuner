@@ -21,7 +21,7 @@ export class Scene {
       const tr = env.track;
       if (tr.imported) this.track = tr.imported;
       else this.track = buildTrack(tr.points || TRACK_PRESETS[tr.preset] || TRACK_PRESETS.straight, tr.width_mm / 1000, tr.radius_mm / 1000,
-        env.errors.jitter.on ? env.errors.jitter.mm / 1000 : 0, env.seed);
+        env.errors.jitter.on ? env.errors.jitter.mm / 1000 : 0, env.seed, !!tr.closed);
     }
   }
   /** start pose {x, y, h, angle, offset, note} for the env's start settings (seed used when random) */
@@ -64,11 +64,13 @@ export class Scene {
       if (this.track.finish) sim.finish(true, ...this.track.finish); else sim.finish(false);
     }
   }
+  get loopLength() { return !this.endless && this.track.closed ? this.track.length : 0; }
   wallsInView(x0, x1) { return this.endless ? this.corr.wallsFlat(x0, x1) : this.track.walls; }
   centerInView(x0, x1) { return this.endless ? this.corr.centerFlat(x0, x1) : this.track.center; }
 }
 
 const HIST_KEYS = ['t', 'x', 'y', 'ce', 'he', 'err', 'vl', 'vr', 'wl', 'wr', 'p', 'i', 'd', 'sat'];
+// laps on a closed track: the guide position s jumps back by more than half the loop at the start line
 export class Runner {
   /** engine: Engine; robot: robot JSON (already patched with the gains to use); env; label; color */
   constructor(engine, robot, env, opts = {}) {
@@ -83,8 +85,8 @@ export class Runner {
     this.dt = c.dt;
     this.sim.config(c);
   }
-  clear() { this.h = {}; for (const k of HIST_KEYS) this.h[k] = []; this.last = null; this.crashT = null; this.finishedT = null; }
-  reset(pose, seed) { this.clear(); this.sim.reset(pose.x, pose.y, pose.h, seed, true); this.last = this.sim.stateRaw(); this.record(); }
+  clear() { this.h = {}; for (const k of HIST_KEYS) this.h[k] = []; this.last = null; this.crashT = null; this.finishedT = null; this.laps = 0; this.prevS = null; this.loopLen = 0; }
+  reset(pose, seed, loopLen = 0) { this.clear(); this.loopLen = loopLen; this.sim.reset(pose.x, pose.y, pose.h, seed, true); this.last = this.sim.stateRaw(); this.record(); }
   get alive() { return !this.last || (this.last[S.alive] > 0 && !(this.last[S.finished] > 0)); }
   step(n = 1) {
     for (let k = 0; k < n; k++) {
@@ -98,6 +100,11 @@ export class Runner {
   }
   record() {
     const s = this.last, h = this.h;
+    if (this.loopLen > 0 && s[S.guide_ok]) {
+      if (this.prevS !== null && this.prevS - s[S.s] > this.loopLen / 2) this.laps++;
+      if (this.prevS !== null && s[S.s] - this.prevS > this.loopLen / 2) this.laps--;  // drove backwards over the line
+      this.prevS = s[S.s];
+    }
     h.t.push(s[S.t]); h.x.push(s[S.x]); h.y.push(s[S.y]);
     h.ce.push(s[S.guide_ok] ? s[S.center_err] * 1000 : NaN); h.he.push(s[S.guide_ok] ? s[S.heading_err] * 180 / Math.PI : NaN);
     h.err.push(s[S.err] * 1000); h.vl.push(s[S.v_l]); h.vr.push(s[S.v_r]); h.wl.push(s[S.eff_l]); h.wr.push(s[S.eff_r]);
@@ -111,7 +118,7 @@ export class Runner {
       n++; sc += Math.abs(this.h.ce[k]); mx = Math.max(mx, Math.abs(this.h.ce[k])); sh += Math.abs(this.h.he[k]);
     }
     let dist = 0; for (let k = 1; k < this.h.x.length; k++) dist += Math.hypot(this.h.x[k] - this.h.x[k - 1], this.h.y[k] - this.h.y[k - 1]);
-    return { meanCe: n ? sc / n : NaN, maxCe: mx, meanHe: n ? sh / n : NaN, dist, t: this.last ? this.last[S.t] : 0, crashed: this.crashT !== null, finished: this.finishedT !== null };
+    return { meanCe: n ? sc / n : NaN, maxCe: mx, meanHe: n ? sh / n : NaN, dist, t: this.last ? this.last[S.t] : 0, crashed: this.crashT !== null, finished: this.finishedT !== null, laps: this.laps };
   }
   destroy() { this.sim.destroy(); }
 }
