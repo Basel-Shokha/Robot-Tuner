@@ -20,7 +20,7 @@ export function defaultEnv() {
       jitter: { on: true, mm: 2 }, tilt: { on: true, deg: 1.0 }, bumps: { on: false, mm: 10, per_m: 0.4 },
       gaps: { on: false, mm: 80, per_m: 0.3 }, steps: { on: false, mm: 15, per_m: 0.25 },
     },
-    track: { preset: 's_bend', points: null, width_mm: 250, radius_mm: 300 },
+    track: { preset: 's_bend', points: null, width_mm: 250, radius_mm: 300, closed: false },
     start: { angle_deg: 20, offset_mm: 0, random: false },
     noise: { global: 1, sensor: 1, encoder: 1, mismatch_pct: 0, delay_ms: 0, angle_bias: true },
     duration_s: 40,
@@ -137,46 +137,60 @@ export const TRACK_PRESETS = {
   s_bend: [[0, 0], [1.0, 0], [1.6, 0.6], [2.6, 0.6], [3.2, 0], [4.2, 0]],
   zigzag: [[0, 0], [1, 0], [1.6, 0.35], [2.2, 0], [2.8, 0.35], [3.4, 0], [4.4, 0]],
   u_turn: [[0, 0], [1.6, 0], [1.6, 0.8], [0.2, 0.8]],
+  // closed loops: the robot drives laps
+  loop_oval: [[0, 0], [2.4, 0], [2.4, 1.2], [0, 1.2]],
+  loop_square: [[0, 0], [1.6, 0], [1.6, 1.6], [0, 1.6]],
+  loop_kidney: [[0, 0], [2.6, 0], [2.6, 1.4], [1.7, 1.4], [1.3, 0.8], [0.9, 1.4], [0, 1.4]],
 };
+export const isLoopPreset = (k) => k.startsWith('loop_');
 
 /** Round each corner of the centre line with an arc of `radius` (smaller where segments are short). */
-export function smoothPath(points, radius) {
-  if (points.length < 3) return points.map((p) => [p[0], p[1]]);
-  const out = [[points[0][0], points[0][1]]];
-  for (let i = 1; i < points.length - 1; i++) {
-    const p0 = points[i - 1], p1 = points[i], p2 = points[i + 1];
+export function smoothPath(points, radius, closed = false) {
+  const n = points.length;
+  if (n < 3) return points.map((p) => [p[0], p[1]]);
+  const out = closed ? [] : [[points[0][0], points[0][1]]];
+  const corner = (p0, p1, p2) => {
     const a = Math.atan2(p1[1] - p0[1], p1[0] - p0[0]), b = Math.atan2(p2[1] - p1[1], p2[0] - p1[0]);
     let d = b - a; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI;
     const l0 = Math.hypot(p1[0] - p0[0], p1[1] - p0[1]), l1 = Math.hypot(p2[0] - p1[0], p2[1] - p1[1]);
-    if (Math.abs(d) < 1e-3) { out.push([p1[0], p1[1]]); continue; }
+    if (Math.abs(d) < 1e-3) { out.push([p1[0], p1[1]]); return; }
     const tanLen = Math.min(radius * Math.tan(Math.abs(d) / 2), l0 / 2 - 1e-3, l1 / 2 - 1e-3);
     const R = tanLen / Math.tan(Math.abs(d) / 2);
-    const s = [p1[0] - Math.cos(a) * tanLen, p1[1] - Math.sin(a) * tanLen];
-    const sgn = Math.sign(d), cx = s[0] - Math.sin(a) * R * sgn, cy = s[1] + Math.cos(a) * R * sgn;
-    const n = Math.max(2, Math.ceil(Math.abs(d) / (5 * Math.PI / 180)));
-    for (let k = 0; k <= n; k++) {
-      const th = a - sgn * Math.PI / 2 + (d * k) / n;
-      out.push([cx + Math.cos(th) * R, cy + Math.sin(th) * R]);
-    }
+    const s0 = [p1[0] - Math.cos(a) * tanLen, p1[1] - Math.sin(a) * tanLen];
+    const sgn = Math.sign(d), cx = s0[0] - Math.sin(a) * R * sgn, cy = s0[1] + Math.cos(a) * R * sgn;
+    const k = Math.max(2, Math.ceil(Math.abs(d) / (5 * Math.PI / 180)));
+    for (let j = 0; j <= k; j++) { const th = a - sgn * Math.PI / 2 + (d * j) / k; out.push([cx + Math.cos(th) * R, cy + Math.sin(th) * R]); }
+  };
+  if (closed) {
+    // start in the middle of the first side so the start is on a straight piece
+    const P = points.concat([points[0]]);
+    const mid = [(P[0][0] + P[1][0]) / 2, (P[0][1] + P[1][1]) / 2];
+    out.push(mid);
+    for (let i = 1; i <= n; i++) corner(P[i - 1], P[i % n === 0 ? 0 : i], points[(i + 1) % n]);
+    out.push([mid[0], mid[1]]);
+    return out;
   }
-  out.push([points[points.length - 1][0], points[points.length - 1][1]]);
+  for (let i = 1; i < n - 1; i++) corner(points[i - 1], points[i], points[i + 1]);
+  out.push([points[n - 1][0], points[n - 1][1]]);
   return out;
 }
 
 /** Track from a centre line: {walls, center, spawn: [x, y, heading], finish: [x1, y1, x2, y2], bounds} */
-export function buildTrack(points, width_m, radius_m, jitter_m = 0, seed = 1) {
-  const P = smoothPath(points, radius_m);
+export function buildTrack(points, width_m, radius_m, jitter_m = 0, seed = 1, closed = false) {
+  const P = smoothPath(points, radius_m, closed);
   const hw = width_m / 2, r = rng(seed);
   const L = [], Rr = [];
   for (let i = 0; i < P.length; i++) {
-    const a = i < P.length - 1 ? Math.atan2(P[i + 1][1] - P[i][1], P[i + 1][0] - P[i][0]) : Math.atan2(P[i][1] - P[i - 1][1], P[i][0] - P[i - 1][0]);
-    const a0 = i > 0 ? Math.atan2(P[i][1] - P[i - 1][1], P[i][0] - P[i - 1][0]) : a;
+    const nx1 = closed && i === P.length - 1 ? P[1] : P[i + 1], pv = closed && i === 0 ? P[P.length - 2] : P[i - 1];
+    const a = nx1 ? Math.atan2(nx1[1] - P[i][1], nx1[0] - P[i][0]) : Math.atan2(P[i][1] - pv[1], P[i][0] - pv[0]);
+    const a0 = pv ? Math.atan2(P[i][1] - pv[1], P[i][0] - pv[0]) : a;
     let d = a - a0; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI;
     const m = a0 + d / 2, k = 1 / Math.max(0.3, Math.cos(d / 2));  // miter
     const nx = -Math.sin(m) * hw * k, ny = Math.cos(m) * hw * k;
     const j = () => (jitter_m ? gauss(r) * jitter_m / 2 : 0);
     L.push([P[i][0] + nx + j(), P[i][1] + ny + j()]); Rr.push([P[i][0] - nx + j(), P[i][1] - ny + j()]);
   }
+  if (closed) { L[L.length - 1] = L[0]; Rr[Rr.length - 1] = Rr[0]; }  // the loop closes exactly
   const walls = [];
   for (const side of [L, Rr]) for (let i = 0; i + 1 < side.length; i++) walls.push(side[i][0], side[i][1], side[i + 1][0], side[i + 1][1]);
   // densify the centre line (guide) to <= 5 cm
@@ -189,10 +203,11 @@ export function buildTrack(points, width_m, radius_m, jitter_m = 0, seed = 1) {
   const h0 = Math.atan2(P[1][1] - P[0][1], P[1][0] - P[0][0]);
   const e = P[P.length - 1], ae = Math.atan2(e[1] - P[P.length - 2][1], e[0] - P[P.length - 2][0]);
   const fx = e[0] - Math.cos(ae) * 0.05, fy = e[1] - Math.sin(ae) * 0.05;
-  const finish = [fx - Math.sin(ae) * hw, fy + Math.cos(ae) * hw, fx + Math.sin(ae) * hw, fy - Math.cos(ae) * hw];
+  const finish = closed ? null : [fx - Math.sin(ae) * hw, fy + Math.cos(ae) * hw, fx + Math.sin(ae) * hw, fy - Math.cos(ae) * hw];
   let minx = Infinity, miny = Infinity, maxx = -Infinity, maxy = -Infinity;
   for (let i = 0; i < walls.length; i += 2) { minx = Math.min(minx, walls[i]); maxx = Math.max(maxx, walls[i]); miny = Math.min(miny, walls[i + 1]); maxy = Math.max(maxy, walls[i + 1]); }
-  return { walls, center, spawn: [P[0][0] + Math.cos(h0) * 0.3, P[0][1] + Math.sin(h0) * 0.3, h0], finish, bounds: [minx, miny, maxx, maxy], path: P };
+  let length = 0; for (let i = 1; i < P.length; i++) length += Math.hypot(P[i][0] - P[i - 1][0], P[i][1] - P[i - 1][1]);
+  return { walls, center, spawn: [P[0][0] + Math.cos(h0) * 0.3, P[0][1] + Math.sin(h0) * 0.3, h0], finish, bounds: [minx, miny, maxx, maxy], path: P, closed, length };
 }
 
 /** Parse an upstream .track file (freeform: spawn / wall / finish / center lines). */

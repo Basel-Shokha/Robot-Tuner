@@ -3,7 +3,7 @@
 import { page, $, $$, el, t, slider, toggle, pickFile, toast } from './common.js';
 import { loadRobot } from './store.js';
 import { loadEngine, S } from './engine.js';
-import { loadEnv, saveEnv, TRACK_PRESETS, parseTrackFile } from './corridor.js';
+import { loadEnv, saveEnv, TRACK_PRESETS, parseTrackFile, isLoopPreset } from './corridor.js';
 import { Scene, Runner, drawScene } from './simview.js';
 import { View, css } from './draw.js';
 import { TimePlot } from './plot.js';
@@ -29,7 +29,7 @@ function restart() {
   runner = new Runner(engine, robot, env, { color: css('--robot') });
   scene.update([runner], true);
   const pose = scene.start(robot, env.seed);
-  runner.reset(pose, env.seed);
+  runner.reset(pose, env.seed, scene.loopLength);
   scene.update([runner], true);
   view.userMoved = false;
   plots.ce.clear(); plots.he.clear();
@@ -43,7 +43,7 @@ function startNote(pose) {
 function renderBase() {
   drawScene(view, scene, [runner], { crashLabel: t('sim.crash') });
   const st = runner.stats(0.0);
-  $('#ov').textContent = `${t('sim.time')} ${fmt(st.t, 1)} s · ${t('sim.dist')} ${fmt(st.dist, 2)} m · ${t('sim.mean_ce')} ${fmt(st.meanCe, 1)} mm` + (st.crashed ? ' · ' + t('sim.crashed') : '') + (st.finished ? ' · ' + t('sim.finished') : '');
+  $('#ov').textContent = `${t('sim.time')} ${fmt(st.t, 1)} s · ${t('sim.dist')} ${fmt(st.dist, 2)} m · ${t('sim.mean_ce')} ${fmt(st.meanCe, 1)} mm` + (scene.loopLength ? ' · ' + t('sim.laps', { n: st.laps }) : '') + (st.crashed ? ' · ' + t('sim.crashed') : '') + (st.finished ? ' · ' + t('sim.finished') : '');
   plots.ce.setData(0, runner.h.t, runner.h.ce); plots.he.setData(0, runner.h.t, runner.h.he);
   plots.ce.draw(); plots.he.draw();
 }
@@ -81,7 +81,7 @@ function buildSide() {
   const T = $('#env-track'); T.innerHTML = '';
   const sel = el('select', {}, ...Object.keys(TRACK_PRESETS).map((k) => el('option', { value: k, text: t('track.' + k) })), el('option', { value: 'custom', text: t('track.custom') }));
   sel.value = env.track.imported ? 'custom' : env.track.points ? 'custom' : env.track.preset;
-  sel.addEventListener('change', () => { env.track.imported = null; if (sel.value !== 'custom') { env.track.preset = sel.value; env.track.points = null; } else env.track.points = (TRACK_PRESETS[env.track.preset] || TRACK_PRESETS.straight).map((p) => p.slice()); changed(); });
+  sel.addEventListener('change', () => { env.track.imported = null; if (sel.value !== 'custom') { env.track.preset = sel.value; env.track.points = null; env.track.closed = isLoopPreset(sel.value); buildSide(); } else env.track.points = (TRACK_PRESETS[env.track.preset] || TRACK_PRESETS.straight).map((p) => p.slice()); changed(); });
   T.append(el('h3', { text: t('corr.track_h') }), el('label', { class: 'field' }, el('span', { text: t('corr.track_shape') }), sel),
     slider({ key: 'corr.width', unit: 'mm', min: 120, max: 1500, step: 5, value: env.track.width_mm, onInput: (v) => { env.track.width_mm = v; changed(); } }),
     slider({ key: 'corr.radius', unit: 'mm', min: 50, max: 1500, step: 10, value: env.track.radius_mm, onInput: (v) => { env.track.radius_mm = v; changed(); } }),
@@ -91,6 +91,7 @@ function buildSide() {
         const f = await pickFile('.track,.txt'); if (!f) return;
         try { env.track.imported = parseTrackFile(f.text); changed(); buildSide(); toast(t('builder.imported', { name: f.name }), 'ok'); } catch (e) { toast(e.message, 'bad'); }
       } })),
+    toggle({ key: 'corr.closed', value: !!env.track.closed, onChange: (v) => { env.track.closed = v; changed(); } }),
     el('small', { class: 'muted', text: t('corr.track_note') }));
   // errors
   const R = $('#env-errors'); R.innerHTML = '';
@@ -122,7 +123,7 @@ function buildSide() {
     slider({ key: 'noise.mismatch', unit: '%', min: -15, max: 15, step: 0.5, value: nz.mismatch_pct, onInput: (v) => { nz.mismatch_pct = v; changed(); }, hint: t('noise.mismatch_hint') }),
     slider({ key: 'noise.delay', unit: 'ms', min: 0, max: 300, step: 5, value: nz.delay_ms, onInput: (v) => { nz.delay_ms = v; changed(); }, hint: t('noise.delay_hint') }),
     toggle({ key: 'noise.angle_bias', value: nz.angle_bias, onChange: (v) => { nz.angle_bias = v; changed(); } }),
-    slider({ key: 'corr.duration', unit: 's', min: 5, max: 240, step: 5, value: env.duration_s, onInput: (v) => { env.duration_s = v; changed(false); } }));
+    slider({ key: 'corr.duration', unit: 's', min: 5, max: 900, step: 5, value: env.duration_s, onInput: (v) => { env.duration_s = v; changed(false); } }));
 }
 $$('[data-mode]').forEach((b) => b.addEventListener('click', () => { env.mode = b.dataset.mode; drawing = false; $('#draw-help').hidden = true; changed(); buildSide(); }));
 
@@ -146,7 +147,7 @@ view.onPointerUp = () => { if (dragPt >= 0) { dragPt = -1; changed(); } };
 $('#cv').addEventListener('contextmenu', (e) => { if (drawing) e.preventDefault(); });
 function drawPoints() {
   if (!drawing || !env.track.points) return;
-  view.polyline(env.track.points, css('--accent'), 1, [3, 3]);
+  view.polyline(env.track.closed ? env.track.points.concat([env.track.points[0]]) : env.track.points, css('--accent'), 1, [3, 3]);
   env.track.points.forEach((p) => view.dot(p[0], p[1], 5, css('--accent')));
 }
 function render() { renderBase(); drawPoints(); }

@@ -55,7 +55,7 @@ function restart() {
   runners = variants.map((x, i) => new Runner(engine, effective(x.r), env, { color: PALETTE[i % PALETTE.length], label: x.label }));
   scene.update(runners, true);
   const pose = scene.start(robot, seed);
-  for (const r of runners) r.reset(pose, seed);  // same start AND same noise sequence for every ghost
+  for (const r of runners) r.reset(pose, seed, scene.loopLength);  // same start AND same noise sequence for every ghost
   view.userMoved = false;
   const set = (p, keys, names) => p.setSeries(runners.length > 1 ? runners.map((r) => ({ name: r.label, color: r.color })) : keys.map((k, i) => ({ name: names[i], color: PALETTE[i] })));
   set(plots.ce, ['ce'], [t('plot.center_err_s')]); set(plots.he, ['he'], [t('plot.heading_err_s')]);
@@ -82,7 +82,7 @@ function patch(r, k, v) { const c = JSON.parse(JSON.stringify(r)); if (k === 'sp
 function render() {
   drawScene(view, scene, runners, { crashLabel: t('sim.crash') });
   const L = runners[0], st = L.stats(1.0);
-  $('#ov').textContent = `${t('sim.time')} ${fmt(st.t, 1)} s · ${t('sim.mean_ce')} ${fmt(st.meanCe, 1)} mm` + (L.last && L.last[S.sat] ? ' · ' + t('pg.saturated') : '') + (st.crashed ? ' · ' + t('sim.crashed') : '');
+  $('#ov').textContent = `${t('sim.time')} ${fmt(st.t, 1)} s · ${t('sim.mean_ce')} ${fmt(st.meanCe, 1)} mm` + (scene.loopLength ? ' · ' + t('sim.laps', { n: st.laps }) : '') + (L.last && L.last[S.sat] ? ' · ' + t('pg.saturated') : '') + (st.crashed ? ' · ' + t('sim.crashed') : '');
   if (runners.length > 1) runners.forEach((r, i) => { plots.ce.setData(i, r.h.t, r.h.ce); plots.he.setData(i, r.h.t, r.h.he); });
   else { plots.ce.setData(0, L.h.t, L.h.ce); plots.he.setData(0, L.h.t, L.h.he); }
   const h = L.h;

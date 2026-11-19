@@ -343,9 +343,23 @@ struct Guide {
     Query At(V2 pos, float theta, int* hint = nullptr) const {
         Query q;
         if (!valid) return q;
+        const size_t last = pts.size() - 1;
+        size_t lo = 0, hi = last;
+        if (hint && *hint >= 0) { lo = (size_t)std::max(0, *hint - 40); hi = std::min(last, (size_t)*hint + 41); }
         float best = 1e30f;
-        size_t lo = 0, hi = pts.size() - 1;
-        if (hint && *hint >= 0) { lo = (size_t)std::max(0, *hint - 40); hi = std::min(pts.size() - 1, (size_t)*hint + 41); }
+        int bi = Search(pos, lo, hi, q, best);
+        // the nearest segment sits at the edge of the local window (e.g. the seam of a closed loop): search all
+        if (hint && *hint >= 0 && (lo > 0 || hi < last) && (bi == (int)lo || bi == (int)hi - 1)) {
+            Query full; float fb = 1e30f;
+            int fi = Search(pos, 0, last, full, fb);
+            if (fb < best) { q = full; best = fb; bi = fi; }
+        }
+        if (hint) *hint = bi;
+        q.heading_err = WrapPi(theta - q.tangent);
+        q.ok = best < 1e29f;
+        return q;
+    }
+    int Search(V2 pos, size_t lo, size_t hi, Query& q, float& best) const {
         int bi = -1;
         for (size_t i = lo; i < hi; ++i) {
             V2 a = pts[i], d = pts[i + 1] - pts[i];
@@ -363,10 +377,7 @@ struct Guide {
                 q.half_width = hw[i] + (hw[i + 1] - hw[i]) * t;
             }
         }
-        if (hint) *hint = bi;
-        q.heading_err = WrapPi(theta - q.tangent);
-        q.ok = best < 1e29f;
-        return q;
+        return bi;
     }
 };
 

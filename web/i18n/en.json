@@ -174,7 +174,7 @@
  "corr.draw_done": "Done editing",
  "corr.import_track": "Import .track file",
  "corr.track_note": "The walls are the centre line moved half the width to each side; corners are rounded with the radius. .track files from the Simulation-To-Real-Life project (freeform format) can be imported.",
- "corr.draw_help": "Click to add a point at the end of the centre line, drag a point to move it, right-click (or Ctrl+click) a point to delete it.",
+ "corr.draw_help": "Click to add a point, drag a point to move it, right-click (or Ctrl+click) a point to delete it. With \"Closed loop\" on, the last point joins the first.",
  "corr.errors_h": "Wall errors",
  "corr.errors_note": "Real corridors are not perfect. Switch each kind of error on or off and choose its size. Every corridor number gives a different, repeatable corridor.",
  "corr.start_h": "Start pose",
@@ -549,5 +549,10 @@
  "nav.theme_dark": "Dark mode",
  "nav.theme_light": "Light mode",
  "nav.soon": "coming soon",
- "pg.speed_virtual": "Faster than your robot can drive ({max} m/s): simulating a stronger motor with the same response time. The real robot cannot do this without new motors."
+ "pg.speed_virtual": "Faster than your robot can drive ({max} m/s): simulating a stronger motor with the same response time. The real robot cannot do this without new motors.",
+ "track.loop_oval": "Loop: oval",
+ "track.loop_square": "Loop: rounded square",
+ "track.loop_kidney": "Loop: kidney (left and right bends)",
+ "corr.closed": "Closed loop: the end joins the start, the robot drives laps",
+ "sim.laps": "{n} laps"
 }

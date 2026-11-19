@@ -551,5 +551,10 @@
  "nav.theme_dark": "",
  "nav.theme_light": "",
  "nav.soon": "",
- "pg.speed_virtual": ""
+ "pg.speed_virtual": "",
+ "track.loop_oval": "",
+ "track.loop_square": "",
+ "track.loop_kidney": "",
+ "corr.closed": "",
+ "sim.laps": ""
 }
