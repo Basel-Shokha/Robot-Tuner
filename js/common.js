@@ -57,7 +57,7 @@ export async function page() {
       <div class="rail-foot">
         <button class="small theme-toggle" type="button"></button>
         <label><span class="sr-only">${t('nav.language')}</span>
-          <select id="lang-select">${LANGS.map((l) => `<option value="${l.code}"${l.code === currentLang() ? ' selected' : ''}>${l.name}</option>`).join('')}</select></label>
+          <select id="lang-select">${LANGS.map((l) => `<option value="${l.code}"${l.code === currentLang() ? ' selected' : ''}${l.code !== 'en' ? ' disabled' : ''}>${l.name}${l.code !== 'en' ? ' (' + t('nav.soon') + ')' : ''}</option>`).join('')}</select></label>
         <span>${t('footer.offline')}</span>
       </div>
     </aside>
