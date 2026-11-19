@@ -7,8 +7,8 @@ to WebAssembly (`web/wasm/`, committed so Pages needs no build), tests in `tests
 
 ```
 vendor/simulation-to-real-life/  upstream sources, unmodified (see SOURCE_COMMIT)
-  PID/ NNMap/ tools/gen_hardware.py robot_hardware_builder.html robot_hardware.txt
-  firmware/robot_fw_run25_nnmap/          the firmware whose CAL commands the Measure page speaks
+  PID/ robot_hardware.txt                  (the robot firmware itself is deliberately NOT copied: it holds WiFi
+                                           credentials; the Measure page follows its CAL command protocol)
   firmware/robot_fw/{wheel_pid,emergency,steer_smooth,reflex}.h   included by PID/Robot.hpp (needed to build it)
   tracks/                                  four upstream tracks used by the tests
 sim/rt_rng.hpp        portable RNG distributions (bit-exact copies of libstdc++'s) + float math switch
@@ -91,7 +91,7 @@ CSS logical properties; canvases stay left-to-right. The tutorial text slots are
 
 ## Measurement protocol
 
-The Measure page sends the commands of `firmware/robot_fw_run25_nnmap` (`CAL TICKS`/`END`, `CAL MAXSPEED`,
+The Measure page sends the commands of the upstream firmware `firmware/robot_fw_run25_nnmap` (not copied here; `CAL TICKS`/`END`, `CAL MAXSPEED`,
 `CAL FF`, `CAL STEP`, `CAL DRIVE`/`DIST`, `CAL SPIN`/`TURNS`, `CAL TOF n true_mm`, `LOAD SENSORS` + `STATUS` +
 `LOAD FINAL`) and parses the result lines in `measure-steps.js` (unit-tested with real lines). The minimal sketch
 prints the same lines. Photos/GIFs for each step go to `web/img/measure/<step>.gif` (placeholders shown now).

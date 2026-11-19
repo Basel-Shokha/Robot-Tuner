@@ -11,8 +11,8 @@ without encoders, NN training (later, GitHub Actions).
 ## Architecture
 
 ```
-vendor/simulation-to-real-life/   verbatim copy of the upstream sources (commit in SOURCE_COMMIT): PID/, NNMap/,
-                                  tools/gen_hardware.py, robot_hardware_builder.html, firmware/robot_fw_run25_nnmap/
+vendor/simulation-to-real-life/   verbatim copy of the upstream sources needed to build and test (commit in
+                                  SOURCE_COMMIT): PID/, robot_hardware.txt, tracks; the firmware is not copied
                                   (+ the 4 shared firmware headers PID/Robot.hpp includes from firmware/robot_fw/)
 sim/                              Robot Tuner's C++ engine
   rt_rng.hpp                      portable copies of libstdc++'s mt19937 distributions (same numbers everywhere)
