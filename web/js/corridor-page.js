@@ -1,6 +1,7 @@
 // corridor-page.js - 3. CORRIDOR SIMULATOR: environment, wall errors, track editor, start pose, noise.
 // The settings are saved (rt.env) and used by the playground and the trainer.
-import { page, $, $$, el, t, slider, toggle, pickFile, toast } from './common.js';
+import { page, $, $$, el, t, slider, toggle, pickFile, toast, download } from './common.js';
+import { REAL_TRACKS, loadRealTrack, myTracks, saveMyTrack, deleteMyTrack, exportMyTracks, importMyTracks } from './tracklib.js';
 import { loadRobot } from './store.js';
 import { loadEngine, S } from './engine.js';
 import { loadEnv, saveEnv, TRACK_PRESETS, parseTrackFile, isLoopPreset } from './corridor.js';
@@ -79,20 +80,51 @@ function buildSide() {
     el('div', { class: 'row' }, el('span', { text: t('corr.seed') + ': ' + env.seed }), el('button', { class: 'small', text: t('corr.new_corridor'), onclick: () => { env.seed = 1 + Math.floor(Math.random() * 99999); changed(); buildSide(); } })));
   // track
   const T = $('#env-track'); T.innerHTML = '';
-  const sel = el('select', {}, ...Object.keys(TRACK_PRESETS).map((k) => el('option', { value: k, text: t('track.' + k) })), el('option', { value: 'custom', text: t('track.custom') }));
-  sel.value = env.track.imported ? 'custom' : env.track.points ? 'custom' : env.track.preset;
-  sel.addEventListener('change', () => { env.track.imported = null; if (sel.value !== 'custom') { env.track.preset = sel.value; env.track.points = null; env.track.closed = isLoopPreset(sel.value); buildSide(); } else env.track.points = (TRACK_PRESETS[env.track.preset] || TRACK_PRESETS.straight).map((p) => p.slice()); changed(); });
+  // library: shapes, loops, the project's real tracks, my saved tracks
+  const shapes = Object.keys(TRACK_PRESETS).filter((k) => !isLoopPreset(k)), loops = Object.keys(TRACK_PRESETS).filter(isLoopPreset);
+  const mine = myTracks();
+  const sel = el('select', {},
+    el('optgroup', { label: t('lib.shapes') }, ...shapes.map((k) => el('option', { value: 'preset:' + k, text: t('track.' + k) }))),
+    el('optgroup', { label: t('lib.loops') }, ...loops.map((k) => el('option', { value: 'preset:' + k, text: t('track.' + k) }))),
+    el('optgroup', { label: t('lib.real') }, ...REAL_TRACKS.map((k) => el('option', { value: 'real:' + k, text: t('lib.t.' + k) }))),
+    el('optgroup', { label: t('lib.mine') }, ...(mine.length ? mine.map((m) => el('option', { value: 'mine:' + m.id, text: m.name })) : [el('option', { disabled: true, text: t('lib.mine_empty') })])),
+    el('option', { value: 'custom', text: t('track.custom') }));
+  sel.value = env.track.src || (env.track.imported || env.track.points ? 'custom' : 'preset:' + env.track.preset);
+  sel.addEventListener('change', async () => {
+    const [kind, id] = sel.value.split(':');
+    env.track.src = sel.value; env.track.imported = null;
+    if (kind === 'preset') { env.track.preset = id; env.track.points = null; env.track.closed = isLoopPreset(id); }
+    else if (kind === 'real') { try { env.track.imported = await loadRealTrack(id); env.track.closed = false; } catch (e) { toast(e.message, 'bad'); } }
+    else if (kind === 'mine') { const m = myTracks().find((x) => x.id === id); if (m) Object.assign(env.track, m.track, { src: sel.value }); }
+    else env.track.points = (TRACK_PRESETS[env.track.preset] || TRACK_PRESETS.straight).map((p) => p.slice());
+    changed(); buildSide();
+  });
+  const isMine = (env.track.src || '').startsWith('mine:');
+  const libRow = el('div', { class: 'row' },
+    el('button', { class: 'small', text: t('lib.save'), onclick: () => {
+      const name = prompt(t('lib.name_q'), t('lib.name_default', { n: myTracks().length + 1 })); if (!name) return;
+      env.track.src = 'mine:' + saveMyTrack(name.trim().slice(0, 60), env.track); changed(false); buildSide(); toast(t('lib.saved', { name }), 'ok');
+    } }),
+    isMine ? el('button', { class: 'small', text: t('lib.delete'), onclick: () => {
+      if (!confirm(t('lib.delete_q'))) return; deleteMyTrack(env.track.src.slice(5)); env.track.src = 'custom'; changed(false); buildSide();
+    } }) : null,
+    el('button', { class: 'small', text: t('lib.export'), disabled: mine.length ? null : true, onclick: () => download('my_tracks.json', exportMyTracks(), 'application/json') }),
+    el('button', { class: 'small', text: t('lib.import'), onclick: async () => {
+      const f = await pickFile('.json,application/json'); if (!f) return;
+      try { toast(t('lib.imported', { n: importMyTracks(f.text) }), 'ok'); buildSide(); } catch (e) { toast(e.message, 'bad'); }
+    } }));
   T.append(el('h3', { text: t('corr.track_h') }), el('label', { class: 'field' }, el('span', { text: t('corr.track_shape') }), sel),
     slider({ key: 'corr.width', unit: 'mm', min: 120, max: 1500, step: 5, value: env.track.width_mm, onInput: (v) => { env.track.width_mm = v; changed(); } }),
     slider({ key: 'corr.radius', unit: 'mm', min: 50, max: 1500, step: 10, value: env.track.radius_mm, onInput: (v) => { env.track.radius_mm = v; changed(); } }),
     el('div', { class: 'row' },
-      el('button', { class: 'small', text: drawing ? t('corr.draw_done') : t('corr.draw'), onclick: () => { drawing = !drawing; if (drawing && !env.track.points) env.track.points = [[0, 0], [1, 0]]; $('#draw-help').hidden = !drawing; changed(); buildSide(); } }),
+      el('button', { class: 'small', text: drawing ? t('corr.draw_done') : t('corr.draw'), onclick: () => { drawing = !drawing; if (drawing) { env.track.src = 'custom'; env.track.imported = null; if (!env.track.points) env.track.points = (TRACK_PRESETS[env.track.preset] || [[0, 0], [1, 0]]).map((p) => p.slice()); } $('#draw-help').hidden = !drawing; changed(); buildSide(); } }),
       el('button', { class: 'small', text: t('corr.import_track'), onclick: async () => {
         const f = await pickFile('.track,.txt'); if (!f) return;
-        try { env.track.imported = parseTrackFile(f.text); changed(); buildSide(); toast(t('builder.imported', { name: f.name }), 'ok'); } catch (e) { toast(e.message, 'bad'); }
+        try { env.track.imported = parseTrackFile(f.text); env.track.src = 'custom'; changed(); buildSide(); toast(t('builder.imported', { name: f.name }), 'ok'); } catch (e) { toast(e.message, 'bad'); }
       } })),
     toggle({ key: 'corr.closed', value: !!env.track.closed, onChange: (v) => { env.track.closed = v; changed(); } }),
-    el('small', { class: 'muted', text: t('corr.track_note') }));
+    el('small', { class: 'muted', text: t('corr.track_note') }),
+    el('h3', { text: t('lib.h'), style: 'margin-top:8px' }), el('small', { class: 'muted', text: t('lib.note') }), libRow);
   // errors
   const R = $('#env-errors'); R.innerHTML = '';
   R.append(el('h3', { text: t('corr.errors_h') }), el('small', { class: 'muted', text: t('corr.errors_note') }));
