@@ -63,7 +63,7 @@ export function defaultRobot() {
     ],
     timing: { loop_ms: 25, age_ms: 22.2, age_jitter_ms: 18 },
     pid: { kp: 0.586855, ki: 0.0158843, kd: 0.384207, speed_mps: 0.156, error_clip_mm: 80, integral_limit: 0.5, d_filter_alpha: 0.3, slowdown_frac: 0.5,
-      mode: 'two_sides', follow_side: 'left', follow_mm: 100 },
+      mode: 'two_sides', follow_side: 'left', follow_mm: 100, offset_mm: 0 },
     smoothing: { on: true, tau_s: 0.10, turn_accel: 1.5, lin_accel: 0.5, max_step: 0.0105 },
     source: {
       'wheels.ticks_per_rev': 'MEASURED', 'wheels.track_effective_mm': 'MEASURED', 'motor.max_speed_mps': 'MEASURED',
@@ -139,7 +139,7 @@ export function robotToConfig(r, sim = {}) {
     base_speed_frac: Math.min(1, r.pid.speed_mps / m.max_speed_mps),
     pid_error_clip_m: mm(r.pid.error_clip_mm), pid_integral_limit: r.pid.integral_limit,
     pid_d_filter_alpha: r.pid.d_filter_alpha, pid_slowdown_frac: r.pid.slowdown_frac,
-    pid_mode: r.pid.mode === 'one_side' ? 1 : 0, follow_side: r.pid.follow_side === 'right' ? -1 : 1, follow_dist_m: mm(r.pid.follow_mm),
+    pid_mode: r.pid.mode === 'one_side' ? 1 : 0, follow_side: r.pid.follow_side === 'right' ? -1 : 1, follow_dist_m: mm(r.pid.follow_mm), center_offset_m: mm(r.pid.offset_mm || 0),
     wall_noise_std_m: 0.01 * n,
   };
   if (m.model === 'pid') {

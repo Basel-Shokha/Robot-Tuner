@@ -119,6 +119,7 @@ struct Config {
     int pid_mode = 0;                  // 0 two sides (left - right), 1 follow one wall
     int follow_side = 1;               // one side mode: 1 left wall, -1 right wall
     float follow_dist_m = 0.10f;
+    float center_offset_m = 0.0f;     // two sides mode: hold this far LEFT of the centre (+ = left)
     // episode / reward (train.cpp)
     float wall_noise_std_m = 0.010f;
     float max_episode_s = 0.0f; int max_episode_steps = 800;
@@ -213,6 +214,7 @@ struct Pid {
     float max_v = 0.45f;
     int mode = 0, follow_side = 1;
     float follow_dist = 0.1f;
+    float setpoint = 0.0f;  // wanted left - right: 0 = centred
     int left_idx = 2, right_idx = 0;
     float integral = 0.0f, prev_err = 0.0f, d_filtered = 0.0f;
     bool has_prev = false, sat = false;
@@ -231,13 +233,21 @@ struct Pid {
             if (c.sensors[i].angle_deg > c.sensors[left_idx].angle_deg) left_idx = i;
             if (c.sensors[i].angle_deg < c.sensors[right_idx].angle_deg) right_idx = i;
         }
+        // Off-centre driving. Parallel to the walls and o metres left of the centre, a sensor at angle a sees its
+        // wall at (perpendicular distance) / sin(a): the left one o / sin(a_l) closer, the right one o / sin(a_r)
+        // farther. So left - right should be -o (1/sin a_l + 1/sin a_r), whatever the corridor width.
+        setpoint = 0.0f;
+        if (c.center_offset_m != 0.0f && left_idx != right_idx) {
+            float sl = std::abs(Sin(c.sensors[left_idx].angle_deg * PI / 180.0f)), sr = std::abs(Sin(c.sensors[right_idx].angle_deg * PI / 180.0f));
+            setpoint = -c.center_offset_m * (1.0f / std::max(0.17f, sl) + 1.0f / std::max(0.17f, sr));
+        }
     }
     void Reset() { integral = 0.0f; prev_err = 0.0f; d_filtered = 0.0f; has_prev = false; }
 
     void Control(const float* d, float dt, float& v_l, float& v_r) {
         float raw;
         if (mode == 1) raw = follow_side > 0 ? d[left_idx] - follow_dist : follow_dist - d[right_idx];
-        else raw = d[left_idx] - d[right_idx];
+        else raw = d[left_idx] - d[right_idx] - setpoint;
         float e = std::clamp(raw, -error_clip_m, error_clip_m);
         integral = std::clamp(integral + e * dt, -integral_limit, integral_limit);
         float raw_d = has_prev ? (e - prev_err) / dt : 0.0f;
@@ -906,7 +916,7 @@ inline bool ApplyKey(Config& c, const std::string& key, const float* v, int nv) 
         {"base_speed_frac", &Config::base_speed_frac}, {"pid_base_speed_frac", &Config::base_speed_frac},
         {"pid_error_clip_m", &Config::pid_error_clip_m}, {"pid_integral_limit", &Config::pid_integral_limit},
         {"pid_d_filter_alpha", &Config::pid_d_filter_alpha}, {"pid_slowdown_frac", &Config::pid_slowdown_frac},
-        {"follow_dist_m", &Config::follow_dist_m}, {"wall_noise_std_m", &Config::wall_noise_std_m}, {"max_episode_s", &Config::max_episode_s},
+        {"follow_dist_m", &Config::follow_dist_m}, {"center_offset_m", &Config::center_offset_m}, {"wall_noise_std_m", &Config::wall_noise_std_m}, {"max_episode_s", &Config::max_episode_s},
         {"spawn_margin_m", &Config::spawn_margin_m}, {"spawn_heading_min_frac", &Config::spawn_heading_min_frac},
         {"spawn_heading_random_deg", &Config::spawn_heading_random_deg}, {"spawn_lateral_random_frac", &Config::spawn_lateral_random_frac},
         {"parallel_weight", &Config::parallel_weight}, {"center_weight", &Config::center_weight}, {"heading_sigma_deg", &Config::heading_sigma_deg},

@@ -18,6 +18,11 @@ export function cFunction(robot, g) {
 #define PID_INTEGRAL_LIMIT  ${f(p.integral_limit)}
 #define PID_D_FILTER_ALPHA  ${f(p.d_filter_alpha)}   // per 50 ms
 #define PID_SLOWDOWN_FRAC   ${f(p.slowdown_frac)}
+// Drive this far LEFT of the centre (m, negative = right). Parallel and o m off-centre, a sensor at angle a sees
+// its wall o/sin(a) nearer or farther, so the wanted left - right is -o (1/sin a_left + 1/sin a_right).
+#define PID_OFFSET_M        ${f((p.offset_mm || 0) / 1000)}
+#define PID_SIN_LEFT        ${f(Math.abs(Math.sin(Math.max(...robot.sensors.map((q) => q.angle_deg)) * Math.PI / 180)))}   // sin of the left sensor's angle
+#define PID_SIN_RIGHT       ${f(Math.abs(Math.sin(Math.min(...robot.sensors.map((q) => q.angle_deg)) * Math.PI / 180)))}   // sin of the right sensor's angle
 
 typedef struct { float integral, prev_err, d_filtered; int has_prev; } pid_state_t;
 
@@ -28,7 +33,8 @@ static inline void pid_reset(pid_state_t* s) { s->integral = 0; s->prev_err = 0;
 // Outputs: wheel speed targets in m/s (give them to your wheel speed controller).
 static inline void pid_control(pid_state_t* s, float left_m, float right_m, float dt, float* v_left, float* v_right) {
     const float max_v = PID_MAX_SPEED_MPS;
-    float err = pid_clampf(left_m - right_m, -PID_ERROR_CLIP_M, PID_ERROR_CLIP_M);    // + = more room on the left
+    const float setpoint = -PID_OFFSET_M * (1.0f / PID_SIN_LEFT + 1.0f / PID_SIN_RIGHT);  // 0 when centred
+    float err = pid_clampf(left_m - right_m - setpoint, -PID_ERROR_CLIP_M, PID_ERROR_CLIP_M);  // + = turn left
     s->integral = pid_clampf(s->integral + err * dt, -PID_INTEGRAL_LIMIT, PID_INTEGRAL_LIMIT);
     float raw_d = s->has_prev ? (err - s->prev_err) / dt : 0.0f;
     float alpha = 1.0f - powf(1.0f - PID_D_FILTER_ALPHA, dt / 0.05f);
