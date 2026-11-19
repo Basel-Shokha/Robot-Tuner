@@ -1,0 +1,18 @@
+# PID controller shaping. These are NOT trained: training only chooses Kp, Ki, Kd
+# (and the cruise speed, if pid_train_base_speed is 1). See PidController.hpp.
+
+# Cruise speed as a fraction of max_linear_speed_mps (1.0 * 0.45 = 0.45 m/s).
+# A run with pid_train_base_speed 1 drove this to 1.0 (the reward pays for finishing fast), so 1.0 is
+# the default. Lower it for the first tests on the real robot; the trained gains still apply.
+pid_base_speed_frac 1.0
+# 1 = training also chooses the cruise speed (a 4th parameter); 0 = use the value above.
+pid_train_base_speed 1   # narrow corridors: the cruise speed is searched / trained (curves need < max speed)
+
+# The error (left - right, metres) is clipped to +-this, so a gap in one wall cannot cause a violent turn.
+pid_error_clip_m 0.30
+# Anti-windup: the integral of the error never exceeds +-this (metre*seconds).
+pid_integral_limit 0.50
+# Low-pass filter on the D term: 1.0 = raw derivative, smaller = smoother (less noise, more lag).
+pid_d_filter_alpha 0.30
+# The cruise speed drops by up to this fraction while turning at the maximum rate.
+pid_slowdown_frac 0.50

@@ -1,0 +1,134 @@
+# robot_hardware.txt - THE single source of truth for the physical robot.
+#
+# Everything that describes the real machine lives here. Nothing else is edited by hand:
+#   python tools/gen_hardware.py
+# rewrites the hardware block of NN/, PID/, LineFit/ sim_config.txt and firmware/robot_fw/config.h.
+#
+# Format: one "key value [value ...]" per line, then "# TAG  comment".
+#   TAG = MEASURED    measured on the real robot (ruler, live test, disassembly of Tom's firmware)
+#         DATASHEET   from a datasheet / library doc (see the comment for which)
+#         DERIVED     computed from other values in this file (the generator recomputes it)
+#         PLACEHOLDER not known yet; run the calibration named in the comment and replace it
+#         ASSUMED     a choice made here; argue with it
+#
+# Frame: origin = midpoint of the drive axle, +x forward, +y LEFT, angles CCW from +x (degrees),
+# lengths in millimetres in this file (the generator converts to metres for the sim).
+
+# ======================================================================================
+# Board / pins (ESP32-WROOM-32D on See-Sys CS-ROB-10, DRV8833)
+# ======================================================================================
+pin_motor_right_pwm      13   # MEASURED  "motor A" in Tom's firmware
+pin_motor_right_dir      12   # MEASURED
+pin_motor_left_pwm       25   # MEASURED  "motor B"
+pin_motor_left_dir        4   # MEASURED
+pin_enc_right_a          27   # MEASURED
+pin_enc_right_b          26   # MEASURED
+pin_enc_left_a           32   # MEASURED
+pin_enc_left_b           33   # MEASURED
+enc_right_sign           -1   # MEASURED  raw count goes NEGATIVE when the wheel drives forward -> negate
+enc_left_sign            -1   # MEASURED  same for the left wheel
+# Motor sign: Tom's motors(speed) with speed >= 0 -> DIR LOW, PWM = speed; speed < 0 -> DIR HIGH,
+# PWM = 256 + speed. His wheel PID is direct-acting on RAW counts and stable, and raw counts go negative
+# when driving forward, so a NEGATIVE motors() value drives the wheel forward. Forward command c > 0
+# is therefore sent as motors(-c). The firmware also stops with a SIGN FAULT if a wheel turns the wrong way.
+motor_right_sign         -1   # DERIVED   from Tom's working PID loop + enc sign; verify with CAL DIR
+motor_left_sign          -1   # DERIVED
+pin_i2c_sda              21   # MEASURED
+pin_i2c_scl              22   # MEASURED
+i2c_clock_hz         400000   # ASSUMED   VL53L1X and SH1106 both support 400 kHz fast mode
+oled_addr              0x3C   # MEASURED  SH1106 128x64
+pin_xshut_left            5   # MEASURED
+pin_xshut_front          23   # MEASURED
+pin_xshut_right          18   # MEASURED
+tof_addr_left          0x30   # MEASURED  re-addressed at boot (XSHUT released one at a time)
+tof_addr_front         0x31   # MEASURED
+tof_addr_right         0x32   # MEASURED
+pin_battery_adc          34   # MEASURED  V = adc/4095 * 3.3 * divider
+battery_divider        2.44   # MEASURED  Tom's firmware
+battery_low_v           6.6   # MEASURED  Tom's firmware threshold; runs refuse to start below it
+pin_led_lowbat            2   # MEASURED  driven LOW at boot, HIGH = low battery
+pwm_bits                  8   # MEASURED  analogWrite 0..255; reverse = DIR HIGH, PWM = 256 - duty
+
+# ======================================================================================
+# Geometry (mm)
+# ======================================================================================
+wheel_diameter_mm        45   # MEASURED  with rubber
+wheel_width_mm           20   # MEASURED
+wheel_track_mm          120   # MEASURED  wheel centre to centre (= kinematic track width until calibration c)
+wheel_x_mm                0   # MEASURED  wheels on the axle = origin
+body_front_mm           140   # MEASURED  180 long, axle 40 mm from the rear edge
+body_rear_mm             40   # MEASURED
+body_width_mm           140   # MEASURED  = 120 + 20, wheels sit inside at the outer edges
+caster_x_mm             105   # MEASURED  35 mm behind the front edge, centred
+track_w_effective_mm  124.9   # MEASURED  Nov 14: CAL SPIN 10 -> 9.667 real turns with wscale 0.972 -> 124.9 mm. Before, Nov 4 evening: CAL SPIN 10/20/50 turns after the spin fix (asymmetry 0.0 %,
+                              #           never at the PWM clamp); repeated runs 123.8-124.5 mm, mean ~124.2
+caster_diameter_mm       15   # MEASURED  passive metal ball
+
+# --- ToF mount description (edit these when the angles are re-measured) ----------------
+# The generator turns this description into the three sensor poses (see tools/gen_hardware.py
+# DeriveTofPoses for the math). Sensors sit on 12 mm wide faces:
+#   front: face centre at (tof_front_x, 0), facing 0 deg.
+#   right: face hinged at the front face's right corner (tof_front_x, -face/2), its face running
+#          from that corner toward the rear; facing = -tof_right_yaw. Centre = corner + face/2 along it.
+#   left : mirror of the right one (facing +tof_left_yaw), then moved tof_left_backshift_mm back along
+#          its own facing axis (opposite to where it looks).
+tof_face_width_mm        12   # MEASURED
+tof_front_x_mm          105   # MEASURED  front face 35 mm behind the front edge
+tof_right_yaw_deg        45   # MEASURED  nominal; to be re-measured
+tof_left_yaw_deg         45   # MEASURED  nominal; to be re-measured
+tof_left_backshift_mm     3   # MEASURED
+# Optional explicit override "x_mm y_mm angle_deg" (uncomment to bypass the description above):
+# tof_pose_right   100.76 -10.24 -45
+# tof_pose_front   105.00   0.00   0
+# tof_pose_left     98.64   8.12  45
+
+# ======================================================================================
+# Drive train
+# ======================================================================================
+enc_ticks_per_rev    8291.5   # MEASURED  CAL TICKS 2026-11-04: left 8290, right 8293 (0.04 %)
+wheel_scale_left      0.972   # MEASURED  Nov 14: CAL DRIVE 1.8 m twice -> 1.75 m real, 0.9720 / 0.9721. Before, Nov 4: CAL DRIVE 1 m: encoders 1.0037 m vs real 1.00 m -> 0.9963 would fit; kept 1.0 (0.4 %)
+wheel_scale_right     0.972   # MEASURED  Nov 14: same runs, 0.9720 / 0.9721. Before, Nov 4: CAL DRIVE 1 m: encoders 1.0009 m -> 0.9991 would fit; kept 1.0
+max_speed_mps         0.156   # MEASURED  CAL MAXSPEED PWM 255, wheels up: 0.156 / 0.157 m/s (heavy gearbox)
+pwm_limit               255   # MEASURED  raised on the robot: 120 capped it at ~0.07 m/s
+wheel_pid_period_ms      10   # ASSUMED   firmware wheel task period; the *_50ms gains below are converted to it
+# Wheel PID gains as measured / tuned on the robot, in Tom's units (ticks per 50 ms, one sample = 50 ms).
+# tools/gen_hardware.py converts them to wheel_pid_period_ms (wheel_pid.h ConvertGains, r = period/50):
+# Kp/r, Ki, Kd/r^2, ff_gain/r. At 10 ms: Kp 2.0, Ki 0.001, Kd 1.25, ff_gain 2.785.
+wheel_kp_50ms              0.4   # TUNED  tools/train.py wheel (crash/centre/smooth score of NN+PID+LineFit); was: 0.4
+wheel_ki_50ms            0.001   # TUNED  tools/train.py wheel (crash/centre/smooth score of NN+PID+LineFit); was: 0.001
+wheel_kd_50ms              0.2   # TUNED  tools/train.py wheel (crash/centre/smooth score of NN+PID+LineFit); was: 0.2
+wheel_ff_gain_50ms    0.557   # MEASURED  CAL FF 2026-11-04 (sweeps: 0.546 / 0.549 / 0.557), PWM per tick/50ms
+wheel_ff_static              4   # TUNED  tools/train.py wheel (crash/centre/smooth score of NN+PID+LineFit); was: 4
+
+# --- DC motor model, per wheel (simulator wheel_model pid; fitted by tools/fit_motor.py) ------------
+# Steady wheel surface speed = k * (|pwm| - static_pwm) * (V_battery / motor_nominal_v), signed like pwm,
+# and 0 while |pwm| <= static_pwm (stiction). First-order response with time constant tau.
+motor_k_left        0.000613   # MEASURED   (m/s) per PWM count above static | fit_motor.py --terminal calib_terminal_output_2026-11-04.txt 2026-11-04
+motor_k_right       0.000618   # MEASURED    | fit_motor.py --terminal calib_terminal_output_2026-11-04.txt 2026-11-04
+motor_static_left        3.2   # MEASURED   kinetic offset: once moving, speed = k*(|pwm| - static) | fit_motor.py --terminal calib_terminal_output_2026-11-04.txt 2026-11-04
+motor_static_right       3.8   # MEASURED    | fit_motor.py --terminal calib_terminal_output_2026-11-04.txt 2026-11-04
+motor_breakaway_left     20   # MEASURED   PWM needed to start a wheel FROM REST (stiction); once moving, static applies | fit_motor.py --terminal calib_terminal_output_2026-11-04.txt 2026-11-04
+motor_breakaway_right    20   # MEASURED    | fit_motor.py --terminal calib_terminal_output_2026-11-04.txt 2026-11-04
+motor_tau_left_s       0.0362   # MEASURED   s, motor + gearbox + wheel inertia (open loop) | fit_motor.py --terminal calib_terminal_output_2026-11-04.txt 2026-11-04
+motor_tau_right_s      0.0400   # MEASURED    | fit_motor.py --terminal calib_terminal_output_2026-11-04.txt 2026-11-04
+motor_nominal_v        8.05   # ASSUMED      battery during calibration (calib/cal1.csv, same session: 8.05 V)
+
+# ======================================================================================
+# ToF: VL53L1X (Pololu VL53L1X Arduino library). Datasheet = ST DS12385. Values checked against ST's ULD API
+# (VL53L1X_api, as vendored in SparkFun_VL53L1X_Arduino_Library src/st_src/vl53l1x_class.h) and Pololu's README.
+# ======================================================================================
+tof_distance_mode     short   # ASSUMED    corridors are 30-60 cm; short mode = 1.3 m max, better ambient immunity
+tof_timing_budget_ms     20   # DATASHEET  minimum in short mode (Pololu VL53L1X README; ST ULD allows 15 too)
+tof_period_ms            25   # MEASURED   6 Nov TOF TEST: 23.9 ms per sample at budget 20 / period 25 (35.9 at period 38); 3x faster reactions than the ~72 ms runs
+tof_max_range_mm       1300   # DATASHEET  short mode (ST ULD API: "Short mode max distance is limited to 1.3 m"); beyond = no return
+tof_min_range_mm         40   # DATASHEET  ranging starts at 4 cm; closer readings are unreliable
+tof_fov_diagonal_deg     27   # DATASHEET  full 16x16 SPAD ROI
+tof_bias_right_mm         0   # PLACEHOLDER  reading - true; firmware subtracts it (side sensors re-levelled, not measured)
+tof_bias_front_mm         7   # MEASURED     +7 mm at 200 mm, std 1.7 mm (CAL TOF 2026-11-04, one distance)
+tof_bias_left_mm          0   # PLACEHOLDER
+tof_roi_spads            16   # DATASHEET  16x16 default; min 4x4 (15 deg FoV)
+
+# ======================================================================================
+# Control: the outer controller is triggered by ToF data-ready, not by a clock
+# ======================================================================================
+control_period_ms        25   # DERIVED    the outer controller runs when all three ToF have a fresh sample (= tof_period_ms)

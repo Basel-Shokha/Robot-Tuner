@@ -1,0 +1,7 @@
+controller pid
+kp 0.586855
+ki 0.0158843
+kd 0.384207
+base_speed_frac 1
+error_clip_m 0.08
+track_width 0.1242

@@ -1,0 +1,125 @@
+# MEASURED 2026-11-04: front ToF std 1.7 mm at 200 mm (one distance; side sensors not yet measured).
+tof_noise_std_m 0.004            # MEASURED run 53: side readings 2.7 (R) / 5.7 (L) mm tick-to-tick (upper bound); was 0.002
+tof_dropout_rate 0.02
+tof_glitch_threshold_m 0.12   # narrow corridors: side readings are 0.08-0.2 m, a gap or opening reads > 0.3 m
+# A high reading is held at most this long (was 3 ticks of 50 ms).
+tof_glitch_max_hold_s 2.0     # hold a far side reading this long: a 5-12 cm wall gap passes in ~1-2 s at 0.06-0.1 m/s
+# After an emergency scan, drive straight this long before the controller takes over (was one 50 ms tick).
+scan_resume_s 0.05
+encoder_noise_base 0.005
+encoder_noise_speed_coeff 0.02
+wheel_slip_coefficient 0.02
+wall_noise_std_m 0.010
+# Episode length in SECONDS. At the real 0.156 m/s a 25 m track takes ~160 s plus the initial turn.
+max_episode_s 240
+
+# Per-run systematic hardware error. 0 disables. Suggested: 2.0 / 0.02 / 0.05
+sensor_angle_bias_std_deg 2.0
+wheel_scale_bias_std 0.02
+max_speed_bias_std 0.05
+
+# --- ToF sensor model ---------------------------------------------------------
+# tof_signal_model: 0 = cheap nearest-surface min() over the cone (default, historical)
+#                   1 = VL53L1X returned-signal histogram model (see Raycast.hpp)
+# tof_rays: rays spanning the cone, either model. 3 is the historical value.
+tof_signal_model 0
+tof_rays 3
+
+# ToF field of view. Datasheet DIAGONAL FoV of the square receiver; the horizontal cone is derived as
+# tan(h/2) = tan(diag/2)/sqrt(2) (27 -> 19.27 deg, half-angle 9.64 deg). VL53L1X full ROI = 27,
+# 8x8 ROI = 20, 4x4 ROI = 15. Set tof_fov_horizontal_deg (full angle) > 0 to override the derivation.
+# tof_fov_diagonal_deg is hardware: it comes from robot_hardware.txt via sim_config.txt.
+tof_fov_horizontal_deg 0
+
+# Signal model coefficients; ignored when tof_signal_model is 0.
+# Provenance: DATASHEET = published in DocID031281 Rev 2 / ULD defaults,
+#             DERIVED   = computed from published values,
+#             ASSUMED   = not published, chosen here.
+tof_signal_gain_kcps_m2   15080.0   # DERIVED  1024 * 3.60^2 / 0.88 (Table 6 max-range anchor)
+tof_signal_threshold_kcps 1024.0    # DATASHEET ULD VL53L1X_SetSignalThreshold default
+tof_wall_reflectance      0.54      # DATASHEET grade grey 54% (N8.25 Munsell)
+tof_cos_power             2.0       # ASSUMED   Lambertian textbook value is 1.0
+tof_offaxis_sigma_frac    0.60      # ASSUMED   Gaussian sigma / cone half-angle
+tof_peak_merge_m          0.05      # ASSUMED   histogram bin width for merging returns
+tof_weak_signal_sigma_cap 4.0       # ASSUMED   cap on 1/sqrt(signal) noise growth
+
+
+# --- Straight-track reward (Straight_Wall_Project, see train.cpp EvaluateRobot) ------
+# Each metre along the track axis is worth 100 * (1 + parallel_weight*p + center_weight*c),
+# p = exp(-(heading_err/heading_sigma_deg)^2), c = exp(-(centre_err/(center_sigma_frac*free_half_width))^2).
+# Axis and centre come from the ground-truth StraightGuide, which ignores wall errors.
+parallel_weight 4.0
+center_weight 10.0   # reward for being centred between the walls (was 6)
+heading_sigma_deg 12.0
+center_sigma_frac 0.30
+crash_penalty 200.0
+
+# Wobble penalty: each reversal of turn direction (both turns faster than the deadband,
+# rad/s) costs wobble_weight * min(|turn rate|, 3). Small steady corrections are free.
+wobble_weight 60.0
+wobble_omega_deadband 0.4
+
+# Episode 0 uses the track file's spawn; episodes 1..3 randomize heading around the
+# track axis (+-deg) and lateral offset (fraction of the room left to turn in place).
+spawn_heading_random_deg 30.0   # cap on the start heading offset: steeper starts aimed at a wall it is touching need a turn in place, which no controller does
+spawn_lateral_random_frac 0.5
+
+# --- Real-robot timing / actuator model (robot audit, tasks.txt C1, C2, C4) ---------------------
+# encoder_model 0 = encoder reports the command + noise (legacy, what the existing models were trained with)
+#               1 = encoder reports the real wheel speed (motor lag + per-run wheel scale, not slip) + noise,
+#                   and the scan turn measures its rotation from the encoders (as the firmware does).
+encoder_model 1
+# Wheel response to a speed command (closed wheel-PID loop + motor). PLACEHOLDER until the
+# step test (calibration e) measures it: tau = time to reach 63% of a step.
+motor_tau_s 0.10
+motor_max_accel_mps2 0
+# ToF reading age. The outer controller runs as soon as all three sensors have a fresh sample (data-ready,
+# short mode, 20 ms budget, back-to-back ranging), so a reading is not a tick old any more: its exposure centre is
+# budget/2 = 10 ms before data-ready, plus ~1 ms polling + ~1 ms I2C read-out = 12 ms (DERIVED), plus 0..4 ms
+# because the three free-running sensors are not exactly in phase (ASSUMED; the firmware logs the real ages).
+# The rays are cast from the robot's pose that long ago. tof_delay_steps (whole ticks, legacy) is off.
+# MEASURED Nov 4 with LOAD SENSORS (626 records, 203 s): age mean 11.5 ms, p95 27.8 ms, + budget/2 10 ms.
+tof_latency_s 0.0132
+tof_latency_jitter_s 0.018  # reading age spread at the 25 ms ToF period (was 0.0246 at 38 ms; run 53 at 36 ms: 13-41 ms incl. budget/2)
+tof_delay_steps 0
+# 0 = a track's spawn point is the axle midpoint (the robot origin, as the hardware frame defines it);
+# 1 = it is the centre of the body outline. The track files were written for the old, smaller robot;
+# with 1, Straight_Error's spawn overlaps a wall, with 0 every spawn is valid. See the benchmark notes.
+spawn_at_body_center 0
+
+# --- Inner loop: wheel PID + DC motor (MotorModel.hpp, docs/hardware_audit.md "Two control loops") --------
+# wheel_model simple = the wheel follows the command with motor_tau_s (legacy, what the models were trained with)
+#             pid    = the firmware's wheel PID (firmware/robot_fw/wheel_pid.h) drives the DC-motor model from
+#                      robot_hardware.txt in sim_substeps sub-steps; encoders quantised to enc_ticks_per_rev,
+#                      encoder_noise_* is not added (quantisation is the encoder's error). Motor values are
+#                      MEASURED (tools/fit_motor.py, calibration 2026-11-04), so 'pid' is the default now.
+wheel_model pid
+sim_substeps 10
+# Pack voltage in the sim; motor speed scales with battery_v / motor_nominal_v (robot_hardware.txt).
+battery_v 8.05
+# Per-run, per-wheel motor gain error (pid only; the wheel PID corrects it unless the PWM is clamped).
+# Wheels up the two motors matched within 1 % (CAL FF); 2 % per run (ASSUMED) allows for load.
+motor_mismatch_std 0.02
+# Narrow corridors (Nov 2026): random start pose (Spawn.hpp) and emergency manoeuvre (firmware/robot_fw/emergency.h)
+spawn_margin_m 0.020          # wall clearance kept at the start pose
+spawn_heading_min_frac 0.33   # ASSUMED |heading offset| >= this x the largest feasible one (never parallel)
+emerg_on 0                    # OFF (Nov 2026): the manoeuvre reverses; the robot must never drive backwards
+emerg_front_m 0.12            # ASSUMED trigger: front ToF below this
+emerg_side_m 0.085            # ASSUMED trigger: a side ToF below this (+1 cm per side on request; centred in 20 cm ~0.127, body parallel touching ~0.085)
+emerg_stop_s 0.10
+emerg_back_speed 0.08
+emerg_turn_frac 0.6
+emerg_back_m 0.06
+emerg_turn_max_rad 0.35
+emerg_max_s 1.5
+# Output smoothing of every controller (firmware/robot_fw/steer_smooth.h; the robot steered in violent jumps)
+steer_smooth 1
+steer_tau_s 0.10          # the setting of the real runs 25/28/29 (all three drove the track perfectly)
+steer_turn_accel 1.5      # runs 25/28/29 (0.6 before run 22 was too slow); max change of (v_r - v_l)/2, m/s per s
+steer_lin_accel 0.5       # ASSUMED max change of the forward speed, m/s per s
+steer_max_step 0.0105     # per control tick (25 ms): the same 0.42 m/s per s as runs 25/28/29 (0.03 per 72 ms tick)
+smooth_weight 20          # reward: penalty weight on wheel-command changes (was 5)
+
+# Training prefers speed (6 Nov 2026): a finished run earns speed_bonus x (average speed / top speed). Crashing
+# still loses far more (crash penalty, no finish credit); the controllers may slow down where they must.
+speed_bonus 800

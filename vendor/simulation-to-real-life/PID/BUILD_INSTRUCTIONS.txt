@@ -1,0 +1,41 @@
+================================================================================
+BUILD AND INSTALLATION INSTRUCTIONS: libxlsxwriter on Windows / MinGW
+================================================================================
+
+1. PREREQUISITES:
+libxlsxwriter requires zlib. In standard MinGW-w64 environments:
+- If using MSYS2 / MinGW64 terminal:
+    pacman -S mingw-w64-x86_64-libxlsxwriter mingw-w64-x86_64-zlib
+- If installing manually from source on Windows:
+    git clone https://github.com/jmcnamara/libxlsxwriter.git
+    cd libxlsxwriter
+    cmake -B build -G "MinGW Makefiles" -DCMAKE_INSTALL_PREFIX=C:/libxlsxwriter -DBUILD_STATIC=ON
+    cmake --build build --config Release
+    cmake --install build
+
+Assuming libxlsxwriter is installed at C:/libxlsxwriter (or MSYS2 standard paths),
+headers will be at:
+    C:/libxlsxwriter/include
+and static library at:
+    C:/libxlsxwriter/lib/libxlsxwriter.a
+
+2. UPDATED G++ COMPILATION COMMANDS:
+
+If libxlsxwriter is installed in C:/libxlsxwriter (or via MSYS2 where include/lib are in compiler paths):
+
+A. train.exe:
+g++ -std=c++17 -O3 -fopenmp train.cpp -o train.exe -I C:/libxlsxwriter/include -L C:/libxlsxwriter/lib -lxlsxwriter -lz -lws2_32 -lpthread
+
+B. visualizer.exe:
+g++ -std=c++17 -O3 visualizer.cpp -o visualizer.exe -I C:/raylib/raylib/src -I C:/libxlsxwriter/include -L C:/raylib/raylib/src -L C:/libxlsxwriter/lib -lraylib -lxlsxwriter -lz -lopengl32 -lgdi32 -lwinmm -lpthread
+
+C. benchmark.exe:
+g++ -std=c++17 -O3 benchmark.cpp -o benchmark.exe -I C:/libxlsxwriter/include -L C:/libxlsxwriter/lib -lxlsxwriter -lz -lpthread
+
+D. export_weights.exe (No xlsxwriter dependency needed):
+g++ -std=c++17 -O3 export_weights.cpp -o export_weights.exe
+
+3. MAKEFILE OVERRIDES:
+When using `mingw32-make all`, pass the include and lib directory overrides:
+mingw32-make all XLSX_INC="-I C:/libxlsxwriter/include" XLSX_LIB="-L C:/libxlsxwriter/lib -lxlsxwriter -lz"
+================================================================================

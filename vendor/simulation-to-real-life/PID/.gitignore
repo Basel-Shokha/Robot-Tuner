@@ -1,0 +1,18 @@
+*.exe
+*.o
+pid_gains.h
+training_log.csv
+benchmark_results.txt
+benchmark_results.csv
+.vscode/
+__pycache__/
+
+
+# Linux binaries
+train
+benchmark
+export_gains
+visualizer
+
+# Replay recorder binary (the replays themselves, videos/*.html, are yours to keep or commit)
+record

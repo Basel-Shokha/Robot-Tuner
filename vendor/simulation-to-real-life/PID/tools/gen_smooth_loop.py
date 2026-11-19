@@ -1,0 +1,143 @@
+"""Generate tracks/smooth_loop.track: one long, smooth, closed loop for showcase runs.
+
+Sizes come from the robot in sim_config.txt (run from the project folder):
+  robot width   = track_width_m + wheel_width_m   (wheel outside to wheel outside)
+  robot length  = max(chassis_length_m, wheel_length_m)
+  corridor      = robot width + min(0.5 * robot width, 0.10 m)
+  wall segment  = 1.5 * robot length   (every wall is a chain of equal straight pieces of about this length)
+
+The centreline is a smooth closed curve r(theta) = R * (1 + a cos(2 theta) + b sin(3 theta + p)), scaled
+to the requested length, and rejected if any bend is tighter than --min-radius. The robot spawns on the
+centreline heading along the loop; the finish line sits just behind it, so finishing means one full lap.
+
+  python tools/gen_smooth_loop.py [--length 20] [--min-radius 0.45] [--out tracks/smooth_loop.track]
+"""
+import argparse
+import math
+
+
+def read_sim_config(path="sim_config.txt"):
+    cfg = {}
+    with open(path, encoding="utf-8-sig") as f:
+        for line in f:
+            parts = line.split()
+            if len(parts) >= 2 and not parts[0].startswith("#"):
+                try:
+                    cfg[parts[0]] = float(parts[1])
+                except ValueError:
+                    pass
+    return cfg
+
+
+def centerline(n, scale, a=0.22, b=0.12, p=0.7):
+    pts = []
+    for i in range(n):
+        t = 2 * math.pi * i / n
+        r = scale * (1 + a * math.cos(2 * t) + b * math.sin(3 * t + p))
+        pts.append((r * math.cos(t), r * math.sin(t)))
+    return pts
+
+
+def perimeter(pts):
+    return sum(math.dist(pts[i], pts[(i + 1) % len(pts)]) for i in range(len(pts)))
+
+
+def min_turn_radius(pts):
+    """Smallest circumradius through three consecutive points (the tightest bend)."""
+    best = float("inf")
+    n = len(pts)
+    for i in range(n):
+        a, b, c = pts[i - 1], pts[i], pts[(i + 1) % n]
+        area2 = abs((b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]))
+        if area2 > 1e-12:
+            best = min(best, math.dist(a, b) * math.dist(b, c) * math.dist(a, c) / (2 * area2))
+    return best
+
+
+def offset(pts, d):
+    """Offset a closed polyline by d along its left normal (positive d = left of travel)."""
+    n = len(pts)
+    out = []
+    for i in range(n):
+        (x0, y0), (x1, y1) = pts[i - 1], pts[(i + 1) % n]
+        tx, ty = x1 - x0, y1 - y0
+        L = math.hypot(tx, ty)
+        out.append((pts[i][0] - ty / L * d, pts[i][1] + tx / L * d))
+    return out
+
+
+def resample(pts, seg_len):
+    """Equal-length chords around a closed polyline, as close to seg_len as a whole number allows."""
+    n = len(pts)
+    cum = [0.0]
+    for i in range(n):
+        cum.append(cum[-1] + math.dist(pts[i], pts[(i + 1) % n]))
+    total = cum[-1]
+    k = max(8, round(total / seg_len))
+    step = total / k
+    out, j = [], 0
+    for m in range(k):
+        s = m * step
+        while cum[j + 1] < s:
+            j += 1
+        f = (s - cum[j]) / (cum[j + 1] - cum[j])
+        a, b = pts[j], pts[(j + 1) % n]
+        out.append((a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f))
+    return out, step
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--length", type=float, default=20.0, help="centreline length, metres")
+    ap.add_argument("--min-radius", type=float, default=0.45, help="tightest allowed bend, metres")
+    ap.add_argument("--config", default="sim_config.txt")
+    ap.add_argument("--out", default="../tracks/smooth_loop.track")
+    args = ap.parse_args()
+
+    cfg = read_sim_config(args.config)
+    robot_w = cfg.get("track_width_m", 0.12) + cfg.get("wheel_width_m", 0.015)
+    robot_l = max(cfg.get("chassis_length_m", 0.10), cfg.get("wheel_length_m", 0.064))
+    width = robot_w + min(0.5 * robot_w, 0.10)
+    seg = 1.5 * robot_l
+
+    dense = centerline(4000, 1.0)
+    dense = [(x * args.length / perimeter(dense), y * args.length / perimeter(dense)) for x, y in dense]
+    r_min = min_turn_radius(dense)
+    if r_min < args.min_radius:
+        raise SystemExit(f"tightest bend {r_min:.2f} m < --min-radius {args.min_radius} m; use a longer loop")
+    if r_min <= width / 2 + 0.05:
+        raise SystemExit(f"tightest bend {r_min:.2f} m is too tight for a {width:.3f} m corridor")
+
+    left, seg_l = resample(offset(dense, +width / 2), seg)
+    right, seg_r = resample(offset(dense, -width / 2), seg)
+
+    # Spawn 0.3 m into the loop, heading along it; finish line across the corridor at the start point.
+    s_spawn = 0.3
+    acc, i = 0.0, 0
+    while acc < s_spawn:
+        acc += math.dist(dense[i], dense[i + 1])
+        i += 1
+    sx, sy = dense[i]
+    hx, hy = dense[i + 1][0] - dense[i - 1][0], dense[i + 1][1] - dense[i - 1][1]
+    heading = math.degrees(math.atan2(hy, hx))
+    fl, fr = offset(dense, +width / 2)[0], offset(dense, -width / 2)[0]
+
+    with open(args.out, "w", encoding="utf-8") as f:
+        f.write("# smooth_loop: generated by tools/gen_smooth_loop.py -- one full lap, finish line behind the spawn\n")
+        f.write(f"# robot {robot_w * 100:.1f} x {robot_l * 100:.1f} cm, corridor {width * 100:.2f} cm, "
+                f"centreline {args.length:.1f} m, wall pieces {seg_l * 100:.1f} / {seg_r * 100:.1f} cm (left/right), "
+                f"tightest bend radius {r_min:.2f} m\n")
+        f.write(f"spawn {sx:.4f} {sy:.4f} {heading:.2f}\n")
+        for wall in (left, right):
+            for k in range(len(wall)):
+                a, b = wall[k], wall[(k + 1) % len(wall)]
+                f.write(f"wall {a[0]:.4f} {a[1]:.4f} {b[0]:.4f} {b[1]:.4f}\n")
+        f.write(f"finish {fl[0]:.4f} {fl[1]:.4f} {fr[0]:.4f} {fr[1]:.4f}\n")
+
+    print(f"{args.out}: corridor {width * 100:.2f} cm (robot {robot_w * 100:.1f} cm wide), "
+          f"{len(left)} + {len(right)} wall pieces of {seg_l * 100:.1f} / {seg_r * 100:.1f} cm, "
+          f"lap {args.length:.1f} m, tightest bend {r_min:.2f} m")
+
+
+if __name__ == "__main__":
+    main()

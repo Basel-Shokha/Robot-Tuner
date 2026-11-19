@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Robot Hardware Builder</title>
+<style>
+:root{--bg:#0b1120;--panel:#111827;--fg:#e5e7eb;--mut:#9ca3af;--acc:#38bdf8;--line:#1f2937;
+ --MEASURED:#4ade80;--DATASHEET:#60a5fa;--DERIVED:#c084fc;--PLACEHOLDER:#fbbf24;--ASSUMED:#f87171}
+*{box-sizing:border-box}body{margin:0;font:13px system-ui,sans-serif;background:var(--bg);color:var(--fg);display:flex;height:100vh}
+#view{flex:1;display:flex;flex-direction:column;min-width:0}
+#bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 12px;background:#020617}
+#bar b{font-size:15px;margin-right:6px}
+button,label.btn{background:#1f2937;color:var(--fg);border:1px solid #334155;border-radius:6px;padding:6px 10px;font:inherit;cursor:pointer}
+button.primary{background:var(--acc);color:#000;border:0;font-weight:600}
+svg{flex:1;width:100%;background:#0f172a}
+#side{width:430px;max-width:48vw;overflow:auto;background:var(--panel);border-left:1px solid var(--line);padding:8px 12px}
+h3{margin:14px 0 6px;font-size:12px;color:var(--acc);text-transform:uppercase;letter-spacing:.04em}
+.r{display:grid;grid-template-columns:150px 92px 1fr;gap:6px;align-items:center;padding:2px 0;border-bottom:1px solid var(--line)}
+.r input{width:92px;background:#020617;color:var(--fg);border:1px solid #334155;border-radius:4px;padding:3px 5px;font:12px ui-monospace,monospace}
+.k{font:12px ui-monospace,monospace}.c{color:var(--mut);font-size:11px}
+.tag{font-size:10px;font-weight:700;padding:1px 4px;border-radius:3px;color:#000;margin-right:4px}
+#hud{font:12px ui-monospace,monospace;color:var(--mut);padding:6px 12px;background:#020617}
+#hud span{color:var(--fg)}
+.legend{font-size:11px;color:var(--mut)}
+</style></head><body>
+<div id="view">
+ <div id="bar"><b>Robot hardware</b>
+  <label class="btn">Load robot_hardware.txt<input type="file" id="file" accept=".txt" hidden></label>
+  <button class="primary" id="save">Save robot_hardware.txt</button>
+  <button id="simblock">Export sim_config hardware block</button>
+  <span class="legend">then run <code>python tools/gen_hardware.py</code> to update the sim folders and firmware/robot_fw/config.h</span>
+ </div>
+ <svg id="svg" viewBox="-130 -140 340 280"></svg>
+ <div id="hud"></div>
+</div>
+<div id="side"><div class="legend">Frame: origin = axle midpoint, +x forward (right on screen), +y LEFT (up on screen), angles CCW.
+ Tags: <span class="tag" style="background:var(--MEASURED)">MEASURED</span><span class="tag" style="background:var(--DATASHEET)">DATASHEET</span><span class="tag" style="background:var(--DERIVED)">DERIVED</span><span class="tag" style="background:var(--PLACEHOLDER)">PLACEHOLDER</span><span class="tag" style="background:var(--ASSUMED)">ASSUMED</span></div>
+ <div id="form"></div></div>
+<script>
+// The file as it was when tools/gen_hardware.py last ran (it rewrites the block between the markers).
+const EMBEDDED = `/*__HW_BEGIN__*/
+# robot_hardware.txt - THE single source of truth for the physical robot.
+#
+# Everything that describes the real machine lives here. Nothing else is edited by hand:
+#   python tools/gen_hardware.py
+# rewrites the hardware block of NN/, PID/, LineFit/ sim_config.txt and firmware/robot_fw/config.h.
+#
+# Format: one "key value [value ...]" per line, then "# TAG  comment".
+#   TAG = MEASURED    measured on the real robot (ruler, live test, disassembly of Tom's firmware)
+#         DATASHEET   from a datasheet / library doc (see the comment for which)
+#         DERIVED     computed from other values in this file (the generator recomputes it)
+#         PLACEHOLDER not known yet; run the calibration named in the comment and replace it
+#         ASSUMED     a choice made here; argue with it
+#
+# Frame: origin = midpoint of the drive axle, +x forward, +y LEFT, angles CCW from +x (degrees),
+# lengths in millimetres in this file (the generator converts to metres for the sim).
+
+# ======================================================================================
+# Board / pins (ESP32-WROOM-32D on See-Sys CS-ROB-10, DRV8833)
+# ======================================================================================
+pin_motor_right_pwm      13   # MEASURED  "motor A" in Tom's firmware
+pin_motor_right_dir      12   # MEASURED
+pin_motor_left_pwm       25   # MEASURED  "motor B"
+pin_motor_left_dir        4   # MEASURED
+pin_enc_right_a          27   # MEASURED
+pin_enc_right_b          26   # MEASURED
+pin_enc_left_a           32   # MEASURED
+pin_enc_left_b           33   # MEASURED
+enc_right_sign           -1   # MEASURED  raw count goes NEGATIVE when the wheel drives forward -> negate
+enc_left_sign            -1   # MEASURED  same for the left wheel
+# Motor sign: Tom's motors(speed) with speed >= 0 -> DIR LOW, PWM = speed; speed < 0 -> DIR HIGH,
+# PWM = 256 + speed. His wheel PID is direct-acting on RAW counts and stable, and raw counts go negative
+# when driving forward, so a NEGATIVE motors() value drives the wheel forward. Forward command c > 0
+# is therefore sent as motors(-c). The firmware also stops with a SIGN FAULT if a wheel turns the wrong way.
+motor_right_sign         -1   # DERIVED   from Tom's working PID loop + enc sign; verify with CAL DIR
+motor_left_sign          -1   # DERIVED
+pin_i2c_sda              21   # MEASURED
+pin_i2c_scl              22   # MEASURED
+i2c_clock_hz         400000   # ASSUMED   VL53L1X and SH1106 both support 400 kHz fast mode
+oled_addr              0x3C   # MEASURED  SH1106 128x64
+pin_xshut_left            5   # MEASURED
+pin_xshut_front          23   # MEASURED
+pin_xshut_right          18   # MEASURED
+tof_addr_left          0x30   # MEASURED  re-addressed at boot (XSHUT released one at a time)
+tof_addr_front         0x31   # MEASURED
+tof_addr_right         0x32   # MEASURED
+pin_battery_adc          34   # MEASURED  V = adc/4095 * 3.3 * divider
+battery_divider        2.44   # MEASURED  Tom's firmware
+battery_low_v           6.6   # MEASURED  Tom's firmware threshold; runs refuse to start below it
+pin_led_lowbat            2   # MEASURED  driven LOW at boot, HIGH = low battery
+pwm_bits                  8   # MEASURED  analogWrite 0..255; reverse = DIR HIGH, PWM = 256 - duty
+
+# ======================================================================================
+# Geometry (mm)
+# ======================================================================================
+wheel_diameter_mm        45   # MEASURED  with rubber
+wheel_width_mm           20   # MEASURED
+wheel_track_mm          120   # MEASURED  wheel centre to centre (= kinematic track width until calibration c)
+wheel_x_mm                0   # MEASURED  wheels on the axle = origin
+body_front_mm           140   # MEASURED  180 long, axle 40 mm from the rear edge
+body_rear_mm             40   # MEASURED
+body_width_mm           140   # MEASURED  = 120 + 20, wheels sit inside at the outer edges
+caster_x_mm             105   # MEASURED  35 mm behind the front edge, centred
+track_w_effective_mm  124.9   # MEASURED  Nov 14: CAL SPIN 10 -> 9.667 real turns with wscale 0.972 -> 124.9 mm. Before, Nov 4 evening: CAL SPIN 10/20/50 turns after the spin fix (asymmetry 0.0 %,
+                              #           never at the PWM clamp); repeated runs 123.8-124.5 mm, mean ~124.2
+caster_diameter_mm       15   # MEASURED  passive metal ball
+
+# --- ToF mount description (edit these when the angles are re-measured) ----------------
+# The generator turns this description into the three sensor poses (see tools/gen_hardware.py
+# DeriveTofPoses for the math). Sensors sit on 12 mm wide faces:
+#   front: face centre at (tof_front_x, 0), facing 0 deg.
+#   right: face hinged at the front face's right corner (tof_front_x, -face/2), its face running
+#          from that corner toward the rear; facing = -tof_right_yaw. Centre = corner + face/2 along it.
+#   left : mirror of the right one (facing +tof_left_yaw), then moved tof_left_backshift_mm back along
+#          its own facing axis (opposite to where it looks).
+tof_face_width_mm        12   # MEASURED
+tof_front_x_mm          105   # MEASURED  front face 35 mm behind the front edge
+tof_right_yaw_deg        45   # MEASURED  nominal; to be re-measured
+tof_left_yaw_deg         45   # MEASURED  nominal; to be re-measured
+tof_left_backshift_mm     3   # MEASURED
+# Optional explicit override "x_mm y_mm angle_deg" (uncomment to bypass the description above):
+# tof_pose_right   100.76 -10.24 -45
+# tof_pose_front   105.00   0.00   0
+# tof_pose_left     98.64   8.12  45
+
+# ======================================================================================
+# Drive train
+# ======================================================================================
+enc_ticks_per_rev    8291.5   # MEASURED  CAL TICKS 2026-11-04: left 8290, right 8293 (0.04 %)
+wheel_scale_left      0.972   # MEASURED  Nov 14: CAL DRIVE 1.8 m twice -> 1.75 m real, 0.9720 / 0.9721. Before, Nov 4: CAL DRIVE 1 m: encoders 1.0037 m vs real 1.00 m -> 0.9963 would fit; kept 1.0 (0.4 %)
+wheel_scale_right     0.972   # MEASURED  Nov 14: same runs, 0.9720 / 0.9721. Before, Nov 4: CAL DRIVE 1 m: encoders 1.0009 m -> 0.9991 would fit; kept 1.0
+max_speed_mps         0.156   # MEASURED  CAL MAXSPEED PWM 255, wheels up: 0.156 / 0.157 m/s (heavy gearbox)
+pwm_limit               255   # MEASURED  raised on the robot: 120 capped it at ~0.07 m/s
+wheel_pid_period_ms      10   # ASSUMED   firmware wheel task period; the *_50ms gains below are converted to it
+# Wheel PID gains as measured / tuned on the robot, in Tom's units (ticks per 50 ms, one sample = 50 ms).
+# tools/gen_hardware.py converts them to wheel_pid_period_ms (wheel_pid.h ConvertGains, r = period/50):
+# Kp/r, Ki, Kd/r^2, ff_gain/r. At 10 ms: Kp 2.0, Ki 0.001, Kd 1.25, ff_gain 2.785.
+wheel_kp_50ms              0.4   # TUNED  tools/train.py wheel (crash/centre/smooth score of NN+PID+LineFit); was: 0.4
+wheel_ki_50ms            0.001   # TUNED  tools/train.py wheel (crash/centre/smooth score of NN+PID+LineFit); was: 0.001
+wheel_kd_50ms              0.2   # TUNED  tools/train.py wheel (crash/centre/smooth score of NN+PID+LineFit); was: 0.2
+wheel_ff_gain_50ms    0.557   # MEASURED  CAL FF 2026-11-04 (sweeps: 0.546 / 0.549 / 0.557), PWM per tick/50ms
+wheel_ff_static              4   # TUNED  tools/train.py wheel (crash/centre/smooth score of NN+PID+LineFit); was: 4
+
+# --- DC motor model, per wheel (simulator wheel_model pid; fitted by tools/fit_motor.py) ------------
+# Steady wheel surface speed = k * (|pwm| - static_pwm) * (V_battery / motor_nominal_v), signed like pwm,
+# and 0 while |pwm| <= static_pwm (stiction). First-order response with time constant tau.
+motor_k_left        0.000613   # MEASURED   (m/s) per PWM count above static | fit_motor.py --terminal calib_terminal_output_2026-11-04.txt 2026-11-04
+motor_k_right       0.000618   # MEASURED    | fit_motor.py --terminal calib_terminal_output_2026-11-04.txt 2026-11-04
+motor_static_left        3.2   # MEASURED   kinetic offset: once moving, speed = k*(|pwm| - static) | fit_motor.py --terminal calib_terminal_output_2026-11-04.txt 2026-11-04
+motor_static_right       3.8   # MEASURED    | fit_motor.py --terminal calib_terminal_output_2026-11-04.txt 2026-11-04
+motor_breakaway_left     20   # MEASURED   PWM needed to start a wheel FROM REST (stiction); once moving, static applies | fit_motor.py --terminal calib_terminal_output_2026-11-04.txt 2026-11-04
+motor_breakaway_right    20   # MEASURED    | fit_motor.py --terminal calib_terminal_output_2026-11-04.txt 2026-11-04
+motor_tau_left_s       0.0362   # MEASURED   s, motor + gearbox + wheel inertia (open loop) | fit_motor.py --terminal calib_terminal_output_2026-11-04.txt 2026-11-04
+motor_tau_right_s      0.0400   # MEASURED    | fit_motor.py --terminal calib_terminal_output_2026-11-04.txt 2026-11-04
+motor_nominal_v        8.05   # ASSUMED      battery during calibration (calib/cal1.csv, same session: 8.05 V)
+
+# ======================================================================================
+# ToF: VL53L1X (Pololu VL53L1X Arduino library). Datasheet = ST DS12385. Values checked against ST's ULD API
+# (VL53L1X_api, as vendored in SparkFun_VL53L1X_Arduino_Library src/st_src/vl53l1x_class.h) and Pololu's README.
+# ======================================================================================
+tof_distance_mode     short   # ASSUMED    corridors are 30-60 cm; short mode = 1.3 m max, better ambient immunity
+tof_timing_budget_ms     20   # DATASHEET  minimum in short mode (Pololu VL53L1X README; ST ULD allows 15 too)
+tof_period_ms            25   # MEASURED   6 Nov TOF TEST: 23.9 ms per sample at budget 20 / period 25 (35.9 at period 38); 3x faster reactions than the ~72 ms runs
+tof_max_range_mm       1300   # DATASHEET  short mode (ST ULD API: "Short mode max distance is limited to 1.3 m"); beyond = no return
+tof_min_range_mm         40   # DATASHEET  ranging starts at 4 cm; closer readings are unreliable
+tof_fov_diagonal_deg     27   # DATASHEET  full 16x16 SPAD ROI
+tof_bias_right_mm         0   # PLACEHOLDER  reading - true; firmware subtracts it (side sensors re-levelled, not measured)
+tof_bias_front_mm         7   # MEASURED     +7 mm at 200 mm, std 1.7 mm (CAL TOF 2026-11-04, one distance)
+tof_bias_left_mm          0   # PLACEHOLDER
+tof_roi_spads            16   # DATASHEET  16x16 default; min 4x4 (15 deg FoV)
+
+# ======================================================================================
+# Control: the outer controller is triggered by ToF data-ready, not by a clock
+# ======================================================================================
+control_period_ms        25   # DERIVED    the outer controller runs when all three ToF have a fresh sample (= tof_period_ms)
+/*__HW_END__*/`;
+let LINES = [];   // [{raw, key, vals, tag, comment}] in file order, comments kept
+const $ = id => document.getElementById(id);
+
+function parse(text) {
+  LINES = text.replace(/\r/g, '').split('\n').map(raw => {
+    const hash = raw.indexOf('#');
+    const body = hash >= 0 ? raw.slice(0, hash) : raw, comment = hash >= 0 ? raw.slice(hash + 1) : '';
+    const t = body.trim().split(/\s+/).filter(Boolean);
+    if (!t.length) return { raw };
+    const m = comment.match(/^\s*(MEASURED|DATASHEET|DERIVED|PLACEHOLDER|ASSUMED)\s*(.*)$/);
+    return { raw, key: t[0], vals: t.slice(1), tag: m ? m[1] : '', comment: m ? m[2] : comment.trim() };
+  });
+  // Keep the trailing newline structure but drop the empty string after the final \n
+  if (LINES.length && LINES[LINES.length - 1].raw === '' && !LINES[LINES.length - 1].key) LINES.pop();
+  buildForm(); draw();
+}
+function serialize() {
+  return LINES.map(l => {
+    if (!l.key) return l.raw;
+    const body = (l.key.padEnd(22) + ' ' + l.vals.join(' ')).padEnd(30);
+    const c = (l.tag ? l.tag.padEnd(10) + ' ' : '') + (l.comment || '');
+    return c.trim() ? `${body} # ${c}`.replace(/\s+$/, '') : body.trimEnd();
+  }).join('\n') + '\n';
+}
+const H = {};  // key -> line
+function get(k, d) { const l = H[k]; if (!l) return d; const v = parseFloat(l.vals[0]); return Number.isFinite(v) ? v : d; }
+
+function buildForm() {
+  let h = '', section = '';
+  for (const k in H) delete H[k];
+  LINES.forEach((l, i) => {
+    if (!l.key) {
+      const m = l.raw.match(/^#\s*(?:-+\s*)?([A-Z][^=]*?)\s*(?:-+)?\s*$/);
+      if (m && /^# =+$/.test(LINES[i - 1]?.raw || '') ) { section = m[1]; h += `<h3>${section}</h3>`; }
+      return;
+    }
+    H[l.key] = l;
+    const col = l.tag ? `var(--${l.tag})` : '#475569';
+    h += `<div class="r"><span class="k">${l.key}</span><input data-i="${i}" value="${l.vals.join(' ')}">` +
+         `<span class="c">${l.tag ? `<span class="tag" style="background:${col}">${l.tag}</span>` : ''}${l.comment || ''}</span></div>`;
+  });
+  $('form').innerHTML = h;
+  $('form').querySelectorAll('input').forEach(inp => inp.oninput = () => {
+    LINES[+inp.dataset.i].vals = inp.value.trim().split(/\s+/); draw();
+  });
+}
+
+// Same derivation as tools/gen_hardware.py derive_tof_poses (mm, deg; order right, front, left).
+function tofPoses() {
+  const w = get('tof_face_width_mm', 12), fx = get('tof_front_x_mm', 105);
+  const yr = get('tof_right_yaw_deg', 45) * Math.PI / 180, yl = get('tof_left_yaw_deg', 45) * Math.PI / 180;
+  const bs = get('tof_left_backshift_mm', 3);
+  const right = [fx - (w / 2) * Math.sin(yr), -w / 2 - (w / 2) * Math.cos(yr), -yr * 180 / Math.PI];
+  const lx = fx - (w / 2) * Math.sin(yl), ly = w / 2 + (w / 2) * Math.cos(yl);
+  const left = [lx - bs * Math.cos(yl), ly - bs * Math.sin(yl), yl * 180 / Math.PI];
+  const poses = [right, [fx, 0, 0], left];
+  ['right', 'front', 'left'].forEach((n, i) => { const o = H['tof_pose_' + n]; if (o) poses[i] = o.vals.slice(0, 3).map(Number); });
+  return poses;
+}
+function draw() {
+  const F = get('body_front_mm', 140), R = get('body_rear_mm', 40), BW = get('body_width_mm', 140);
+  const WD = get('wheel_diameter_mm', 45), WW = get('wheel_width_mm', 20), TR = get('wheel_track_mm', 120), WX = get('wheel_x_mm', 0);
+  const CX = get('caster_x_mm', 105), CD = get('caster_diameter_mm', 15);
+  const diag = get('tof_fov_diagonal_deg', 27);
+  const half = Math.atan(Math.tan(diag / 2 * Math.PI / 180) / Math.SQRT2);  // horizontal half-angle, as the sim
+  const P = tofPoses();
+  const turnR = Math.max(Math.hypot(F, BW / 2), Math.hypot(R, BW / 2), Math.hypot(Math.abs(WX) + WD / 2, TR / 2 + WW / 2));
+  const reach = 160, cols = ['#ef4444', '#f97316', '#ec4899'];
+  // SVG y points down: draw in a group flipped so +y (robot left) is up.
+  let s = `<defs><pattern id="g" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M10 0H0V10" fill="none" stroke="#1e293b" stroke-width=".4"/></pattern></defs>
+   <rect x="-400" y="-400" width="800" height="800" fill="url(#g)"/><g transform="scale(1,-1)">
+   <circle r="${turnR}" fill="none" stroke="#ef4444" stroke-dasharray="3 3" stroke-width=".8"/>
+   <rect x="${-R}" y="${-BW / 2}" width="${F + R}" height="${BW}" rx="4" fill="#1e293b" stroke="#64748b"/>`;
+  for (const sg of [-1, 1]) s += `<rect x="${WX - WD / 2}" y="${sg * TR / 2 - WW / 2}" width="${WD}" height="${WW}" rx="2" fill="#020617" stroke="#94a3b8"/>`;
+  s += `<line x1="${WX}" y1="${-TR / 2}" x2="${WX}" y2="${TR / 2}" stroke="#475569" stroke-dasharray="2 2"/>
+        <circle cx="${CX}" cy="0" r="${CD / 2}" fill="#334155" stroke="#94a3b8"/><circle r="2.5" fill="#fff"/>`;
+  P.forEach(([x, y, a], i) => {
+    const r = a * Math.PI / 180, a1 = r - half, a2 = r + half;
+    s += `<polygon points="${x},${y} ${x + Math.cos(a1) * reach},${y + Math.sin(a1) * reach} ${x + Math.cos(a2) * reach},${y + Math.sin(a2) * reach}" fill="${cols[i]}" fill-opacity=".12" stroke="${cols[i]}" stroke-opacity=".5" stroke-width=".6"/>`;
+    const fw = get('tof_face_width_mm', 12) / 2, px = -Math.sin(r) * fw, py = Math.cos(r) * fw;
+    s += `<line x1="${x - px}" y1="${y - py}" x2="${x + px}" y2="${y + py}" stroke="${cols[i]}" stroke-width="2.2"/><circle cx="${x}" cy="${y}" r="1.4" fill="#fff"/>`;
+  });
+  s += `</g>`;
+  ['R', 'F', 'L'].forEach((n, i) => s += `<text x="${P[i][0] + 8}" y="${-P[i][1] + (i === 0 ? 10 : i === 2 ? -6 : 3)}" fill="${cols[i]}" font-size="7" font-family="monospace">${n} (${P[i][0].toFixed(1)}, ${P[i][1].toFixed(1)}, ${P[i][2].toFixed(1)}°)</text>`);
+  $('svg').innerHTML = s;
+  const circ = Math.PI * WD / 1000, tpr = get('enc_ticks_per_rev', 1000);
+  $('hud').innerHTML = `turn-in-place radius about the axle <span>${turnR.toFixed(1)} mm</span> (corridor needs > <span>${(2 * turnR).toFixed(0)} mm</span> to spin) · ` +
+    `ToF horizontal FoV <span>${(2 * half * 180 / Math.PI).toFixed(2)}°</span> · wheel circumference <span>${(circ * 1000).toFixed(1)} mm</span>, ` +
+    `<span>${(tpr / circ).toFixed(0)}</span> ticks/m · max speed <span>${get('max_speed_mps', 0.45)}</span> m/s = <span>${(get('max_speed_mps', 0.45) * 0.05 / circ * tpr).toFixed(1)}</span> ticks/50ms`;
+}
+function download(name, text) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([new TextEncoder().encode(text)], { type: 'text/plain' }));  // UTF-8, no BOM
+  a.download = name; document.body.appendChild(a); a.click(); a.remove();
+}
+$('file').onchange = async e => { const f = e.target.files[0]; if (f) parse(await f.text()); };
+$('save').onclick = () => download('robot_hardware.txt', serialize());
+$('simblock').onclick = () => {
+  const P = tofPoses(), m = k => (get(k, 0) / 1000).toFixed(4);
+  const t = [`track_width_m ${m('wheel_track_mm')}`, `wheel_radius_m ${(get('wheel_diameter_mm', 45) / 2000).toFixed(4)}`,
+    `max_linear_speed_mps ${get('max_speed_mps', 0.45)}`, `chassis_front_m ${m('body_front_mm')}`, `chassis_rear_m ${m('body_rear_mm')}`,
+    `chassis_length_m ${((get('body_front_mm', 0) + get('body_rear_mm', 0)) / 1000).toFixed(4)}`, `chassis_width_m ${m('body_width_mm')}`,
+    `wheel_offset_from_center_m ${(-get('wheel_x_mm', 0) / 1000 + 0).toFixed(4)}`, `wheel_length_m ${m('wheel_diameter_mm')}`, `wheel_width_m ${m('wheel_width_mm')}`,
+    `caster_x_m ${m('caster_x_mm')}`, `caster_diameter_m ${m('caster_diameter_mm')}`,
+    ...P.map((p, i) => `sensor_${i}_pose ${(p[0] / 1000).toFixed(5)} ${(p[1] / 1000).toFixed(5)} ${p[2].toFixed(2)}`),
+    `tof_max_range_m ${m('tof_max_range_mm')}`, `tof_min_range_m ${m('tof_min_range_mm')}`, `tof_fov_diagonal_deg ${get('tof_fov_diagonal_deg', 27)}`];
+  download('sim_config_hardware_block.txt', t.join('\n') + '\n');
+};
+parse(EMBEDDED.replace(/^\/\*__HW_BEGIN__\*\/\n?/, '').replace(/\/\*__HW_END__\*\/$/, ''));
+</script></body></html>
