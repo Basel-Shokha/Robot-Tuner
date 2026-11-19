@@ -1,0 +1,17 @@
+name: tests
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      # engine vs the unmodified upstream simulator, and the native golden runs
+      - run: make -C tests test-native
+      # the committed WASM build must reproduce the native golden runs; JS unit tests
+      - run: make -C tests test-wasm
+      # rebuild the WASM from source and test again (catches a stale committed build)
+      - uses: mymindstorm/setup-emsdk@v14
+        with: { version: 4.0.10 }
+      - run: ./sim/build_wasm.sh && make -C tests test-wasm
