@@ -1,6 +1,6 @@
 // draw.js - canvas helpers: a pan/zoom world view (metres, +y up), and drawing of walls, robots, rays, paths.
 export function css(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || '#888'; }
-export const PALETTE = ['#1f6feb', '#e8590c', '#2f9e44', '#ae3ec9', '#f08c00', '#0c8599', '#e03131', '#5c7cfa', '#66a80f', '#d6336c'];
+export const PALETTE = ['#0f6e52', '#d98a00', '#3b6ea8', '#a23b72', '#5f7f1e', '#0b8a9a', '#c8352e', '#6b5bd2', '#8a6d3b', '#2e4a62'];
 
 export class View {
   /** canvas: element; opts: {scale px per metre, cx, cy centre (m), height px or aspect} */

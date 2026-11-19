@@ -16,8 +16,8 @@ let env = loadEnv();
 const view = new View($('#cv'), { aspect: 0.45, minH: 300, maxH: 560 });
 let scene, runner, running = false, drawing = false;
 const plots = {
-  ce: new TimePlot($('#plots'), { title: t('plot.center_err'), series: [{ name: t('plot.center_err_s'), color: '#1f6feb' }], window: 20 }),
-  he: new TimePlot($('#plots'), { title: t('plot.heading_err'), series: [{ name: t('plot.heading_err_s'), color: '#e8590c' }], window: 20 }),
+  ce: new TimePlot($('#plots'), { title: t('plot.center_err'), series: [{ name: t('plot.center_err_s'), color: '#0f6e52' }], window: 20 }),
+  he: new TimePlot($('#plots'), { title: t('plot.heading_err'), series: [{ name: t('plot.heading_err_s'), color: '#d98a00' }], window: 20 }),
 };
 
 function changed(rebuild = true) { saveEnv(env); if (rebuild) restart(); }

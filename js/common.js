@@ -2,39 +2,93 @@
 // offline service worker. Each page calls `await page()` before its own code.
 import { initI18n, t, LANGS, currentLang, setLang, applyI18n } from './i18n.js';
 
-export const PAGES = [
-  { id: 'index', href: 'index.html', key: 'nav.home' },
+// The workflow is a real sequence (each step feeds the next), so it is numbered; the rest is not.
+export const STEPS = [
   { id: 'builder', href: 'builder.html', key: 'nav.builder' },
   { id: 'measure', href: 'measure.html', key: 'nav.measure' },
   { id: 'corridor', href: 'corridor.html', key: 'nav.corridor' },
-  { id: 'playground', href: 'playground.html', key: 'nav.playground' },
   { id: 'train', href: 'train.html', key: 'nav.train' },
-  { id: 'troubleshoot', href: 'troubleshoot.html', key: 'nav.troubleshoot' },
-  { id: 'tutorial', href: 'tutorial.html', key: 'nav.tutorial' },
-  { id: 'maze', href: 'maze.html', key: 'nav.maze' },
+  { id: 'playground', href: 'playground.html', key: 'nav.playground' },
 ];
+export const LEARN = [
+  { id: 'tutorial', href: 'tutorial.html', key: 'nav.tutorial' },
+  { id: 'troubleshoot', href: 'troubleshoot.html', key: 'nav.troubleshoot' },
+];
+export const BEYOND = [{ id: 'maze', href: 'maze.html', key: 'nav.maze' }];
+export const PAGES = [{ id: 'index', href: 'index.html', key: 'nav.home' }, ...STEPS, ...LEARN, ...BEYOND];
+
+const LOGO = '<svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true"><rect x="1" y="2" width="2.5" height="22" rx="1" fill="currentColor"/>'
+  + '<rect x="22.5" y="2" width="2.5" height="22" rx="1" fill="currentColor"/><rect x="8.5" y="7" width="9" height="12" rx="2" fill="#e8a10c"/></svg>';
+
+function visited(id) {
+  try {
+    const v = new Set(JSON.parse(localStorage.getItem('rt.visited') || '[]'));
+    if (id) { v.add(id); localStorage.setItem('rt.visited', JSON.stringify([...v])); }
+    return v;
+  } catch (e) { return new Set(); }
+}
 
 export async function page() {
   await initI18n();
   const id = document.body.dataset.page;
-  const header = document.createElement('header');
-  header.className = 'site-header';
-  header.innerHTML = `
-    <a class="brand" href="index.html"><span class="logo" aria-hidden="true"></span><span>Robot Tuner</span></a>
-    <button class="nav-toggle" aria-expanded="false" aria-controls="site-nav">☰ <span>${t('nav.menu')}</span></button>
-    <nav id="site-nav" class="site-nav">${PAGES.map((p) => `<a href="${p.href}"${p.id === id ? ' aria-current="page"' : ''}>${t(p.key)}</a>`).join('')}</nav>
-    <label class="lang"><span class="sr-only">${t('nav.language')}</span>
-      <select id="lang-select">${LANGS.map((l) => `<option value="${l.code}"${l.code === currentLang() ? ' selected' : ''}>${l.name}</option>`).join('')}</select>
-    </label>`;
-  document.body.prepend(header);
-  header.querySelector('#lang-select').addEventListener('change', (e) => setLang(e.target.value));
-  const tog = header.querySelector('.nav-toggle');
-  tog.addEventListener('click', () => { const o = header.classList.toggle('open'); tog.setAttribute('aria-expanded', o); });
-
+  const seen = visited(id);
+  const main = document.querySelector('main');
+  const app = document.createElement('div');
+  app.className = 'app';
+  const link = (p) => `<a href="${p.href}"${p.id === id ? ' aria-current="page"' : ''}>${t(p.key)}</a>`;
+  app.innerHTML = `
+    <aside class="rail" id="rail" aria-label="${t('nav.menu')}">
+      <a class="brand" href="index.html">${LOGO}<span>Robot Tuner</span></a>
+      <div class="rail-group">
+        <div class="rail-title">${t('nav.group_steps')}</div>
+        <ol class="track">${STEPS.map((p, i) => `<li class="${p.id === id ? 'current' : seen.has(p.id) ? 'visited' : ''}"><a href="${p.href}"${p.id === id ? ' aria-current="page"' : ''}><span class="stop"><span>${i + 1}</span></span>${t(p.key)}</a></li>`).join('')}</ol>
+      </div>
+      <div class="rail-group"><div class="rail-title">${t('nav.group_learn')}</div><nav class="rail-links">${LEARN.map(link).join('')}</nav></div>
+      <div class="rail-group"><div class="rail-title">${t('nav.group_beyond')}</div><nav class="rail-links">${BEYOND.map(link).join('')}</nav></div>
+      <div class="rail-foot">
+        <label><span class="sr-only">${t('nav.language')}</span>
+          <select id="lang-select">${LANGS.map((l) => `<option value="${l.code}"${l.code === currentLang() ? ' selected' : ''}>${l.name}</option>`).join('')}</select></label>
+        <span>${t('footer.offline')}</span>
+      </div>
+    </aside>
+    <div class="page">
+      <div class="topbar"><button class="small" id="nav-toggle" aria-controls="rail" aria-expanded="false">${t('nav.menu')}</button>
+        <a class="brand" href="index.html">${LOGO}<span>Robot Tuner</span></a></div>
+    </div>`;
+  main.replaceWith(app);
+  const pageEl = app.querySelector('.page');
+  pageEl.append(main);
   const footer = document.createElement('footer');
   footer.className = 'site-footer';
-  footer.innerHTML = `<p>${t('footer.scope')}</p><p class="muted">${t('footer.offline')} · <a href="https://github.com/Basel-Shokha/Robot-Tuner">GitHub</a></p>`;
-  document.body.append(footer);
+  footer.innerHTML = `<p>${t('footer.scope')}</p><p><a href="https://github.com/Basel-Shokha/Robot-Tuner">GitHub</a></p>`;
+  pageEl.append(footer);
+
+  // step pages: "Step n of 5" above the title, and the way on at the bottom
+  const si = STEPS.findIndex((p) => p.id === id);
+  const h1 = main.querySelector('h1');
+  if (si >= 0 && h1) {
+    const line = document.createElement('div');
+    line.className = 'stepline';
+    line.innerHTML = `<b>${t('page.step', { n: si + 1, total: STEPS.length })}</b>`;
+    const head = document.createElement('div');
+    head.className = 'page-head';
+    h1.before(head);
+    head.append(line, h1);
+    const intro = head.nextElementSibling;
+    if (intro && intro.tagName === 'P') head.append(intro);
+    if (si + 1 < STEPS.length) {
+      const nx = STEPS[si + 1];
+      const box = document.createElement('div');
+      box.className = 'next-step';
+      box.innerHTML = `<a class="btn primary" href="${nx.href}">${t('page.next', { name: t(nx.key) })}</a>`;
+      main.append(box);
+    }
+  }
+
+  app.querySelector('#lang-select').addEventListener('change', (e) => setLang(e.target.value));
+  const tog = app.querySelector('#nav-toggle');
+  tog.addEventListener('click', () => { const o = app.classList.toggle('nav-open'); tog.setAttribute('aria-expanded', o); });
+  main.addEventListener('click', () => { app.classList.remove('nav-open'); tog.setAttribute('aria-expanded', 'false'); });
 
   if ('serviceWorker' in navigator && location.protocol !== 'file:') {
     navigator.serviceWorker.register('sw.js').catch(() => { /* offline cache is optional */ });
