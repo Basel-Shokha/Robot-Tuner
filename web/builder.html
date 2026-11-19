@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title data-i18n="nav.builder">Robot builder</title>
+<link rel="stylesheet" href="css/style.css"><link rel="icon" href="img/icon.svg">
+</head>
+<body data-page="builder">
+<main>
+  <h1 data-i18n="builder.h1"></h1>
+  <p class="muted" data-i18n="builder.intro"></p>
+  <div class="tool wide-side">
+    <div class="side">
+      <div class="card">
+        <div class="row"><label for="robot-name" data-i18n="builder.name"></label><input id="robot-name" style="flex:1"></div>
+        <div class="row" style="margin-top:8px"><span data-i18n="builder.drive"></span>
+          <select id="drive"><option value="2wd" data-i18n="builder.drive_2wd"></option><option value="4wd" data-i18n="builder.drive_4wd"></option></select>
+        </div>
+      </div>
+      <div class="tabs" role="tablist">
+        <button role="tab" data-tab="geom" aria-selected="true" data-i18n="builder.tab_geom"></button>
+        <button role="tab" data-tab="sensors" data-i18n="builder.tab_sensors"></button>
+        <button role="tab" data-tab="motor" data-i18n="builder.tab_motor"></button>
+        <button role="tab" data-tab="file" data-i18n="builder.tab_file"></button>
+      </div>
+      <div data-panel="geom" class="stack"></div>
+      <div data-panel="sensors" class="stack" hidden></div>
+      <div data-panel="motor" class="stack" hidden></div>
+      <div data-panel="file" class="stack" hidden>
+        <div class="card stack">
+          <h3 data-i18n="builder.file_h"></h3>
+          <p class="muted" data-i18n="builder.file_p"></p>
+          <div class="row"><button class="primary" id="exp-json" data-i18n="builder.export_json"></button><button id="imp-json" data-i18n="builder.import_json"></button></div>
+          <div class="row"><button id="exp-hw" data-i18n="builder.export_hw"></button><button id="imp-hw" data-i18n="builder.import_hw"></button></div>
+          <p class="muted" data-i18n="builder.hw_p"></p>
+        </div>
+        <div class="card stack">
+          <h3 data-i18n="builder.start_h"></h3>
+          <div class="row"><button id="new-2wd" data-i18n="builder.new_2wd"></button><button id="new-4wd" data-i18n="builder.new_4wd"></button><button id="reset-example" data-i18n="builder.reset_example"></button></div>
+        </div>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="canvas-wrap"><canvas id="cv"></canvas><div class="overlay" data-i18n="builder.canvas_hint"></div></div>
+      <div id="checks" class="card"></div>
+      <details class="card"><summary data-i18n="builder.json_preview"></summary><pre id="json"></pre></details>
+    </div>
+  </div>
+</main>
+<script type="module" src="js/builder.js"></script>
+</body>
+</html>
