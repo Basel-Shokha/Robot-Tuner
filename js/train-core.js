@@ -19,10 +19,31 @@ export const TRAIN_ERRORS = {
 export function defaultTrainSettings() { return { mode: 'width', width_mm: 200, spread_pct: 15, angle_deg: 30 }; }
 
 /** The environment the trainer uses (always straight corridors). */
-export function trainEnv(settings, env) {
+/** Widest part of the robot (body or wheels), mm. */
+export function robotWidthMm(robot) {
+  return Math.max(robot.body.width_mm, robot.wheels.track_mm + robot.wheels.width_mm);
+}
+
+export function trainEnv(settings, env, robot = null) {
   const base = mergeEnv(env);
   base.mode = 'endless';
-  if (settings.mode === 'width') { base.width_mm = settings.width_mm; base.errors = JSON.parse(JSON.stringify(TRAIN_ERRORS)); }
+  if (settings.mode === 'width') {
+    base.width_mm = settings.width_mm;
+    base.errors = JSON.parse(JSON.stringify(TRAIN_ERRORS));
+    // The wall errors must never close the corridor in on the robot: in the narrowest corridor of the set, each kind
+    // of error may use only a share of the room between robot and wall (worst case all together ~85 % of it).
+    if (robot) {
+      const narrow = settings.width_mm * (1 - settings.spread_pct / 100);
+      const room = Math.max(0, (narrow - robotWidthMm(robot)) / 2);
+      const e = base.errors;
+      e.jitter.mm = Math.min(e.jitter.mm, 0.2 * room);  // jitter mm is about +-2 sigma, i.e. +-mm/2
+      e.tilt.max_mm = Math.min(20, 0.25 * room);
+      e.bumps.mm = Math.min(e.bumps.mm, 0.2 * room);
+      e.steps.mm = Math.min(e.steps.mm, 0.15 * room);  // a wall can step twice in the same direction
+      for (const k of ['jitter', 'bumps', 'steps']) if (e[k].mm < 0.5) e[k].on = false;
+      base.room_mm = room;
+    }
+  }
   base.start = { angle_deg: settings.angle_deg, offset_mm: 0, random: true };
   base.spread_pct = settings.spread_pct;
   return base;
@@ -48,6 +69,8 @@ export function episodeConfig(robot, env, cand, noise = 1) {
   const speed = robot.motor.max_speed_mps * cand.speed;
   return {
     ...c, kp: cand.kp, ki: cand.ki, kd: cand.kd, base_speed_frac: cand.speed,
+    // the per-episode wall jiggle (upstream domain randomisation) must also fit the room between robot and wall
+    wall_noise_std_m: env.room_mm !== undefined ? Math.min(c.wall_noise_std_m, 0.15 * env.room_mm / 1000) : c.wall_noise_std_m,
     max_episode_s: Math.min(240, 3 * TRACK_LEN / Math.max(0.02, speed) + 5),
     spawn_heading_random_deg: Math.max(5, Math.abs(env.start.angle_deg)), spawn_lateral_random_frac: 0.5, spawn_margin_m: 0.01,
     parallel_weight: 4, center_weight: 10, heading_sigma_deg: 12, center_sigma_frac: 0.3, crash_penalty: 200,

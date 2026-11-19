@@ -2,7 +2,7 @@
 import { page, $, el, t, download, toast } from './common.js';
 import { loadRobot, saveRobot } from './store.js';
 import { loadEnv } from './corridor.js';
-import { grid, mutate, rngJS, trainEnv, trackSet, defaultTrainSettings } from './train-core.js';
+import { grid, mutate, rngJS, trainEnv, trackSet, defaultTrainSettings, robotWidthMm } from './train-core.js';
 import { TimePlot } from './plot.js';
 import { cFunction, configH, modelTxt } from './export.js';
 import { fmt } from './i18n.js';
@@ -10,12 +10,15 @@ import { fmt } from './i18n.js';
 await page();
 const robot = loadRobot(), pageEnv = loadEnv();
 let TS; try { TS = { ...defaultTrainSettings(), ...JSON.parse(localStorage.getItem('rt.train') || '{}') }; } catch (e) { TS = defaultTrainSettings(); }
-let env = trainEnv(TS, pageEnv);
+let env = trainEnv(TS, pageEnv, robot);
 function setupText() {
-  env = trainEnv(TS, pageEnv);
+  env = trainEnv(TS, pageEnv, robot);
   const ws = trackSet(env).map((x) => x.width), lo = Math.min(...ws), hi = Math.max(...ws);
   $('#setup').textContent = t(TS.mode === 'width' ? 'tr.setup_width' : 'tr.setup_mine', { name: robot.name, lo, hi, a: TS.angle_deg, n: env.noise.global });
   $('#width-box').hidden = TS.mode !== 'width';
+  const tight = TS.mode === 'width' && env.room_mm < 10;
+  $('#setup').classList.toggle('notice', tight); $('#setup').classList.toggle('warn', tight);
+  if (tight) $('#setup').textContent += ' ' + t('tr.too_narrow', { w: robotWidthMm(robot), room: env.room_mm.toFixed(0) });
   try { localStorage.setItem('rt.train', JSON.stringify(TS)); } catch (e) { /* ignore */ }
 }
 document.querySelectorAll('input[name="tset"]').forEach((r) => { r.checked = r.value === TS.mode; r.addEventListener('change', () => { TS.mode = r.value; setupText(); }); });
