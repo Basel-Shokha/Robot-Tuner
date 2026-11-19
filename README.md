@@ -47,10 +47,18 @@ Open it at the GitHub Pages address of this repository, or locally (see below).
 the reading age (delay) is how old the distance is when the robot uses it. You don't choose these — you measure
 them. What you choose is the **speed**.
 
-## Running it locally
+## Running it on your own computer
 
-Any static web server works, e.g. `python3 -m http.server -d web 8000`, then open <http://localhost:8000>.
-(Opening the HTML file directly from disk does not work: browsers block WebAssembly and workers on `file://`.)
+Download the repository (Code → Download ZIP), unzip it, then:
+
+- **Windows:** double-click `tune.bat`
+- **macOS:** double-click `tune.command` (first time: right-click → Open)
+- **Linux / anyone with make:** `make tune` (or `./tune.sh`)
+
+It starts a small local web server and opens Robot Tuner in Chrome. Close the window (or press Ctrl+C) to stop.
+You need Python 3 (preinstalled on macOS and Linux; on Windows get it from python.org and tick "Add python.exe to
+PATH"). Use Chrome or Edge for the USB measurement page. Opening `web/index.html` directly does not work: browsers
+block WebAssembly and workers on `file://`.
 
 ## Languages
 
