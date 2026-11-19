@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title data-i18n="nav.train">Train PID</title>
+<link rel="stylesheet" href="css/style.css"><link rel="icon" href="img/icon.svg">
+</head>
+<body data-page="train">
+<main>
+  <h1 data-i18n="tr.h1"></h1>
+  <p class="muted" data-i18n="tr.intro"></p>
+  <div class="tool wide-side">
+    <div class="side">
+      <div class="card stack">
+        <h3 data-i18n="tr.setup_h"></h3>
+        <p class="muted" id="setup"></p>
+        <label class="toggle"><input type="checkbox" id="train-speed" checked><span data-i18n="tr.train_speed"></span></label>
+        <label class="field"><span data-i18n="tr.effort"></span><select id="effort"><option value="quick" data-i18n="tr.quick"></option><option value="normal" selected data-i18n="tr.normal"></option><option value="thorough" data-i18n="tr.thorough"></option></select></label>
+        <div class="row"><button class="primary" id="start" data-i18n="tr.start"></button><button id="stop" disabled data-i18n="tr.stop"></button></div>
+        <div class="progress"><div id="bar"></div></div>
+        <p id="status" class="muted"></p>
+      </div>
+      <div class="card stack" id="best-card" hidden>
+        <h3 data-i18n="tr.best_h"></h3>
+        <table id="best"></table>
+        <div class="row"><button class="primary" id="use" data-i18n="tr.use"></button><a class="btn" href="playground.html" data-i18n="tr.try_pg"></a></div>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="plots" id="plots"></div>
+      <div class="card" id="report" hidden><h3 data-i18n="tr.report_h"></h3><p class="muted" data-i18n="tr.report_p"></p><table id="rep"></table></div>
+      <div class="card stack" id="export" hidden>
+        <h3 data-i18n="tr.export_h"></h3>
+        <div class="row"><button id="dl-c" data-i18n="tr.dl_c"></button><button id="dl-cfg" data-i18n="tr.dl_cfg"></button><button id="dl-model" data-i18n="tr.dl_model"></button></div>
+        <pre id="code"></pre>
+      </div>
+    </div>
+  </div>
+</main>
+<script type="module" src="js/train.js"></script>
+</body>
+</html>
