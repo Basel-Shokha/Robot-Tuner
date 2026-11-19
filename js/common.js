@@ -57,17 +57,21 @@ export function el(tag, attrs = {}, ...kids) {
   return e;
 }
 
-/** A labelled range slider with a number box. opts: {key (i18n label), min, max, step, value, unit, onInput, hint} */
+/** A labelled range slider with a number box.
+ * opts: {key (i18n label) | label, min, max, step, value, unit, onInput, hint, log (logarithmic, 0 at the far left)} */
 export function slider(opts) {
   const id = 'sl-' + Math.random().toString(36).slice(2, 8);
   const wrap = el('div', { class: 'slider' });
   const lab = el('label', { for: id }, el('span', { text: opts.label || t(opts.key) }));
   if (opts.unit) lab.append(el('span', { class: 'unit', text: ' (' + opts.unit + ')' }));
-  const range = el('input', { type: 'range', id, min: opts.min, max: opts.max, step: opts.step, value: opts.value });
-  const num = el('input', { type: 'number', min: opts.min, max: opts.max, step: opts.step, value: opts.value, 'aria-label': opts.label || t(opts.key) });
-  const set = (v, fire = true) => { range.value = v; num.value = v; if (fire && opts.onInput) opts.onInput(+v); };
-  range.addEventListener('input', () => set(range.value));
-  num.addEventListener('change', () => set(num.value));
+  const lo = opts.log ? Math.max(opts.min, opts.max * 1e-4) : opts.min;
+  const toPos = (v) => (opts.log ? (v <= lo * 1.0001 ? 0 : Math.round(Math.log(v / lo) / Math.log(opts.max / lo) * 1000)) : v);
+  const fromPos = (p) => (opts.log ? (+p === 0 ? 0 : +(lo * Math.pow(opts.max / lo, p / 1000)).toPrecision(3)) : +p);
+  const range = el('input', { type: 'range', id, min: opts.log ? 0 : opts.min, max: opts.log ? 1000 : opts.max, step: opts.log ? 1 : opts.step, value: toPos(opts.value) });
+  const num = el('input', { type: 'number', min: opts.min, step: opts.step || 'any', value: opts.value, 'aria-label': opts.label || t(opts.key) });
+  const set = (v, fire = true) => { range.value = toPos(v); num.value = v; if (fire && opts.onInput) opts.onInput(+v); };
+  range.addEventListener('input', () => set(fromPos(range.value)));
+  num.addEventListener('change', () => { const v = parseFloat(num.value); if (Number.isFinite(v)) set(v); });
   wrap.append(lab, el('div', { class: 'slider-row' }, range, num));
   if (opts.hint) wrap.append(el('small', { class: 'muted', text: opts.hint }));
   wrap.set = set;

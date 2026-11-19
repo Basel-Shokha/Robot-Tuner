@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title data-i18n="nav.corridor">Corridor</title>
+<link rel="stylesheet" href="css/style.css"><link rel="icon" href="img/icon.svg">
+</head>
+<body data-page="corridor">
+<main>
+  <h1 data-i18n="corr.h1"></h1>
+  <p class="muted" data-i18n="corr.intro"></p>
+  <div class="tool wide-side">
+    <div class="side" id="side">
+      <div class="tabs" role="tablist">
+        <button role="tab" data-mode="endless" data-i18n="corr.mode_endless"></button>
+        <button role="tab" data-mode="track" data-i18n="corr.mode_track"></button>
+      </div>
+      <div id="env-endless" class="card stack"></div>
+      <div id="env-track" class="card stack"></div>
+      <div id="env-errors" class="card stack"></div>
+      <div id="env-start" class="card stack"></div>
+      <div id="env-noise" class="card stack"></div>
+    </div>
+    <div class="stack">
+      <div class="row">
+        <button class="primary" id="run" data-i18n="sim.run"></button>
+        <button id="reset" data-i18n="sim.reset"></button>
+        <label class="row"><span data-i18n="sim.speed"></span>
+          <select id="rate"><option value="0.25">0.25×</option><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="4">4×</option><option value="16">16×</option></select></label>
+        <span class="spacer"></span>
+        <a class="btn" href="playground.html" data-i18n="corr.to_playground"></a>
+      </div>
+      <div class="canvas-wrap"><canvas id="cv"></canvas><div class="overlay" id="ov"></div></div>
+      <div id="draw-help" class="notice" hidden data-i18n="corr.draw_help"></div>
+      <div class="plots" id="plots"></div>
+    </div>
+  </div>
+</main>
+<script type="module" src="js/corridor-page.js"></script>
+</body>
+</html>
