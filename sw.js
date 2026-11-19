@@ -6,7 +6,7 @@ const CORE = [
   'tutorial.html', 'maze.html', 'css/style.css', 'img/icon.svg', 'i18n/en.json', 'i18n/he.json', 'i18n/ar.json',
   'wasm/rt_sim.mjs', 'wasm/rt_sim.wasm', 'js/i18n.js', 'js/common.js', 'js/store.js', 'js/engine.js', 'js/draw.js', 'js/plot.js',
   'js/corridor.js', 'js/simview.js', 'js/presets.js', 'js/train-core.js', 'js/train-worker.js', 'js/export.js', 'js/serial.js',
-  'js/measure-steps.js', 'js/builder.js', 'js/maze/maze.js', 'js/maze/algorithms.js', 'js/maze/mazekit.js', 'js/tutorial-demos.js',
+  'js/measure-steps.js', 'js/builder.js', 'js/maze/maze.js', 'js/maze/algorithms.js', 'js/maze/mazekit.js', 'js/maze/maze-page.js', 'js/tutorial-demos.js', 'js/corridor-page.js', 'js/playground.js', 'js/train.js', 'js/measure.js',
   'firmware/robot_tuner_min.ino',
 ];
 self.addEventListener('install', (e) => {
