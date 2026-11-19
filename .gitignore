@@ -2,3 +2,4 @@ build/
 node_modules/
 *.o
 tests/native/bin/
+tests/native/bin/
