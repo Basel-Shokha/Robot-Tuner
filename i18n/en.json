@@ -485,13 +485,12 @@
  "tut.error": "error",
  "mz.h1": "Maze runner sandbox",
  "mz.intro": "Test how robust maze-solving algorithms are on YOUR robot, with the same sensor, encoder and motor models as the corridor. Mazes are built wall by wall with small placement errors that add up, like a real hand-built maze. Left: the real maze. Right: what the robot believes (its own map from its sensors and encoders).",
- "mz.edit": "Edit walls (click an edge)",
+ "mz.edit": "Edit walls (click a wall line, or a square in a block maze)",
  "mz.real_h": "Real maze",
  "mz.belief_h": "Robot's map (what it believes)",
  "mz.maze_h": "Maze",
  "mz.kind": "Kind",
- "mz.thick": "Thick walls (grid, walls have width)",
- "mz.thin": "Thin walls (line segments)",
+ "mz.thin": "Thin walls (walls on the lines between cells)",
  "mz.cols": "Columns",
  "mz.rows": "Rows",
  "mz.cell": "Cell size",
@@ -592,5 +591,9 @@
  "tr.angle": "Start rotated up to ± (°)",
  "tr.setup_width": "Robot {name} in 6 straight corridors from {lo} to {hi} mm wide, with typical wall errors (uneven and tilted boards, bumps, gaps, width steps), starting rotated up to ±{a}° and off-centre, noise ×{n}.",
  "tr.setup_mine": "Robot {name} in 6 straight corridors from {lo} to {hi} mm wide with the wall errors from the Corridor page, starting rotated up to ±{a}° and off-centre, noise ×{n}.",
- "tr.too_narrow": "Careful: your robot is {w} mm wide, so in the narrowest corridor it has only {room} mm on each side. Crashes there are about room, not gains: use a wider corridor or a smaller width variation."
+ "tr.too_narrow": "Careful: your robot is {w} mm wide, so in the narrowest corridor it has only {room} mm on each side. Crashes there are about room, not gains: use a wider corridor or a smaller width variation.",
+ "mz.blocks": "Thick walls (solid blocks on a grid)",
+ "mz.block": "Block size",
+ "mz.block_hint": "Each square of the grid is a free square or a solid block. Free squares must be at least {n} mm for your robot to turn around.",
+ "mz.wall_hint": "0 = a line with no thickness; more = boards of that thickness."
 }

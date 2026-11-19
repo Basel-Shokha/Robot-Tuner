@@ -1,6 +1,6 @@
 // sw.js - offline cache. Every file of the site is cached on first visit; afterwards the site works offline.
 // Network first for pages and code (so updates arrive), cache first otherwise. Bump VERSION on release.
-const VERSION = 'rt-v11';
+const VERSION = 'rt-v12';
 const CORE = [
   './', 'index.html', 'builder.html', 'measure.html', 'corridor.html', 'playground.html', 'train.html', 'troubleshoot.html',
   'tutorial.html', 'maze.html', 'css/style.css', 'img/icon.svg', 'i18n/en.json', 'i18n/he.json', 'i18n/ar.json',

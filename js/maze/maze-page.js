@@ -3,7 +3,7 @@ import { page, $, el, t, slider, toggle, toast } from '../common.js';
 import { loadRobot, robotToConfig } from '../store.js';
 import { loadEngine, S } from '../engine.js';
 import { View, css, PALETTE } from '../draw.js';
-import { defaultMazeSettings, generateGrid, emptyGrid, construct, goalCells, cellCenter, cellOf, minCellMm } from './maze.js';
+import { defaultMazeSettings, generateGrid, emptyGrid, construct, constructBlocks, blockIsWall, goalCells, cellCenter, cellOf, minCellMm } from './maze.js';
 import { ALGORITHMS, CUSTOM_TEMPLATE } from './algorithms.js';
 import * as kit from './mazekit.js';
 import { fmt } from '../i18n.js';
@@ -14,7 +14,10 @@ const robot = loadRobot();
 let st;
 try { st = { ...defaultMazeSettings(), ...JSON.parse(localStorage.getItem('rt.maze') || '{}') }; } catch (e) { st = defaultMazeSettings(); }
 const minCell = minCellMm(robot);
+if (st.kind === 'thick') st.kind = 'thin';  // old setting name
+if (st.kind !== 'blocks' && st.kind !== 'thin') st.kind = 'thin';
 if (st.cell_mm < minCell) st.cell_mm = minCell + 40;
+if (!(st.block_mm >= minCell)) st.block_mm = minCell + 40;
 let algoId = localStorage.getItem('rt.maze.algo') || 'flood_fill';
 let customCode = localStorage.getItem('rt.maze.code') || CUSTOM_TEMPLATE;
 let noise = 0.5;
@@ -23,7 +26,7 @@ const vReal = new View($('#cv-real'), { aspect: 1, minH: 300, maxH: 600 }), vMap
 const saveSt = () => { try { localStorage.setItem('rt.maze', JSON.stringify(st)); } catch (e) { /* ignore */ } };
 
 function newGrid() { grid = generateGrid(st.rows, st.cols, st.seed, st.braid); rebuild(); }
-function rebuild() { built = construct(grid, st); goal = goalCells(grid, st.goal); saveSt(); reset(); }
+function rebuild() { built = st.kind === 'blocks' ? constructBlocks(grid, st) : construct(grid, st); goal = goalCells(grid, st.goal); saveSt(); reset(); }
 
 function algoFactory() {
   if (algoId !== 'custom') return ALGORITHMS[algoId];
@@ -133,6 +136,12 @@ $('#reset').addEventListener('click', reset);
 vReal.onPointerDown = (e) => {
   if (!$('#edit').checked) return false;
   const [x, y] = vReal.eventWorld(e), c = built.cell;
+  if (st.kind === 'blocks') {  // click a square: a wall block appears / disappears (posts stay, free cells stay free)
+    const b = built.blockSize, j = Math.round(x / b), i = Math.round(y / b);
+    if (i % 2 === 0 && j % 2 === 1 && i > 0 && i < 2 * grid.rows && j < 2 * grid.cols) grid.H[i / 2][(j - 1) / 2] ^= 1;
+    else if (i % 2 === 1 && j % 2 === 0 && j > 0 && j < 2 * grid.cols && i < 2 * grid.rows) grid.V[(i - 1) / 2][j / 2] ^= 1;
+    rebuild(); return true;
+  }
   const fx = x / c, fy = y / c, rx = Math.round(fx), ry = Math.round(fy);
   if (Math.abs(fy - ry) < Math.abs(fx - rx)) { const col = Math.floor(fx); if (ry > 0 && ry < grid.rows && col >= 0 && col < grid.cols) grid.H[ry][col] ^= 1; }
   else { const row = Math.floor(fy); if (rx > 0 && rx < grid.cols && row >= 0 && row < grid.rows) grid.V[row][rx] ^= 1; }
@@ -142,15 +151,17 @@ vReal.onPointerDown = (e) => {
 // ---- settings ----------------------------------------------------------------------------------
 function buildSide() {
   const M = $('#maze-set'); M.innerHTML = '';
-  const kind = el('select', {}, el('option', { value: 'thick', text: t('mz.thick') }), el('option', { value: 'thin', text: t('mz.thin') })); kind.value = st.kind;
+  const kind = el('select', {}, el('option', { value: 'thin', text: t('mz.thin') }), el('option', { value: 'blocks', text: t('mz.blocks') })); kind.value = st.kind;
   kind.addEventListener('change', () => { st.kind = kind.value; rebuild(); buildSide(); });
   const gl = el('select', {}, el('option', { value: 'corner', text: t('mz.goal_corner') }), el('option', { value: 'center', text: t('mz.goal_center') })); gl.value = st.goal;
   gl.addEventListener('change', () => { st.goal = gl.value; rebuild(); });
   M.append(el('h3', { text: t('mz.maze_h') }), el('label', { class: 'field' }, el('span', { text: t('mz.kind') }), kind),
     slider({ key: 'mz.cols', min: 2, max: 16, step: 1, value: st.cols, onInput: (v) => { st.cols = v; newGrid(); } }),
     slider({ key: 'mz.rows', min: 2, max: 16, step: 1, value: st.rows, onInput: (v) => { st.rows = v; newGrid(); } }),
-    slider({ key: 'mz.cell', unit: 'mm', min: Math.min(120, minCell), max: 600, step: 10, value: st.cell_mm, onInput: (v) => { st.cell_mm = v; rebuild(); }, hint: t('mz.cell_hint', { n: minCell }) }));
-  if (st.kind === 'thick') M.append(slider({ key: 'mz.wall', unit: 'mm', min: 2, max: 40, step: 1, value: st.wall_mm, onInput: (v) => { st.wall_mm = v; rebuild(); } }));
+    st.kind === 'blocks'
+      ? slider({ key: 'mz.block', unit: 'mm', min: Math.min(120, minCell), max: 600, step: 10, value: st.block_mm, onInput: (v) => { st.block_mm = v; rebuild(); }, hint: t('mz.block_hint', { n: minCell }) })
+      : slider({ key: 'mz.cell', unit: 'mm', min: Math.min(120, minCell), max: 600, step: 10, value: st.cell_mm, onInput: (v) => { st.cell_mm = v; rebuild(); }, hint: t('mz.cell_hint', { n: minCell }) }));
+  if (st.kind === 'thin') M.append(slider({ key: 'mz.wall', unit: 'mm', min: 0, max: 40, step: 1, value: st.wall_mm, onInput: (v) => { st.wall_mm = v; rebuild(); }, hint: t('mz.wall_hint') }));
   M.append(slider({ key: 'mz.braid', unit: '', min: 0, max: 0.5, step: 0.05, value: st.braid, onInput: (v) => { st.braid = v; newGrid(); }, hint: t('mz.braid_hint') }),
     el('label', { class: 'field' }, el('span', { text: t('mz.goal') }), gl),
     el('fieldset', {}, el('legend', { text: t('mz.build_err_h') }),
@@ -179,7 +190,7 @@ async function batch(n) {
   const rows = [];
   for (let i = 0; i < n; i++) {
     const seed = st.seed + i + 1;
-    const g = generateGrid(st.rows, st.cols, seed, st.braid), b = construct(g, { ...st, seed }), gl = goalCells(g, st.goal);
+    const g = generateGrid(st.rows, st.cols, seed, st.braid), b = (st.kind === 'blocks' ? constructBlocks : construct)(g, { ...st, seed }), gl = goalCells(g, st.goal);
     const R = makeRun(g, b, gl); R.goal = gl;
     while (!R.found && !R.crashed && !R.err && R.t < MAX_T && !R.stopped) { stepRun(R, 400); box.innerHTML = `<p>${t('mz.batch_prog', { i: i + 1, n })}</p>`; await new Promise((r) => setTimeout(r, 0)); }
     const me = mapError(R, g);

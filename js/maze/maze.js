@@ -13,7 +13,7 @@
 import { rng, gauss } from '../corridor.js';
 
 export function defaultMazeSettings() {
-  return { kind: 'thick', cols: 6, rows: 6, cell_mm: 300, wall_mm: 12, err_pos_mm: 1.0, err_angle_deg: 0.3, seed: 1, goal: 'corner', braid: 0 };
+  return { kind: 'thin', cols: 6, rows: 6, cell_mm: 300, wall_mm: 12, block_mm: 360, err_pos_mm: 1.0, err_angle_deg: 0.3, seed: 1, goal: 'corner', braid: 0 };
 }
 
 /** perfect maze by recursive backtracker (iterative), then `braid` fraction of extra openings (loops) */
@@ -96,7 +96,7 @@ export function construct(g, s) {
   for (let y = 0; y <= g.rows; y++) for (let x = 0; x <= g.cols; x++) if (!P[y][x]) P[y][x] = nearestPlaced(P, [y, x], cell, r, ep);
   // wall geometry
   const walls = [];
-  const T = s.kind === 'thick' ? s.wall_mm / 1000 : 0;
+  const T = Math.max(0, s.wall_mm || 0) / 1000;  // thin walls: a line (0) or a board of this thickness
   for (const w of built) {
     if (T <= 0) { walls.push(w.a[0], w.a[1], w.b[0], w.b[1]); continue; }
     const dx = w.b[0] - w.a[0], dy = w.b[1] - w.a[1], L = Math.hypot(dx, dy), ux = dx / L, uy = dy / L, nx = -uy * T / 2, ny = ux * T / 2;
@@ -121,6 +121,59 @@ export function goalCells(g, mode) {
   }
   return [[g.rows - 1, g.cols - 1]];
 }
+/** Block maze ("thick walls"): the maze is a grid of squares of block_mm; a square is either free or a solid
+ *  block (4 wall segments). Logical cell (r, c) is the free square at block (2r+1, 2c+1); the blocks between free
+ *  squares are the walls (H / V) and the even-even squares are always blocks. So for the robot it is the same as a
+ *  wall maze with cell = 2 blocks and wall thickness = 1 block, and every algorithm works unchanged.
+ *  Built block by block: each block is placed relative to an already-placed neighbour with a small position and
+ *  angle error, so errors accumulate across the maze. */
+export function blockIsWall(g, i, j) {
+  if (i % 2 === 0 && j % 2 === 0) return true;
+  if (i % 2 === 0) return !!g.H[i / 2][(j - 1) / 2];
+  if (j % 2 === 0) return !!g.V[(i - 1) / 2][j / 2];
+  return false;
+}
+export function constructBlocks(g, s) {
+  // a block is half a wall long, so it gets half the error per placement (the maze stays as straight as a wall maze)
+  const b = s.block_mm / 1000, ep = 0.5 * s.err_pos_mm / 1000, ea = 0.5 * s.err_angle_deg * Math.PI / 180, r = rng(s.seed * 31 + 11);
+  const NI = 2 * g.rows + 1, NJ = 2 * g.cols + 1;
+  const pos = Array.from({ length: NI }, () => new Array(NJ).fill(null));
+  const order = [];
+  const q = [[0, 0]];
+  pos[0][0] = { x: 0, y: 0, a: 0 };
+  const place = (i, j, from) => {
+    const p = pos[from[0]][from[1]], dx = (j - from[1]) * b, dy = (i - from[0]) * b;
+    const c = Math.cos(p.a), sn = Math.sin(p.a), L = 1 + gauss(r) * ep / b;
+    pos[i][j] = { x: p.x + (c * dx - sn * dy) * L + gauss(r) * ep / 3, y: p.y + (sn * dx + c * dy) * L + gauss(r) * ep / 3, a: p.a + gauss(r) * ea };
+    q.push([i, j]);
+  };
+  const lay = () => {
+    while (q.length) {
+      const [i, j] = q.shift(); order.push([i, j]);
+      for (const [di, dj] of [[0, 1], [1, 0], [0, -1], [-1, 0]]) {
+        const ni = i + di, nj = j + dj;
+        if (ni < 0 || nj < 0 || ni >= NI || nj >= NJ || pos[ni][nj] || !blockIsWall(g, ni, nj)) continue;
+        place(ni, nj, [i, j]);
+      }
+    }
+  };
+  lay();
+  // blocks not connected to the first one (drawn mazes): start from the nearest placed block
+  for (let i = 0; i < NI; i++) for (let j = 0; j < NJ; j++) if (blockIsWall(g, i, j) && !pos[i][j]) {
+    let best = null, bd = Infinity;
+    for (let a = 0; a < NI; a++) for (let c = 0; c < NJ; c++) if (pos[a][c]) { const d = Math.abs(a - i) + Math.abs(c - j); if (d < bd) { bd = d; best = [a, c]; } }
+    place(i, j, best); lay();
+  }
+  const walls = [];
+  for (const [i, j] of order) {
+    const p = pos[i][j], c = Math.cos(p.a), sn = Math.sin(p.a), h = b / 2;
+    const k = [[-h, -h], [h, -h], [h, h], [-h, h]].map(([u, v]) => [p.x + c * u - sn * v, p.y + sn * u + c * v]);
+    for (let m = 0; m < 4; m++) walls.push(k[m][0], k[m][1], k[(m + 1) % 4][0], k[(m + 1) % 4][1]);
+  }
+  const posts = Array.from({ length: g.rows + 1 }, (_, y) => Array.from({ length: g.cols + 1 }, (_, x) => [pos[2 * y][2 * x].x, pos[2 * y][2 * x].y]));
+  return { walls, posts, cell: 2 * b, thickness: b, blocks: order.map(([i, j]) => pos[i][j]), blockSize: b };
+}
+
 /** real centre of a cell = mean of its four (built) posts */
 export function cellCenter(m, y, x) {
   const P = m.posts, q = [P[y][x], P[y][x + 1], P[y + 1][x], P[y + 1][x + 1]];
