@@ -10,8 +10,8 @@ import { fmt } from './i18n.js';
 await page();
 const robot = loadRobot(), env = loadEnv();
 $('#setup').textContent = t('tr.setup', { name: robot.name, w: env.width_mm, a: env.start.angle_deg, n: env.noise.global });
-const fit = new TimePlot($('#plots'), { title: t('tr.plot_fit'), series: [{ name: t('tr.best'), color: '#1f6feb' }, { name: t('tr.gen_mean'), color: '#adb5bd' }], keepAll: true, tUnit: '' });
-const crash = new TimePlot($('#plots'), { title: t('tr.plot_crash'), series: [{ name: t('tr.best'), color: '#e03131' }], keepAll: true, tUnit: '', min: 0 });
+const fit = new TimePlot($('#plots'), { title: t('tr.plot_fit'), series: [{ name: t('tr.best'), color: '#0f6e52' }, { name: t('tr.gen_mean'), color: '#9aa6b0' }], keepAll: true, tUnit: '' });
+const crash = new TimePlot($('#plots'), { title: t('tr.plot_crash'), series: [{ name: t('tr.best'), color: '#c8352e' }], keepAll: true, tUnit: '', min: 0 });
 
 const N = Math.max(1, Math.min(8, (navigator.hardwareConcurrency || 4) - 1));
 let workers = [], queue = [], busy = 0, stop = false, best = null;

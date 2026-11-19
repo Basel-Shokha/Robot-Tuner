@@ -35,7 +35,7 @@ export function simulate(p, T = 8, dt = 0.025) {
 export function lateralDemo(box, opts) {
   const p = { kp: 1, ki: 0, kd: 0, delay: 0, noise: 0, mismatch: 0, y0: 0.04, ...opts.init };
   const ctrl = el('div', { class: 'grid-3' });
-  const plot = new TimePlot(box, { title: t('tut.demo_plot'), series: [{ name: t('tut.demo_now'), color: PALETTE[0] }, { name: t('tut.demo_ref'), color: '#adb5bd', dash: [4, 3] }], keepAll: true, height: 170 });
+  const plot = new TimePlot(box, { title: t('tut.demo_plot'), series: [{ name: t('tut.demo_now'), color: PALETTE[0] }, { name: t('tut.demo_ref'), color: '#9aa6b0', dash: [4, 3] }], keepAll: true, height: 170 });
   const msg = el('p', { class: 'muted' });
   box.prepend(ctrl); box.append(msg);
   const ref = simulate(p);

@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title data-i18n="home.title">Robot Tuner</title>
-<link rel="stylesheet" href="css/style.css">
-<link rel="icon" href="img/icon.svg">
+<link rel="stylesheet" href="css/style.css"><link rel="icon" href="img/icon.svg">
+<link rel="preload" href="fonts/archivo-latin.woff2" as="font" type="font/woff2" crossorigin>
 </head>
 <body data-page="index">
 <main>
@@ -12,45 +12,80 @@
     <div>
       <h1 data-i18n="home.h1"></h1>
       <p class="lead" data-i18n="home.lead"></p>
-      <div class="row">
+      <div class="row" style="margin-top:18px">
         <a class="btn primary" href="builder.html" data-i18n="home.cta_build"></a>
         <a class="btn" href="playground.html" data-i18n="home.cta_play"></a>
       </div>
     </div>
-    <div class="card">
-      <h2 data-i18n="home.scope_h"></h2>
-      <p><span class="pill ok" data-i18n="home.in_scope"></span></p>
-      <ul>
-        <li data-i18n="home.in_1"></li><li data-i18n="home.in_2"></li><li data-i18n="home.in_3"></li>
-      </ul>
-      <p><span class="pill bad" data-i18n="home.out_scope"></span></p>
-      <ul>
-        <li data-i18n="home.out_1"></li><li data-i18n="home.out_2"></li><li data-i18n="home.out_3"></li><li data-i18n="home.out_4"></li>
-      </ul>
-    </div>
+    <figure class="hero-demo" style="margin:0">
+      <div class="canvas-wrap"><canvas id="demo"></canvas></div>
+      <figcaption class="key">
+        <span><i style="background:#0f6e52"></i><span data-i18n="home.demo_good"></span></span>
+        <span><i style="background:#d98a00"></i><span data-i18n="home.demo_bad"></span></span>
+        <span class="muted" id="demo-t"></span>
+      </figcaption>
+    </figure>
   </section>
 
-  <h2 data-i18n="home.workflow_h"></h2>
-  <div class="features">
-    <a class="card feature" href="builder.html"><span class="n">1</span><h3 data-i18n="nav.builder"></h3><p data-i18n="home.f_builder"></p></a>
-    <a class="card feature" href="measure.html"><span class="n">2</span><h3 data-i18n="nav.measure"></h3><p data-i18n="home.f_measure"></p></a>
-    <a class="card feature" href="corridor.html"><span class="n">3</span><h3 data-i18n="nav.corridor"></h3><p data-i18n="home.f_corridor"></p></a>
-    <a class="card feature" href="train.html"><span class="n">4</span><h3 data-i18n="nav.train"></h3><p data-i18n="home.f_train"></p></a>
-    <a class="card feature" href="playground.html"><span class="n">5</span><h3 data-i18n="nav.playground"></h3><p data-i18n="home.f_playground"></p></a>
-    <a class="card feature" href="troubleshoot.html"><span class="n">5b</span><h3 data-i18n="nav.troubleshoot"></h3><p data-i18n="home.f_troubleshoot"></p></a>
-    <a class="card feature" href="tutorial.html"><span class="n">6</span><h3 data-i18n="nav.tutorial"></h3><p data-i18n="home.f_tutorial"></p></a>
-    <a class="card feature" href="maze.html"><span class="n">7</span><h3 data-i18n="nav.maze"></h3><p data-i18n="home.f_maze"></p></a>
+  <h2 data-i18n="home.route_h"></h2>
+  <ol class="route">
+    <li><span class="n">1</span><h3 data-i18n="nav.builder"></h3><p data-i18n="home.f_builder"></p><a href="builder.html" data-i18n="home.open"></a></li>
+    <li><span class="n">2</span><h3 data-i18n="nav.measure"></h3><p data-i18n="home.f_measure"></p><a href="measure.html" data-i18n="home.open"></a></li>
+    <li><span class="n">3</span><h3 data-i18n="nav.corridor"></h3><p data-i18n="home.f_corridor"></p><a href="corridor.html" data-i18n="home.open"></a></li>
+    <li><span class="n">4</span><h3 data-i18n="nav.train"></h3><p data-i18n="home.f_train"></p><a href="train.html" data-i18n="home.open"></a></li>
+    <li><span class="n">5</span><h3 data-i18n="nav.playground"></h3><p data-i18n="home.f_playground"></p><a href="playground.html" data-i18n="home.open"></a></li>
+  </ol>
+  <div class="extras">
+    <a href="tutorial.html"><h3 data-i18n="nav.tutorial"></h3><p data-i18n="home.f_tutorial"></p></a>
+    <a href="troubleshoot.html"><h3 data-i18n="nav.troubleshoot"></h3><p data-i18n="home.f_troubleshoot"></p></a>
+    <a href="maze.html"><h3 data-i18n="nav.maze"></h3><p data-i18n="home.f_maze"></p></a>
   </div>
 
-  <div class="card">
-    <h2 data-i18n="home.how_h"></h2>
-    <p data-i18n="home.how_1"></p>
-    <p data-i18n-html="home.how_2"></p>
-  </div>
+  <section class="scope">
+    <div><h3 data-i18n="home.in_scope"></h3><ul><li data-i18n="home.in_1"></li><li data-i18n="home.in_2"></li><li data-i18n="home.in_3"></li></ul></div>
+    <div><h3 data-i18n="home.out_scope"></h3><ul><li data-i18n="home.out_1"></li><li data-i18n="home.out_2"></li><li data-i18n="home.out_3"></li><li data-i18n="home.out_4"></li></ul></div>
+  </section>
+  <p class="muted" style="margin-top:20px" data-i18n="home.how_1"></p>
 </main>
 <script type="module">
-import { page } from './js/common.js';
+import { page, t } from './js/common.js';
+import { loadEngine, S } from './js/engine.js';
+import { defaultRobot } from './js/store.js';
+import { defaultEnv } from './js/corridor.js';
+import { Scene, Runner, drawScene } from './js/simview.js';
+import { PRESETS } from './js/presets.js';
+import { View } from './js/draw.js';
 await page();
+// Live demo: the same robot, same start and same noise, twice: good gains and "P too high".
+const E = await loadEngine();
+const view = new View(document.getElementById('demo'), { aspect: 0.36, minH: 190, maxH: 320, interactive: false });
+let seed = 3, scene, runs = [];
+function start() {
+  runs.forEach((r) => r.destroy());
+  const base = defaultEnv(); base.start = { angle_deg: 22, offset_mm: 25, random: false };
+  const [good, env] = PRESETS.good(defaultRobot(), base);
+  const [bad] = PRESETS.p_high(defaultRobot(), base);
+  scene = new Scene(env);
+  runs = [new Runner(E, good, env, { color: '#0f6e52' }), new Runner(E, bad, env, { color: '#d98a00' })];
+  scene.update(runs, true);
+  const pose = scene.start(good, seed);
+  runs.forEach((r) => r.reset(pose, seed));
+}
+start();
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+let last = 0, acc = 0;
+function loop(ts) {
+  acc += Math.min(0.1, (ts - last) / 1000); last = ts;
+  const n = Math.floor(acc / runs[0].dt); acc -= n * runs[0].dt;
+  runs.forEach((r) => r.step(n));
+  scene.update(runs);
+  view.userMoved = false;
+  drawScene(view, scene, runs, { rays: true, crashLabel: t('sim.crash') });
+  document.getElementById('demo-t').textContent = t('home.demo_time', { s: runs[0].last[S.t].toFixed(1) });
+  if (runs[0].last[S.t] > 14 || runs.every((r) => !r.alive)) { seed++; start(); }
+  if (!reduce) requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
 </script>
 </body>
 </html>

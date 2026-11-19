@@ -1,13 +1,13 @@
 // sw.js - offline cache. Every file of the site is cached on first visit; afterwards the site works offline.
 // Network first for pages and code (so updates arrive), cache first otherwise. Bump VERSION on release.
-const VERSION = 'rt-v1';
+const VERSION = 'rt-v2';
 const CORE = [
   './', 'index.html', 'builder.html', 'measure.html', 'corridor.html', 'playground.html', 'train.html', 'troubleshoot.html',
   'tutorial.html', 'maze.html', 'css/style.css', 'img/icon.svg', 'i18n/en.json', 'i18n/he.json', 'i18n/ar.json',
   'wasm/rt_sim.mjs', 'wasm/rt_sim.wasm', 'js/i18n.js', 'js/common.js', 'js/store.js', 'js/engine.js', 'js/draw.js', 'js/plot.js',
   'js/corridor.js', 'js/simview.js', 'js/presets.js', 'js/train-core.js', 'js/train-worker.js', 'js/export.js', 'js/serial.js',
   'js/measure-steps.js', 'js/builder.js', 'js/maze/maze.js', 'js/maze/algorithms.js', 'js/maze/mazekit.js', 'js/maze/maze-page.js', 'js/tutorial-demos.js', 'js/corridor-page.js', 'js/playground.js', 'js/train.js', 'js/measure.js',
-  'firmware/robot_tuner_min.ino',
+  'firmware/robot_tuner_min.ino', 'fonts/archivo-latin.woff2', 'fonts/archivo-latin-ext.woff2',
 ];
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(VERSION).then((c) => Promise.all(CORE.map((u) => c.add(u).catch(() => null)))).then(() => self.skipWaiting()));
