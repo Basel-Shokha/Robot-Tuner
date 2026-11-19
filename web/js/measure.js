@@ -21,7 +21,13 @@ $('#connect').addEventListener('click', async () => {
   render();
 });
 $('#manual').addEventListener('change', render);
-const sendCmd = () => { const c = $('#cmd').value.trim(); if (c && link.connected) link.send(c); $('#cmd').value = ''; };
+// Calibration commands can be typed without "CAL": TICKS, SPIN 5, TOF 200 200 ... are sent as CAL TICKS etc.
+const CAL_WORDS = new Set(['TICKS', 'END', 'MAXSPEED', 'FF', 'STEP', 'DRIVE', 'DIST', 'SPIN', 'TURNS', 'TOF', 'APPLY', 'STOP', 'DIR', 'AUTOTUNE']);
+export function expandCommand(c) {
+  const w = c.trim().split(/\s+/)[0].toUpperCase();
+  return CAL_WORDS.has(w) ? 'CAL ' + c.trim() : c.trim();
+}
+const sendCmd = () => { const c = expandCommand($('#cmd').value); if (c && link.connected) link.send(c); $('#cmd').value = ''; };
 $('#send').addEventListener('click', sendCmd);
 $('#cmd').addEventListener('keydown', (e) => { if (e.key === 'Enter') sendCmd(); });
 

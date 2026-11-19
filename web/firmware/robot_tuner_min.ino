@@ -3,6 +3,7 @@
 // measurement wizard (measure.html) works unchanged.
 //
 // Commands (115200 baud, one per line):
+//   (every CAL command also works without the word CAL: TICKS, END, SPIN 5 ...)
 //   CAL TICKS / CAL END        turn each wheel one revolution by hand -> ticks per revolution
 //   CAL MAXSPEED               full power 1 s, wheels in the air -> top speed
 //   CAL FF                     PWM sweep, wheels in the air -> deadband (ff_static) and PWM per speed (ff_gain)
@@ -218,6 +219,8 @@ void status() {
 
 void handle(String c) {
   c.trim(); String u = c; u.toUpperCase();
+  // the calibration commands also work without "CAL": TICKS, SPIN 5, TOF 200 200 ...
+  if (!u.startsWith("CAL ") && u != "STATUS" && !u.startsWith("LOAD")) u = "CAL " + u;
   float a1 = 0, a2 = 0; int sp1 = u.indexOf(' ', 4), sp2 = sp1 >= 0 ? u.indexOf(' ', sp1 + 1) : -1;
   if (sp1 >= 0) a1 = u.substring(sp1 + 1).toFloat();
   if (sp2 >= 0) a2 = u.substring(sp2 + 1).toFloat();
