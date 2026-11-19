@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title data-i18n="nav.measure">Measure</title>
+<link rel="stylesheet" href="css/style.css"><link rel="icon" href="img/icon.svg">
+</head>
+<body data-page="measure">
+<main>
+  <h1 data-i18n="ms.h1"></h1>
+  <p class="muted" data-i18n="ms.intro"></p>
+  <div class="tool wide-side">
+    <div class="side">
+      <div class="card stack">
+        <h3 data-i18n="ms.conn_h"></h3>
+        <div id="nosupport" class="notice warn" hidden data-i18n="ms.nosupport"></div>
+        <div class="row"><button class="primary" id="connect" data-i18n="ms.connect"></button><span id="conn-state" class="pill" data-i18n="ms.disconnected"></span></div>
+        <label class="toggle"><input type="checkbox" id="manual"><span data-i18n="ms.manual"></span></label>
+        <small class="muted" data-i18n="ms.manual_note"></small>
+      </div>
+      <div class="card stack">
+        <h3 data-i18n="ms.nofw_h"></h3>
+        <p class="muted" data-i18n="ms.nofw_p"></p>
+        <a class="btn" href="firmware/robot_tuner_min.ino" download data-i18n="ms.dl_sketch"></a>
+      </div>
+      <div class="card stack">
+        <h3 data-i18n="ms.console_h"></h3>
+        <div class="serial-log" id="log"></div>
+        <div class="row"><input id="cmd" style="flex:1" data-i18n-attr="placeholder:ms.cmd_ph"><button id="send" data-i18n="ms.send"></button></div>
+      </div>
+    </div>
+    <div id="steps"></div>
+  </div>
+</main>
+<script type="module" src="js/measure.js"></script>
+</body>
+</html>
