@@ -554,5 +554,9 @@
  "track.loop_square": "Loop: rounded square",
  "track.loop_kidney": "Loop: kidney (left and right bends)",
  "corr.closed": "Closed loop: the end joins the start, the robot drives laps",
- "sim.laps": "{n} laps"
+ "sim.laps": "{n} laps",
+ "pg.offset": "Drive off-centre by (+ = left)",
+ "pg.offset_hint": "0 = middle. The wanted left − right becomes −offset × (1/sin of the left sensor angle + 1/sin of the right one); it does not depend on the corridor width.",
+ "pg.target": "target",
+ "pg.p_offset": "offset (mm)"
 }

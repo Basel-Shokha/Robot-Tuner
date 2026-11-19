@@ -556,5 +556,9 @@
  "track.loop_square": "",
  "track.loop_kidney": "",
  "corr.closed": "",
- "sim.laps": ""
+ "sim.laps": "",
+ "pg.offset": "",
+ "pg.offset_hint": "",
+ "pg.target": "",
+ "pg.p_offset": ""
 }

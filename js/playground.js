@@ -34,6 +34,7 @@ function buildGains() {
     sliders.ki = slider({ key: 'pg.ki', min: 0, max: 20, step: 'any', log: true, value: +robot.pid.ki.toPrecision(3), onInput: (v) => live('ki', v), hint: t('pg.ki_hint') }),
     sliders.kd = slider({ key: 'pg.kd', min: 0, max: Math.max(20, stored.pid.kd * 30), step: 'any', log: true, value: +robot.pid.kd.toPrecision(3), onInput: (v) => live('kd', v), hint: t('pg.kd_hint') }),
     sliders.speed = slider({ key: 'pg.speed', unit: 'm/s', min: 0.02, max: MAX_SIM_SPEED, step: 0.005, value: +robot.pid.speed_mps.toFixed(3), onInput: (v) => live('speed_mps', v), hint: t('pg.speed_hint', { max: mx }) }),
+    sliders.offset = slider({ key: 'pg.offset', unit: 'mm', min: -200, max: 200, step: 5, value: robot.pid.offset_mm || 0, onInput: (v) => { live('offset_mm', v); }, hint: t('pg.offset_hint') }),
     el('p', { class: 'notice warn', id: 'speed-note', hidden: true, text: t('pg.speed_virtual', { max: mx }) }),
     el('small', { class: 'muted', text: t('pg.units') }));
   speedNote();
@@ -58,7 +59,8 @@ function restart() {
   for (const r of runners) r.reset(pose, seed, scene.loopLength);  // same start AND same noise sequence for every ghost
   view.userMoved = false;
   const set = (p, keys, names) => p.setSeries(runners.length > 1 ? runners.map((r) => ({ name: r.label, color: r.color })) : keys.map((k, i) => ({ name: names[i], color: PALETTE[i] })));
-  set(plots.ce, ['ce'], [t('plot.center_err_s')]); set(plots.he, ['he'], [t('plot.heading_err_s')]);
+  set(plots.ce, ['ce'], [t('plot.center_err_s')]);
+  if (runners.length === 1) plots.ce.setSeries([{ name: t('plot.center_err_s'), color: PALETTE[0] }, { name: t('pg.target'), color: '#9aa6b0', dash: [5, 4] }]); set(plots.he, ['he'], [t('plot.heading_err_s')]);
   plots.wheels.setSeries([{ name: t('pg.cmd_l'), color: PALETTE[0] }, { name: t('pg.cmd_r'), color: PALETTE[1] }, { name: t('pg.real_l'), color: PALETTE[0], dash: [3, 3] }, { name: t('pg.real_r'), color: PALETTE[1], dash: [3, 3] }]);
   plots.pid.setSeries([{ name: 'P', color: PALETTE[0] }, { name: 'I', color: PALETTE[2] }, { name: 'D', color: PALETTE[3] }]);
   legend(); render(); table();
@@ -77,14 +79,17 @@ function speedNote() {
   const el = document.getElementById('speed-note'); if (!el) return;
   el.hidden = !(robot.pid.speed_mps > stored.motor.max_speed_mps + 1e-9);
 }
-function patch(r, k, v) { const c = JSON.parse(JSON.stringify(r)); if (k === 'speed') c.pid.speed_mps = v; else c.pid[k] = v; return c; }
+function patch(r, k, v) { const c = JSON.parse(JSON.stringify(r)); if (k === 'speed') c.pid.speed_mps = v; else if (k === 'offset') c.pid.offset_mm = v; else c.pid[k] = v; return c; }
 
 function render() {
   drawScene(view, scene, runners, { crashLabel: t('sim.crash') });
   const L = runners[0], st = L.stats(1.0);
   $('#ov').textContent = `${t('sim.time')} ${fmt(st.t, 1)} s · ${t('sim.mean_ce')} ${fmt(st.meanCe, 1)} mm` + (scene.loopLength ? ' · ' + t('sim.laps', { n: st.laps }) : '') + (L.last && L.last[S.sat] ? ' · ' + t('pg.saturated') : '') + (st.crashed ? ' · ' + t('sim.crashed') : '');
   if (runners.length > 1) runners.forEach((r, i) => { plots.ce.setData(i, r.h.t, r.h.ce); plots.he.setData(i, r.h.t, r.h.he); });
-  else { plots.ce.setData(0, L.h.t, L.h.ce); plots.he.setData(0, L.h.t, L.h.he); }
+  else {
+    plots.ce.setData(0, L.h.t, L.h.ce); plots.he.setData(0, L.h.t, L.h.he);
+    const o = robot.pid.offset_mm || 0; plots.ce.setData(1, L.h.t.length ? [L.h.t[0], L.h.t[L.h.t.length - 1]] : [], L.h.t.length ? [o, o] : []);
+  }
   const h = L.h;
   plots.wheels.setData(0, h.t, h.vl); plots.wheels.setData(1, h.t, h.vr); plots.wheels.setData(2, h.t, h.wl); plots.wheels.setData(3, h.t, h.wr);
   plots.pid.setData(0, h.t, h.p); plots.pid.setData(1, h.t, h.i); plots.pid.setData(2, h.t, h.d);
@@ -110,7 +115,7 @@ function loop(ts) {
 view.onChange = render;
 $('#run').addEventListener('click', () => { if (runners.every((r) => !r.alive)) restart(); running = !running; $('#run').textContent = running ? t('sim.pause') : t('sim.run'); });
 $('#reset').addEventListener('click', () => { seed++; restart(); });
-$('#save-gains').addEventListener('click', () => { stored.pid = { ...stored.pid, kp: robot.pid.kp, ki: robot.pid.ki, kd: robot.pid.kd, speed_mps: robot.pid.speed_mps }; saveRobot(stored); toast(t('pg.saved'), 'ok'); });
+$('#save-gains').addEventListener('click', () => { stored.pid = { ...stored.pid, kp: robot.pid.kp, ki: robot.pid.ki, kd: robot.pid.kd, speed_mps: robot.pid.speed_mps, offset_mm: robot.pid.offset_mm || 0 }; saveRobot(stored); toast(t('pg.saved'), 'ok'); });
 
 // presets
 for (const id of PRESET_IDS) $('#presets').append(el('button', { class: 'small', text: t('preset.' + id), onclick: () => applyPreset(id) }));
@@ -124,9 +129,10 @@ function applyPreset(id) {
 // sweep
 function buildSweep() {
   const W = $('#sweep'); W.innerHTML = '';
-  const sel = el('select', {}, ...['kp', 'kd', 'ki', 'speed'].map((k) => el('option', { value: k, text: t('pg.p_' + k) })));
+  const sel = el('select', {}, ...['kp', 'kd', 'ki', 'speed', 'offset'].map((k) => el('option', { value: k, text: t('pg.p_' + k) })));
   const vals = el('input', { style: 'flex:1', value: '' });
   const fill = () => {
+    if (sel.value === 'offset') { vals.value = '-60, -30, 0, 30, 60'; return; }
     const b = sel.value === 'speed' ? robot.pid.speed_mps : robot.pid[sel.value];
     const mul = sel.value === 'speed' ? [0.5, 1, 2, 4] : [0.25, 0.5, 1, 2, 4];
     vals.value = mul.map((m) => +Math.min(sel.value === 'speed' ? MAX_SIM_SPEED : 1e9, Math.max(b, sel.value === 'ki' ? 0.01 : 1e-3) * m).toPrecision(2)).join(', ');
