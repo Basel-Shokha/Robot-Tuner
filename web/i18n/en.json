@@ -591,5 +591,6 @@
  "tr.spread": "Width varies by ± (%)",
  "tr.angle": "Start rotated up to ± (°)",
  "tr.setup_width": "Robot {name} in 6 straight corridors from {lo} to {hi} mm wide, with typical wall errors (uneven and tilted boards, bumps, gaps, width steps), starting rotated up to ±{a}° and off-centre, noise ×{n}.",
- "tr.setup_mine": "Robot {name} in 6 straight corridors from {lo} to {hi} mm wide with the wall errors from the Corridor page, starting rotated up to ±{a}° and off-centre, noise ×{n}."
+ "tr.setup_mine": "Robot {name} in 6 straight corridors from {lo} to {hi} mm wide with the wall errors from the Corridor page, starting rotated up to ±{a}° and off-centre, noise ×{n}.",
+ "tr.too_narrow": "Careful: your robot is {w} mm wide, so in the narrowest corridor it has only {room} mm on each side. Crashes there are about room, not gains: use a wider corridor or a smaller width variation."
 }

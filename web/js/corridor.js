@@ -71,7 +71,8 @@ export class EndlessCorridor {
         let endOff = st.off;
         if (!clean && this.e.tilt.on) {
           const a = gauss(r) * this.e.tilt.deg * Math.PI / 180;
-          endOff = Math.max(-0.02, Math.min(0.02, st.off * 0.4 + Math.tan(a) * L));
+          const tmax = (this.e.tilt.max_mm ?? 20) / 1000;  // how far a tilted board may lean in / out
+          endOff = Math.max(-tmax, Math.min(tmax, st.off * 0.4 + Math.tan(a) * L));
         } else endOff = 0;
         // sample points along the board every ~10 cm (jitter), with bumps / gaps
         const n = Math.max(1, Math.round(L / 0.1));
