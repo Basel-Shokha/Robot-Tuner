@@ -30,15 +30,18 @@ function buildGains() {
   const G = $('#gains'); G.innerHTML = '';
   const mx = robot.motor.max_speed_mps, k0 = Math.max(0.5, stored.pid.kp);
   G.append(el('h3', { text: t('pg.gains_h') }),
-    sliders.kp = slider({ key: 'pg.kp', min: 0, max: k0 * 30, step: 'any', log: true, value: +robot.pid.kp.toPrecision(3), onInput: (v) => live('kp', v), hint: t('pg.kp_hint') }),
-    sliders.ki = slider({ key: 'pg.ki', min: 0, max: 5, step: 'any', log: true, value: +robot.pid.ki.toPrecision(3), onInput: (v) => live('ki', v), hint: t('pg.ki_hint') }),
-    sliders.kd = slider({ key: 'pg.kd', min: 0, max: Math.max(0.5, stored.pid.kd) * 30, step: 'any', log: true, value: +robot.pid.kd.toPrecision(3), onInput: (v) => live('kd', v), hint: t('pg.kd_hint') }),
-    sliders.speed = slider({ key: 'pg.speed', unit: 'm/s', min: 0.02, max: mx, step: 0.005, value: +Math.min(mx, robot.pid.speed_mps).toFixed(3), onInput: (v) => live('speed_mps', v), hint: t('pg.speed_hint', { max: mx }) }),
+    sliders.kp = slider({ key: 'pg.kp', min: 0, max: Math.max(100, k0 * 30), step: 'any', log: true, value: +robot.pid.kp.toPrecision(3), onInput: (v) => live('kp', v), hint: t('pg.kp_hint') }),
+    sliders.ki = slider({ key: 'pg.ki', min: 0, max: 20, step: 'any', log: true, value: +robot.pid.ki.toPrecision(3), onInput: (v) => live('ki', v), hint: t('pg.ki_hint') }),
+    sliders.kd = slider({ key: 'pg.kd', min: 0, max: Math.max(20, stored.pid.kd * 30), step: 'any', log: true, value: +robot.pid.kd.toPrecision(3), onInput: (v) => live('kd', v), hint: t('pg.kd_hint') }),
+    sliders.speed = slider({ key: 'pg.speed', unit: 'm/s', min: 0.02, max: MAX_SIM_SPEED, step: 0.005, value: +robot.pid.speed_mps.toFixed(3), onInput: (v) => live('speed_mps', v), hint: t('pg.speed_hint', { max: mx }) }),
+    el('p', { class: 'notice warn', id: 'speed-note', hidden: true, text: t('pg.speed_virtual', { max: mx }) }),
     el('small', { class: 'muted', text: t('pg.units') }));
+  speedNote();
 }
 function live(k, v) {
   robot.pid[k] = v;
-  if (!sweep) for (const r of runners) r.configure(robot);
+  speedNote();
+  if (!sweep) for (const r of runners) r.configure(effective(robot));
 }
 
 function legend() {
@@ -49,7 +52,7 @@ function restart() {
   for (const r of runners) r.destroy();
   scene = new Scene(env);
   const variants = sweep ? sweep.values.map((v) => ({ r: patch(robot, sweep.param, v), label: `${t('pg.p_' + sweep.param)} = ${v}` })) : [{ r: robot, label: '' }];
-  runners = variants.map((x, i) => new Runner(engine, x.r, env, { color: PALETTE[i % PALETTE.length], label: x.label }));
+  runners = variants.map((x, i) => new Runner(engine, effective(x.r), env, { color: PALETTE[i % PALETTE.length], label: x.label }));
   scene.update(runners, true);
   const pose = scene.start(robot, seed);
   for (const r of runners) r.reset(pose, seed);  // same start AND same noise sequence for every ghost
@@ -60,6 +63,19 @@ function restart() {
   plots.pid.setSeries([{ name: 'P', color: PALETTE[0] }, { name: 'I', color: PALETTE[2] }, { name: 'D', color: PALETTE[3] }]);
   legend(); render(); table();
   $('#env-sum').textContent = t('pg.env_sum', { mode: t(env.mode === 'track' ? 'corr.mode_track' : 'corr.mode_endless'), w: env.width_mm, a: env.start.angle_deg, o: env.start.offset_mm, n: env.noise.global });
+}
+/** Above the measured top speed the robot gets a "virtual" faster motor: simple lag motor model with the
+ *  measured response time and a top speed of 1.15 x the requested cruise speed (room left to steer). */
+const MAX_SIM_SPEED = 1.0;
+function effective(r) {
+  if (r.pid.speed_mps <= stored.motor.max_speed_mps + 1e-9) return r;
+  const c = JSON.parse(JSON.stringify(r));
+  c.motor = { ...c.motor, model: 'lag', max_speed_mps: Math.min(1.15 * c.pid.speed_mps, 1.15 * MAX_SIM_SPEED) };
+  return c;
+}
+function speedNote() {
+  const el = document.getElementById('speed-note'); if (!el) return;
+  el.hidden = !(robot.pid.speed_mps > stored.motor.max_speed_mps + 1e-9);
 }
 function patch(r, k, v) { const c = JSON.parse(JSON.stringify(r)); if (k === 'speed') c.pid.speed_mps = v; else c.pid[k] = v; return c; }
 
@@ -112,8 +128,8 @@ function buildSweep() {
   const vals = el('input', { style: 'flex:1', value: '' });
   const fill = () => {
     const b = sel.value === 'speed' ? robot.pid.speed_mps : robot.pid[sel.value];
-    const mul = sel.value === 'speed' ? [0.4, 0.6, 0.8, 1] : [0.25, 0.5, 1, 2, 4];
-    vals.value = mul.map((m) => +(Math.max(b, sel.value === 'ki' ? 0.01 : 1e-3) * m).toPrecision(2)).join(', ');
+    const mul = sel.value === 'speed' ? [0.5, 1, 2, 4] : [0.25, 0.5, 1, 2, 4];
+    vals.value = mul.map((m) => +Math.min(sel.value === 'speed' ? MAX_SIM_SPEED : 1e9, Math.max(b, sel.value === 'ki' ? 0.01 : 1e-3) * m).toPrecision(2)).join(', ');
   };
   sel.addEventListener('change', fill); fill();
   W.append(el('h3', { text: t('pg.sweep_h') }), el('p', { class: 'muted', text: t('pg.sweep_p') }),
