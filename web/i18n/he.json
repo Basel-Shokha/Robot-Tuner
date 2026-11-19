@@ -492,7 +492,6 @@
  "mz.belief_h": "",
  "mz.maze_h": "",
  "mz.kind": "",
- "mz.thick": "",
  "mz.thin": "",
  "mz.cols": "",
  "mz.rows": "",
@@ -594,5 +593,9 @@
  "tr.angle": "",
  "tr.setup_width": "",
  "tr.setup_mine": "",
- "tr.too_narrow": ""
+ "tr.too_narrow": "",
+ "mz.blocks": "",
+ "mz.block": "",
+ "mz.block_hint": "",
+ "mz.wall_hint": ""
 }
