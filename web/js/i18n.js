@@ -14,6 +14,9 @@ let dict = {}, fallback = {}, lang = 'en';
 function base() { return new URL('../', import.meta.url); }
 
 export function currentLang() { return lang; }
+export async function translatedShare(code) {
+  try { const [e, d] = await Promise.all([fetch(new URL('i18n/en.json', base())).then((r) => r.json()), fetch(new URL(`i18n/${code}.json`, base())).then((r) => r.json())]); const k = Object.keys(e); return k.filter((x) => d[x]).length / k.length; } catch (err) { return 0; }
+}
 export function getLangPref() {
   try { const l = localStorage.getItem('rt.lang'); if (LANGS.some((x) => x.code === l)) return l; } catch (e) { /* storage blocked */ }
   return 'en';
@@ -23,6 +26,9 @@ export async function initI18n(code = getLangPref()) {
   const load = async (c) => { try { const r = await fetch(new URL(`i18n/${c}.json`, base())); return r.ok ? r.json() : {}; } catch (e) { return {}; } };
   fallback = await load('en');
   dict = code === 'en' ? fallback : await load(code);
+  // a language that is not translated yet (mostly empty) would show English text right-to-left: stay English
+  const keys = Object.keys(fallback), done = keys.filter((k) => dict[k]).length;
+  if (code !== 'en' && done < 0.5 * keys.length) { dict = fallback; code = 'en'; }
   lang = code;
   const L = LANGS.find((x) => x.code === code) || LANGS[0];
   document.documentElement.lang = code;
