@@ -2,14 +2,28 @@
 import { page, $, el, t, download, toast } from './common.js';
 import { loadRobot, saveRobot } from './store.js';
 import { loadEnv } from './corridor.js';
-import { grid, mutate, rngJS } from './train-core.js';
+import { grid, mutate, rngJS, trainEnv, trackSet, defaultTrainSettings } from './train-core.js';
 import { TimePlot } from './plot.js';
 import { cFunction, configH, modelTxt } from './export.js';
 import { fmt } from './i18n.js';
 
 await page();
-const robot = loadRobot(), env = loadEnv();
-$('#setup').textContent = t('tr.setup', { name: robot.name, w: env.width_mm, a: env.start.angle_deg, n: env.noise.global });
+const robot = loadRobot(), pageEnv = loadEnv();
+let TS; try { TS = { ...defaultTrainSettings(), ...JSON.parse(localStorage.getItem('rt.train') || '{}') }; } catch (e) { TS = defaultTrainSettings(); }
+let env = trainEnv(TS, pageEnv);
+function setupText() {
+  env = trainEnv(TS, pageEnv);
+  const ws = trackSet(env).map((x) => x.width), lo = Math.min(...ws), hi = Math.max(...ws);
+  $('#setup').textContent = t(TS.mode === 'width' ? 'tr.setup_width' : 'tr.setup_mine', { name: robot.name, lo, hi, a: TS.angle_deg, n: env.noise.global });
+  $('#width-box').hidden = TS.mode !== 'width';
+  try { localStorage.setItem('rt.train', JSON.stringify(TS)); } catch (e) { /* ignore */ }
+}
+document.querySelectorAll('input[name="tset"]').forEach((r) => { r.checked = r.value === TS.mode; r.addEventListener('change', () => { TS.mode = r.value; setupText(); }); });
+for (const [id, k] of [['#t-width', 'width_mm'], ['#t-spread', 'spread_pct'], ['#t-angle', 'angle_deg']]) {
+  const inp = $(id); inp.value = TS[k];
+  inp.addEventListener('input', () => { const v = parseFloat(inp.value); if (Number.isFinite(v)) { TS[k] = v; setupText(); } });
+}
+setupText();
 const fit = new TimePlot($('#plots'), { title: t('tr.plot_fit'), series: [{ name: t('tr.best'), color: '#0f6e52' }, { name: t('tr.gen_mean'), color: '#9aa6b0' }], keepAll: true, tUnit: '' });
 const crash = new TimePlot($('#plots'), { title: t('tr.plot_crash'), series: [{ name: t('tr.best'), color: '#c8352e' }], keepAll: true, tUnit: '', min: 0 });
 

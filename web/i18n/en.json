@@ -319,9 +319,8 @@
  "ts.gaps.why": "A gap makes one side sensor read far away: a huge sudden error.",
  "ts.gaps.try": "Clip the error (error limit) so one reading cannot command a violent turn.|Ignore sudden jumps of one sensor for a short time (glitch filter).|Turn on 'Gaps' in the corridor errors and test.",
  "tr.h1": "Train the PID gains",
- "tr.intro": "The computer drives your robot through a set of corridors many times and keeps the gains that drive most parallel and centred, without crashing, as fast as possible. First a grid search over Kp, Ki, Kd (and speed), then a genetic algorithm refines the best ones — the same method and reward as our research simulator. Takes about 1-5 minutes.",
- "tr.setup_h": "Setup",
- "tr.setup": "Robot \"{name}\" in corridors like yours ({w} mm, starts up to ±{a}°, noise ×{n}) plus a narrower, a wider one and an S-bend.",
+ "tr.intro": "The computer drives your robot down straight corridors many times, every time starting rotated and off-centre, with real wall errors. It keeps the gains that get parallel and centred fastest and stay there without crashing. First a grid search over Kp, Ki, Kd (and the speed), then a genetic algorithm refines the best ones: the same method and reward as our research simulator. About 1-5 minutes.",
+ "tr.setup_h": "Training set: straight corridors",
  "tr.train_speed": "Also choose the cruise speed",
  "tr.effort": "Effort",
  "tr.quick": "Quick (under a minute)",
@@ -585,5 +584,12 @@
  "lib.t.w20_bend_l": "Gentle bend left",
  "lib.t.o_gaps_20": "Openings left and right",
  "lib.t.smooth_loop": "Smooth loop, 20 m",
- "lib.t.tight_broken": "Tight track with broken walls"
+ "lib.t.tight_broken": "Tight track with broken walls",
+ "tr.set_width": "Corridors of this width (recommended)",
+ "tr.width": "Corridor width (mm)",
+ "tr.set_mine": "My corridor settings (width, wall errors and noise from the Corridor page)",
+ "tr.spread": "Width varies by ± (%)",
+ "tr.angle": "Start rotated up to ± (°)",
+ "tr.setup_width": "Robot {name} in 6 straight corridors from {lo} to {hi} mm wide, with typical wall errors (uneven and tilted boards, bumps, gaps, width steps), starting rotated up to ±{a}° and off-centre, noise ×{n}.",
+ "tr.setup_mine": "Robot {name} in 6 straight corridors from {lo} to {hi} mm wide with the wall errors from the Corridor page, starting rotated up to ±{a}° and off-centre, noise ×{n}."
 }

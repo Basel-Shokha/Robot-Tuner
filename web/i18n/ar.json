@@ -323,7 +323,6 @@
  "tr.h1": "",
  "tr.intro": "",
  "tr.setup_h": "",
- "tr.setup": "",
  "tr.train_speed": "",
  "tr.effort": "",
  "tr.quick": "",
@@ -587,5 +586,12 @@
  "lib.t.w20_bend_l": "",
  "lib.t.o_gaps_20": "",
  "lib.t.smooth_loop": "",
- "lib.t.tight_broken": ""
+ "lib.t.tight_broken": "",
+ "tr.set_width": "",
+ "tr.width": "",
+ "tr.set_mine": "",
+ "tr.spread": "",
+ "tr.angle": "",
+ "tr.setup_width": "",
+ "tr.setup_mine": ""
 }

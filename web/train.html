@@ -13,6 +13,13 @@
     <div class="side">
       <div class="card stack">
         <h3 data-i18n="tr.setup_h"></h3>
+        <label class="toggle"><input type="radio" name="tset" value="width"><span data-i18n="tr.set_width"></span></label>
+        <div class="stack" id="width-box" style="padding-inline-start:24px">
+          <label class="field"><span data-i18n="tr.width"></span><input type="number" id="t-width" min="80" max="2000" step="5"></label>
+        </div>
+        <label class="toggle"><input type="radio" name="tset" value="mine"><span data-i18n="tr.set_mine"></span></label>
+        <label class="field"><span data-i18n="tr.spread"></span><input type="number" id="t-spread" min="0" max="50" step="1"></label>
+        <label class="field"><span data-i18n="tr.angle"></span><input type="number" id="t-angle" min="0" max="80" step="1"></label>
         <p class="muted" id="setup"></p>
         <label class="toggle"><input type="checkbox" id="train-speed" checked><span data-i18n="tr.train_speed"></span></label>
         <label class="field"><span data-i18n="tr.effort"></span><select id="effort"><option value="quick" data-i18n="tr.quick"></option><option value="normal" selected data-i18n="tr.normal"></option><option value="thorough" data-i18n="tr.thorough"></option></select></label>

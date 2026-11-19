@@ -3,26 +3,42 @@
 // (train.cpp EvaluateRobot, ported in sim/rt_engine.hpp Evaluate): metres driven along the corridor, weighted
 // by how parallel and centred the robot is, minus wobble, jerky commands and crashes, plus a finish/speed bonus.
 import { robotToConfig } from './store.js';
-import { EndlessCorridor, buildTrack, TRACK_PRESETS, mergeEnv } from './corridor.js';
+import { EndlessCorridor, mergeEnv } from './corridor.js';
 import { simOptions } from './simview.js';
 
 export const TRACK_LEN = 4.0;  // m of each training corridor
 
-/** The training set: the student's corridor (3 seeds) + a narrower and a wider one + an S-bend. */
+// Typical wall errors of a hand-built corridor, used for the "type a width" training set.
+export const TRAIN_ERRORS = {
+  jitter: { on: true, mm: 2 }, tilt: { on: true, deg: 1.0 }, bumps: { on: true, mm: 8, per_m: 0.3 },
+  gaps: { on: true, mm: 60, per_m: 0.15 }, steps: { on: true, mm: 8, per_m: 0.2 },
+};
+
+/** Settings of the training set. mode 'width': straight corridors around a typed width with the typical wall errors;
+ *  mode 'mine': straight corridors with the wall errors and noise set on the Corridor page. */
+export function defaultTrainSettings() { return { mode: 'width', width_mm: 200, spread_pct: 15, angle_deg: 30 }; }
+
+/** The environment the trainer uses (always straight corridors). */
+export function trainEnv(settings, env) {
+  const base = mergeEnv(env);
+  base.mode = 'endless';
+  if (settings.mode === 'width') { base.width_mm = settings.width_mm; base.errors = JSON.parse(JSON.stringify(TRAIN_ERRORS)); }
+  base.start = { angle_deg: settings.angle_deg, offset_mm: 0, random: true };
+  base.spread_pct = settings.spread_pct;
+  return base;
+}
+
+/** The training set: 6 straight corridors, widths spread over +-spread_pct around the width, each with its own
+ *  wall errors (different seeds). Every episode after the first starts at a random angle and position. */
 export function trackSet(env) {
-  const out = [];
-  const W = env.width_mm;
+  const W = env.width_mm, sp = (env.spread_pct ?? 15) / 100;
   const corr = (w, seed) => {
-    const e = mergeEnv({ ...env, width_mm: w, seed });
+    const e = mergeEnv({ ...env, width_mm: Math.round(w), seed });
     const c = new EndlessCorridor(e); c.ensure(TRACK_LEN + 1);
-    const L = TRACK_LEN;
-    const hw = c.halfWidthAt(L - 0.2);
-    return { walls: c.wallsFlat(-0.5, L + 0.3), center: c.centerFlat(-0.5, L + 0.3), spawn: [0.3, 0, 0], finish: [L - 0.2, hw + 0.05, L - 0.2, -hw - 0.05] };
+    const L = TRACK_LEN, hw = c.halfWidthAt(L - 0.2);
+    return { walls: c.wallsFlat(-0.5, L + 0.3), center: c.centerFlat(-0.5, L + 0.3), spawn: [0.3, 0, 0], finish: [L - 0.2, hw + 0.05, L - 0.2, -hw - 0.05], width: Math.round(w) };
   };
-  out.push(corr(W, 101), corr(W, 202), corr(W, 303), corr(Math.round(W * 0.85), 404), corr(Math.round(W * 1.2), 505));
-  const tr = buildTrack(TRACK_PRESETS.s_bend, Math.max(W, 180) / 1000, 0.4, 0.002, 606);
-  out.push({ walls: tr.walls, center: tr.center, spawn: tr.spawn, finish: tr.finish });
-  return out;
+  return [-1, -0.5, 0, 0, 0.5, 1].map((f, i) => corr(W * (1 + f * sp), 101 * (i + 1)));
 }
 
 /** engine config for a candidate {kp, ki, kd, speed (fraction of top speed)} at a noise multiplier */
