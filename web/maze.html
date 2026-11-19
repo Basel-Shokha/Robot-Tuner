@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title data-i18n="nav.maze">Maze sandbox</title>
+<link rel="stylesheet" href="css/style.css"><link rel="icon" href="img/icon.svg">
+</head>
+<body data-page="maze">
+<main>
+  <h1 data-i18n="mz.h1"></h1>
+  <p class="muted" data-i18n="mz.intro"></p>
+  <div class="tool wide-side">
+    <div class="side">
+      <div class="card stack" id="maze-set"></div>
+      <div class="card stack" id="algo-set"></div>
+      <div class="card stack" id="batch-set"></div>
+    </div>
+    <div class="stack">
+      <div class="row">
+        <button class="primary" id="run" data-i18n="sim.run"></button>
+        <button id="reset" data-i18n="sim.reset"></button>
+        <label class="row"><span data-i18n="sim.speed"></span>
+          <select id="rate"><option value="1">1×</option><option value="4" selected>4×</option><option value="16">16×</option><option value="64">64×</option></select></label>
+        <label class="toggle"><input type="checkbox" id="edit"><span data-i18n="mz.edit"></span></label>
+      </div>
+      <div class="grid-2">
+        <div><h3 data-i18n="mz.real_h"></h3><div class="canvas-wrap"><canvas id="cv-real"></canvas></div></div>
+        <div><h3 data-i18n="mz.belief_h"></h3><div class="canvas-wrap"><canvas id="cv-map"></canvas></div></div>
+      </div>
+      <div class="card" id="result"></div>
+      <div class="card" id="batch" hidden></div>
+    </div>
+  </div>
+</main>
+<script type="module" src="js/maze/maze-page.js"></script>
+</body>
+</html>
