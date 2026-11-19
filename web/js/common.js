@@ -28,7 +28,16 @@ function visited(id) {
   } catch (e) { return new Set(); }
 }
 
+function theme() { try { return localStorage.getItem('rt.theme') === 'dark' ? 'dark' : 'light'; } catch (e) { return 'light'; } }
+function applyTheme(th) {
+  document.documentElement.dataset.theme = th;
+  try { localStorage.setItem('rt.theme', th); } catch (e) { /* ignore */ }
+  document.querySelectorAll('.theme-toggle').forEach((b) => { b.textContent = t(th === 'dark' ? 'nav.theme_light' : 'nav.theme_dark'); });
+  window.dispatchEvent(new Event('resize'));  // canvases redraw with the new colours
+}
+
 export async function page() {
+  document.documentElement.dataset.theme = theme();
   await initI18n();
   const id = document.body.dataset.page;
   const seen = visited(id);
@@ -46,6 +55,7 @@ export async function page() {
       <div class="rail-group"><div class="rail-title">${t('nav.group_learn')}</div><nav class="rail-links">${LEARN.map(link).join('')}</nav></div>
       <div class="rail-group"><div class="rail-title">${t('nav.group_beyond')}</div><nav class="rail-links">${BEYOND.map(link).join('')}</nav></div>
       <div class="rail-foot">
+        <button class="small theme-toggle" type="button"></button>
         <label><span class="sr-only">${t('nav.language')}</span>
           <select id="lang-select">${LANGS.map((l) => `<option value="${l.code}"${l.code === currentLang() ? ' selected' : ''}>${l.name}</option>`).join('')}</select></label>
         <span>${t('footer.offline')}</span>
@@ -53,7 +63,7 @@ export async function page() {
     </aside>
     <div class="page">
       <div class="topbar"><button class="small" id="nav-toggle" aria-controls="rail" aria-expanded="false">${t('nav.menu')}</button>
-        <a class="brand" href="index.html">${LOGO}<span>Robot Tuner</span></a></div>
+        <a class="brand" href="index.html">${LOGO}<span>Robot Tuner</span></a><button class="small theme-toggle" type="button"></button></div>
     </div>`;
   main.replaceWith(app);
   const pageEl = app.querySelector('.page');
@@ -85,6 +95,8 @@ export async function page() {
     }
   }
 
+  app.querySelectorAll('.theme-toggle').forEach((b) => b.addEventListener('click', () => applyTheme(theme() === 'dark' ? 'light' : 'dark')));
+  applyTheme(theme());
   app.querySelector('#lang-select').addEventListener('change', (e) => setLang(e.target.value));
   const tog = app.querySelector('#nav-toggle');
   tog.addEventListener('click', () => { const o = app.classList.toggle('nav-open'); tog.setAttribute('aria-expanded', o); });

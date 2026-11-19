@@ -545,5 +545,7 @@
  "home.demo_bad": "Kp eight times too high",
  "home.demo_time": "{s} s, same start and same noise for both",
  "home.route_h": "Five steps from a robot to working gains",
- "home.open": "Open"
+ "home.open": "Open",
+ "nav.theme_dark": "Dark mode",
+ "nav.theme_light": "Light mode"
 }

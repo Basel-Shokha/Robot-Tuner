@@ -547,5 +547,7 @@
  "home.demo_bad": "",
  "home.demo_time": "",
  "home.route_h": "",
- "home.open": ""
+ "home.open": "",
+ "nav.theme_dark": "",
+ "nav.theme_light": ""
 }
