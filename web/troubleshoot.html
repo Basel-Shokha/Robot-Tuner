@@ -17,7 +17,7 @@ await page();
 // symptom -> things to try -> playground preset that reproduces it
 const ITEMS = [
   ['wobble', 'p_high'], ['drift', 'p_low'], ['overshoot', 'no_d'], ['late', 'too_fast'],
-  ['cant_turn', 'saturation'], ['one_side', 'mismatch'], ['swing_after', 'i_windup'], ['gaps', 'good'],
+  ['cant_turn', 'clip_compare'], ['one_side', 'mismatch'], ['swing_after', 'i_windup'], ['gaps', 'good'],
 ];
 for (const [k, preset] of ITEMS) {
   const tries = t(`ts.${k}.try`).split('|');

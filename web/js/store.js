@@ -57,6 +57,7 @@ export function defaultRobot() {
       k_l: 0.000613, k_r: 0.000618, static_l: 3.2, static_r: 3.8, breakaway_l: 20, breakaway_r: 20,
       tau_l_s: 0.0362, tau_r_s: 0.04,
       wheel_pid_period_ms: 10, wheel_kp: 2, wheel_ki: 0.001, wheel_kd: 5, ff_static: 4, ff_gain: 2.785,
+      v_min_mps: 0,               // slowest speed every wheel drives steadily (Measure -> Slowest speed); 0 = not measured
     },
     sensors: [
       Object.assign(makeSensor('VL53L1X_short', { name: 'right', x_mm: 100.76, y_mm: -10.24, angle_deg: -45 }), { noise_mm: 4 }),
@@ -64,7 +65,9 @@ export function defaultRobot() {
       Object.assign(makeSensor('VL53L1X_short', { name: 'left', x_mm: 98.64, y_mm: 8.12, angle_deg: 45 }), { noise_mm: 4 }),
     ],
     timing: { loop_ms: 25, age_ms: 22.2, age_jitter_ms: 18 },
-    pid: { kp: 0.586855, ki: 0.0158843, kd: 0.384207, speed_mps: 0.156, error_clip_mm: 80, integral_limit: 0.5, d_filter_alpha: 0.3, slowdown_frac: 0.5,
+    // Constant cruise speed: base = v_min + speed_frac (v_max - v_min), v_left = base - turn, v_right = base + turn,
+    // each clamped to +-v_max (v_max = motor.max_speed_mps, v_min = motor.v_min_mps). No slowdown, no speed law.
+    pid: { kp: 0.586855, ki: 0.0158843, kd: 0.384207, speed_frac: 0.75, error_clip_mm: 80, integral_limit: 0.5, d_filter_alpha: 0.3,
       mode: 'two_sides', follow_side: 'left', follow_mm: 100, offset_mm: 0 },
     smoothing: { on: true, tau_s: 0.10, turn_accel: 1.5, lin_accel: 0.5, max_step: 0.0105 },
     // wiring for the generated Arduino sketch (robot builder -> Firmware; see firmware-gen.js)
@@ -95,8 +98,16 @@ export function migrate(r) {
   for (const k of ['body', 'wheels', 'caster', 'motor', 'timing', 'pid', 'smoothing']) out[k] = { ...d[k], ...(r[k] || {}) };
   out.sensors = (Array.isArray(r.sensors) && r.sensors.length ? r.sensors : d.sensors).slice(0, 5).map((s) => ({ ...makeSensor(s.type || 'VL53L1X_short'), ...s }));
   out.hardware = normalizeHardware(r.hardware, out.sensors.length);
+  // before the constant-speed PID: cruise speed in m/s with a slowdown rule. Both are gone; speed_frac keeps its default.
+  delete out.pid.speed_mps; delete out.pid.slowdown_frac;
   out.source = { ...(r.source || {}) };
   return out;
+}
+
+/** The constant cruise speed (m/s): base = v_min + speed_frac (v_max - v_min). */
+export function cruiseSpeed(r, speedFrac = r.pid.speed_frac) {
+  const vmax = r.motor.max_speed_mps, vmin = Math.min(Math.max(0, r.motor.v_min_mps || 0), vmax);
+  return vmin + speedFrac * (vmax - vmin);
 }
 
 export function loopPeriodMs(r) {
@@ -141,9 +152,10 @@ export function robotToConfig(r, sim = {}) {
     steer_smooth: r.smoothing.on ? 1 : 0, steer_tau_s: r.smoothing.tau_s, steer_turn_accel: r.smoothing.turn_accel,
     steer_lin_accel: r.smoothing.lin_accel, steer_max_step: r.smoothing.max_step * dt / 0.025,
     kp: r.pid.kp, ki: r.pid.ki, kd: r.pid.kd,
-    base_speed_frac: Math.min(1, r.pid.speed_mps / m.max_speed_mps),
+    // constant cruise speed (sim/rt_engine.hpp Pid, pid_speed_mode 1)
+    pid_speed_mode: 1, pid_speed_frac: r.pid.speed_frac, pid_v_min: Math.min(Math.max(0, m.v_min_mps || 0), m.max_speed_mps),
     pid_error_clip_m: mm(r.pid.error_clip_mm), pid_integral_limit: r.pid.integral_limit,
-    pid_d_filter_alpha: r.pid.d_filter_alpha, pid_slowdown_frac: r.pid.slowdown_frac,
+    pid_d_filter_alpha: r.pid.d_filter_alpha,
     pid_mode: r.pid.mode === 'one_side' ? 1 : 0, follow_side: r.pid.follow_side === 'right' ? -1 : 1, follow_dist_m: mm(r.pid.follow_mm), center_offset_m: mm(r.pid.offset_mm || 0),
     wall_noise_std_m: 0.01 * n,
   };
@@ -250,6 +262,8 @@ export function robotToHardwareTxt(r) {
   line('wheel_scale_left', r.wheels.scale_l, src('wheels.scale_l'), 'CAL DRIVE');
   line('wheel_scale_right', r.wheels.scale_r, src('wheels.scale_r'), 'CAL DRIVE');
   line('max_speed_mps', r.motor.max_speed_mps, src('motor.max_speed_mps'), 'CAL MAXSPEED');
+  line('v_min_mps', r.motor.v_min_mps || 0, src('motor.v_min_mps', 'PLACEHOLDER'), 'CAL VMIN: slowest steady wheel speed');
+  line('pid_speed_frac', r.pid.speed_frac, src('pid.speed_frac', 'TYPED'), 'cruise = v_min + speed_frac (v_max - v_min)');
   line('pwm_limit', r.motor.pwm_limit, src('motor.pwm_limit'));
   line('wheel_pid_period_ms', r.motor.wheel_pid_period_ms, src('motor.wheel_pid_period_ms', 'ASSUMED'));
   const r50 = r.motor.wheel_pid_period_ms / 50;  // inverse of wheel_pid.h ConvertGains (50 ms -> period)
@@ -293,7 +307,8 @@ export function hardwareTxtToRobot(text, base = defaultRobot()) {
   set('caster_x_mm', r.caster, 'x_mm'); set('caster_diameter_mm', r.caster, 'diameter_mm');
   set('track_w_effective_mm', r.wheels, 'track_effective_mm'); set('enc_ticks_per_rev', r.wheels, 'ticks_per_rev');
   set('wheel_scale_left', r.wheels, 'scale_l'); set('wheel_scale_right', r.wheels, 'scale_r');
-  set('max_speed_mps', r.motor, 'max_speed_mps'); set('pwm_limit', r.motor, 'pwm_limit'); set('wheel_pid_period_ms', r.motor, 'wheel_pid_period_ms');
+  set('max_speed_mps', r.motor, 'max_speed_mps'); set('v_min_mps', r.motor, 'v_min_mps');
+  if (kv.pid_speed_frac !== undefined && Number.isFinite(kv.pid_speed_frac)) r.pid.speed_frac = kv.pid_speed_frac; set('pwm_limit', r.motor, 'pwm_limit'); set('wheel_pid_period_ms', r.motor, 'wheel_pid_period_ms');
   const r50 = (kv.wheel_pid_period_ms || r.motor.wheel_pid_period_ms) / 50;
   set('wheel_kp_50ms', r.motor, 'wheel_kp', (x) => x / r50); set('wheel_ki_50ms', r.motor, 'wheel_ki');
   set('wheel_kd_50ms', r.motor, 'wheel_kd', (x) => x / (r50 * r50)); set('wheel_ff_gain_50ms', r.motor, 'ff_gain', (x) => x / r50);

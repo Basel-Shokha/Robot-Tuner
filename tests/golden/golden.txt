@@ -5,3 +5,5 @@ simple_wheels ticks 689 hash 86761003
 five_sensors_4wd ticks 44 hash 5c48a95f ep0 03fdf0a1 ep1 f23207d5
 one_side ticks 663 hash 41b3da93
 external ticks 96 hash 828bf026
+const_speed ticks 754 hash c002a9c5 ep0 06e4d4b0 ep1 3d773f93 ep2 1f1b7878
+const_speed_full ticks 153 hash 573fb48f

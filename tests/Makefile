@@ -12,8 +12,10 @@ $(BIN)/equiv_upstream: native/equiv_upstream.cpp ../sim/*.hpp | $(BIN)
 	$(CXX) $(FLAGS) -w $< -o $@
 $(BIN)/golden: native/golden.cpp ../sim/*.hpp ../sim/rt_api.cpp | $(BIN)
 	$(CXX) $(FLAGS) $< -o $@
-test-native: $(BIN)/equiv_upstream $(BIN)/golden
-	cd .. && tests/$(BIN)/equiv_upstream && tests/$(BIN)/golden --check
+$(BIN)/pid_const: native/pid_const.cpp ../sim/*.hpp ../sim/rt_api.cpp | $(BIN)
+	$(CXX) $(FLAGS) $< -o $@
+test-native: $(BIN)/equiv_upstream $(BIN)/golden $(BIN)/pid_const
+	cd .. && tests/$(BIN)/equiv_upstream && tests/$(BIN)/golden --check && tests/$(BIN)/pid_const
 test-wasm:
 	cd .. && node --test tests/*.test.mjs tests/js/*.test.mjs
 golden: $(BIN)/golden

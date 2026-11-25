@@ -234,3 +234,5 @@ td.num, th.num { text-align: end; font-variant-numeric: tabular-nums; }
 [data-panel="firmware"] .field:has(input) { grid-template-columns: minmax(0, 1fr) 90px; }
 [data-panel="firmware"] .field input { width: 90px; }
 [data-panel="firmware"] .row > .field { flex: 1 1 190px; }
+/* playground clipping lesson: the overlay turns red while a wheel command is cut at v_max */
+.overlay.clipping { color: var(--red); }

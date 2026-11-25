@@ -418,6 +418,8 @@ export function generateSketch(robot, hwIn) {
     '//   CAL DRIVE <m> / CAL DIST <real m>      straight drive -> wheel scale',
     '//   CAL SPIN <turns> / CAL TURNS <real>    spin in place -> effective track width',
     '//   CAL TIMED [ms]             full power for ms milliseconds without encoders -> measure the distance yourself',
+    '//   CAL VMIN                   PWM ramp both ways, wheels in the air -> slowest steady speed (v_min)',
+    '//   RUN [s] / STOP             wall following with the PID below (constant cruise speed), default 10 s',
     '//   CAL TOF [n] [true_mm]      n readings per sensor -> noise, bias, dropouts',
     '//   STATUS                     loop period and reading age',
     '//   LOAD SENSORS / LOAD FINAL  motors off / on (sensor timing test)',
@@ -685,10 +687,11 @@ export function generateSketch(robot, hwIn) {
     'unsigned long readingTimeUs[N_SENSORS], sensorSeq[N_SENSORS];',
     'bool freshInSet[N_SENSORS];',
     'unsigned long lastSetUs = 0, loopPeriodUs = 0;   // the "control loop" = one fresh reading from every sensor',
+    'bool setReady = false;                             // a new full set arrived (the wall-following PID runs on it)',
     'void newReading(int i, int mm) {',
     '  lastMm[i] = mm; readingTimeUs[i] = micros(); sensorSeq[i]++; freshInSet[i] = true;',
     '  for (int k = 0; k < N_SENSORS; k++) if (!freshInSet[k]) return;',
-    '  unsigned long now = micros(); loopPeriodUs = now - lastSetUs; lastSetUs = now;',
+    '  unsigned long now = micros(); loopPeriodUs = now - lastSetUs; lastSetUs = now; setReady = true;',
     '  for (int k = 0; k < N_SENSORS; k++) freshInSet[k] = false;',
     '}');
   const tofIdx = robot.sensors.map((s, i) => i).filter((i) => kinds[i] === 'l0x' || kinds[i] === 'l1x');
@@ -704,7 +707,8 @@ export function generateSketch(robot, hwIn) {
         '// breakout pulls XSHUT up to its own 2.8 V supply.');
       w(`const int XSHUT_PIN[] = {${useX.map((i) => P(hw.sensors[i].xshut)).join(', ')}};`);
     }
-    w('void tofSetup() {');
+    w('void tofMissing(int i) { Serial.print(F("WARN sensor ")); Serial.print(SENSOR_NAME[i]); Serial.println(F(" not found: check wiring and XSHUT")); }',
+      'void tofSetup() {');
     if (useX.length) w(`  for (int k = 0; k < ${useX.length}; k++) { pinMode(XSHUT_PIN[k], OUTPUT); digitalWrite(XSHUT_PIN[k], LOW); }`, '  delay(10);');
     for (const i of tofIdx) {
       const s = robot.sensors[i], px = hw.sensors[i].xshut, addr = tofAddr(hw, i), per = Math.max(20, Math.round(s.period_ms || 33));
@@ -712,7 +716,7 @@ export function generateSketch(robot, hwIn) {
       if (px >= 0) w(`  pinMode(${P(px)}, INPUT); delay(10);`);
       w(`  tof${i}.setTimeout(500);`,
         `  tofOk[${i}] = tof${i}.init();`,
-        `  if (!tofOk[${i}]) Serial.println(F("WARN sensor ${names[i]} (${s.type}) not found: check wiring${px >= 0 ? ' and XSHUT' : ''}"));`,
+        `  if (!tofOk[${i}]) tofMissing(${i});`,
         `  else {`);
       if (tofIdx.length > 1 || addr !== 0x29) w(`    tof${i}.setAddress(${hex(addr)});`);
       if (kinds[i] === 'l1x') {
@@ -800,6 +804,23 @@ export function generateSketch(robot, hwIn) {
   if (i2c) w(esp ? '  Wire.begin(PIN_SDA, PIN_SCL);' : '  Wire.begin();', '  Wire.setClock(400000);');
   w('}', '');
   // ---------- common calibration code (same output lines as before) ----------
+  // ---------- wall-following PID config (same formula as the simulator and the exported pid_gains.h) ----------
+  const p = robot.pid, angles = robot.sensors.map((q) => q.angle_deg);
+  const li = angles.indexOf(Math.max(...angles)), ri = angles.indexOf(Math.min(...angles));
+  const vmax = robot.motor.max_speed_mps, vmin = Math.min(Math.max(0, robot.motor.v_min_mps || 0), vmax);
+  const sinL = Math.abs(Math.sin(angles[li] * Math.PI / 180)), sinR = Math.abs(Math.sin(angles[ri] * Math.PI / 180));
+  w('// ---- wall-following PID (RUN): constant cruise speed, the same formula as the simulator ----',
+    '//   e = clamp(left - right - setpoint, +-ERROR_CLIP); integral = clamp(integral + e dt, +-INTEGRAL_LIMIT)',
+    '//   d_filt = alpha d_raw + (1 - alpha) d_filt; turn = KP e + KI integral + KD d_filt',
+    '//   base = V_MIN + SPEED_FRAC (V_MAX - V_MIN); v_left = base - turn, v_right = base + turn, clamped to +-V_MAX',
+    `const float PID_KP = ${f(p.kp, 6)}f, PID_KI = ${f(p.ki, 6)}f, PID_KD = ${f(p.kd, 6)}f;`,
+    `const float PID_SPEED_FRAC = ${f(p.speed_frac, 4)}f;   // cruise = ${(vmin + p.speed_frac * (vmax - vmin)).toFixed(3)} m/s`,
+    `const float PID_V_MAX = ${f(vmax, 4)}f, PID_V_MIN = ${f(vmin, 4)}f;   // measured top speed, slowest steady speed (CAL VMIN)`,
+    `const float PID_ERROR_CLIP = ${f(p.error_clip_mm / 1000, 4)}f, PID_INTEGRAL_LIMIT = ${f(p.integral_limit, 4)}f, PID_D_ALPHA = ${f(p.d_filter_alpha, 4)}f;   // alpha per 50 ms`,
+    `const float PID_SETPOINT = ${f(-((p.offset_mm || 0) / 1000) * (1 / Math.max(0.17, sinL) + 1 / Math.max(0.17, sinR)), 6)}f;   // wanted left - right (0 = centred)`,
+    `const int PID_LEFT = ${li}, PID_RIGHT = ${ri};   // sensors looking most to the left / right`,
+    `const float SENSOR_MAX_M[N_SENSORS] = {${robot.sensors.map((q) => f(q.max_mm / 1000, 3) + 'f').join(', ')}};   // no reading = nothing within range`,
+    `#define CAN_RUN ${robot.sensors.length >= 2 && li !== ri ? 1 : 0}`, '');
   w(CORE);
   return { code: C.join('\n') + '\n', libraries: libs, messages: validateHardware(robot, hw), ticks, lowRes, fileName: 'robot_tuner_min.ino', fqbn: B.fqbn };
 }
@@ -855,7 +876,7 @@ int piOne(float tg, float v, float& integ, float dt) {
 }
 void wheelPI(float tl, float tr, float vl, float vr, float dt) { setPwm(piOne(tl, vl, iL, dt), piOne(tr, vr, iR, dt)); }
 
-String line;
+char line[64]; int lineLen = 0;   // the command being typed
 
 void setup() {
   Serial.begin(115200);
@@ -864,7 +885,7 @@ void setup() {
   i2cSetup();
   encSetup();
   sensorsSetup();
-  Serial.println(F("robot_tuner_min ready. Commands: CAL TICKS|END|MAXSPEED|FF|STEP|DRIVE|DIST|SPIN|TURNS|TIMED|TOF, STATUS, LOAD SENSORS|FINAL"));
+  Serial.println(F("robot_tuner_min ready (commands: see the top of the sketch)"));
 }
 
 long c0L, c0R; bool ticksRunning = false; long driveTicksL = 0, driveTicksR = 0; float spinEncRot = 0;
@@ -1002,44 +1023,144 @@ void status() {
   Serial.print(F("control loop (ToF data-ready): period ")); Serial.print(loopPeriodUs); Serial.print(F(" us (max ")); Serial.print(loopPeriodUs); Serial.println(F("), compute 0 us, overruns 0, ticks 0, telemetry dropped 0"));
 }
 
-bool needsEncoders(const String& u) {
-  return u == "CAL TICKS" || u == "CAL END" || u == "CAL MAXSPEED" || u == "CAL FF" || u.startsWith("CAL STEP") || u.startsWith("CAL DRIVE")
-    || u.startsWith("CAL DIST") || u.startsWith("CAL SPIN") || u.startsWith("CAL TURNS");
+// Slowest speed each wheel drives steadily, wheels in the air. One wheel and one direction at a time, the PWM steps
+// up from 0 by 3; at each step three 100 ms windows are measured; the wheel "turns steadily" when all three move the
+// right way and the slowest is >= 70 % of the fastest. v_min = the largest of the four (every wheel drives it, both ways).
+float vminOne(int w, int dir, int& at) {
+  float v = -1; at = -1;
+  for (int pwm = 0; pwm <= PWM_MAX && at < 0; pwm += 3) {
+    setPwm(w == 0 ? dir * pwm : 0, w == 1 ? dir * pwm : 0); waitMs(200);
+    float lo = 1e9, hi = -1e9;
+    for (int k = 0; k < 3; ++k) { float a, b; avgSpeeds(100, a, b); float x = (w ? b : a) * dir; if (x < lo) lo = x; if (x > hi) hi = x; }
+    if (lo > 0 && lo >= 0.7f * hi) { v = 0.5f * (lo + hi); at = pwm; }
+  }
+  setPwm(0, 0); waitMs(300);
+  return v;
 }
-void handle(String c) {
-  c.trim(); String u = c; u.toUpperCase();
-  // the calibration commands also work without "CAL": TICKS, SPIN 5, TOF 200 200 ...
-  if (!u.startsWith("CAL ") && u != "STATUS" && !u.startsWith("LOAD")) u = "CAL " + u;
-  float a1 = 0, a2 = 0; int sp1 = u.indexOf(' ', 4), sp2 = sp1 >= 0 ? u.indexOf(' ', sp1 + 1) : -1;
-  if (sp1 >= 0) a1 = u.substring(sp1 + 1).toFloat();
-  if (sp2 >= 0) a2 = u.substring(sp2 + 1).toFloat();
+void calVmin() {
+  float worst = 0; bool all = true;
+  Serial.print(F("CAL VMIN:"));
+  for (int k = 0; k < 4; ++k) {   // left fwd, right fwd, left rev, right rev
+    int at; float v = vminOne(k & 1, k < 2 ? 1 : -1, at);
+    Serial.print(k ? F(", ") : F(" ")); Serial.print((k & 1) ? F("right") : F("left")); Serial.print(k < 2 ? F(" fwd ") : F(" rev "));
+    if (at < 0) { Serial.print(F("none")); all = false; continue; }
+    Serial.print(v, 4); Serial.print(F(" m/s at PWM ")); Serial.print(at); if (v > worst) worst = v;
+  }
+  Serial.println();
+  if (!all) { Serial.println(F("ERR CAL VMIN: a wheel never turned steadily")); return; }
+  Serial.print(F("CAL suggestion: SET v_min ")); Serial.println(worst, 4);
+}
+
+// ---- RUN: wall following with the PID above, the wheel PI tracking its wheel speeds ----
+float pidI = 0, pidPrev = 0, pidD = 0; bool pidHas = false, running = false;
+unsigned long runEndMs = 0, lastRunSetUs = 0;
+float targetL = 0, targetR = 0;
+Meter runMeter; unsigned long lastWheelMs = 0;
+void pidControl(float left, float right, float dt, float& vl, float& vr) {
+  float e = constrain(left - right - PID_SETPOINT, -PID_ERROR_CLIP, PID_ERROR_CLIP);
+  pidI = constrain(pidI + e * dt, -PID_INTEGRAL_LIMIT, PID_INTEGRAL_LIMIT);
+  float rawD = pidHas ? (e - pidPrev) / dt : 0.0f;
+  float alpha = 1.0f - powf(1.0f - PID_D_ALPHA, dt / 0.05f);
+  pidD = alpha * rawD + (1.0f - alpha) * pidD;
+  pidPrev = e; pidHas = true;
+  float turn = PID_KP * e + PID_KI * pidI + PID_KD * pidD;
+  float base = PID_V_MIN + PID_SPEED_FRAC * (PID_V_MAX - PID_V_MIN);   // constant cruise speed
+  vl = constrain(base - turn, -PID_V_MAX, PID_V_MAX);
+  vr = constrain(base + turn, -PID_V_MAX, PID_V_MAX);
+}
+float sensorM(int i) { return lastMm[i] < 0 ? SENSOR_MAX_M[i] : lastMm[i] / 1000.0f; }
+void runStart(float seconds) {
+  if (!CAN_RUN) { Serial.println(F("ERR RUN needs a left- and a right-looking sensor")); return; }
+  pidI = pidPrev = pidD = 0; pidHas = false; iL = iR = 0; targetL = targetR = 0;
+  running = true; runEndMs = millis() + (unsigned long)(seconds * 1000); lastRunSetUs = 0; setReady = false;
+  meterStart(runMeter); lastWheelMs = millis();
+  Serial.println(F("OK RUN started (send STOP to stop)"));
+}
+void runStop() { if (running) { running = false; setPwm(0, 0); Serial.println(F("RUN done")); } }
+void runTick() {
+  if ((long)(millis() - runEndMs) >= 0) { runStop(); return; }
+  if (setReady) {   // a fresh reading from every sensor: one PID step
+    setReady = false;
+    unsigned long now = lastSetUs;
+    float dt = lastRunSetUs ? (now - lastRunSetUs) * 1e-6f : 0.025f; lastRunSetUs = now;
+    pidControl(sensorM(PID_LEFT), sensorM(PID_RIGHT), max(dt, 1e-3f), targetL, targetR);
+  }
+  if (millis() - lastWheelMs >= 10) {   // wheel speed loop, 10 ms
+    lastWheelMs = millis();
+#if HAS_ENCODERS
+    float vl, vr; float dt = meterRead(runMeter, vl, vr); wheelPI(targetL, targetR, vl, vr, dt);
+#else
+    // no encoders: feed-forward only (open loop)
+    setPwm(targetL == 0 ? 0 : (int)((targetL > 0 ? ff_static : -ff_static) + ff_gain * targetL),
+           targetR == 0 ? 0 : (int)((targetR > 0 ? ff_static : -ff_static) + ff_gain * targetR));
+#endif
+  }
+}
+
+// Command parsing without the String class (saves ~2 kB of flash on an Uno): command names stay in flash (PSTR).
+#define IS(w) (strcmp_P(u, PSTR(w)) == 0)
+#define STARTS(w) (strncmp_P(u, PSTR(w), sizeof(w) - 1) == 0)
+float parseNum(const char* p) {   // small decimal parser ("1.75", "-0.2"): no strtod
+  while (*p == ' ') ++p;
+  bool neg = *p == '-'; if (neg || *p == '+') ++p;
+  float v = 0, scale = 1; bool frac = false;
+  for (; *p; ++p) {
+    if (*p == '.' && !frac) { frac = true; continue; }
+    if (*p < '0' || *p > '9') break;
+    if (frac) { scale *= 0.1f; v += (*p - '0') * scale; } else v = v * 10 + (*p - '0');
+  }
+  return neg ? -v : v;
+}
+bool needsEncoders(const char* u) {
+  return IS("CAL TICKS") || IS("CAL END") || IS("CAL MAXSPEED") || IS("CAL FF") || STARTS("CAL STEP") || STARTS("CAL DRIVE")
+    || STARTS("CAL DIST") || STARTS("CAL SPIN") || STARTS("CAL TURNS") || IS("CAL VMIN");
+}
+void handle(const char* c) {
+  // trimmed, upper case; the calibration commands also work without "CAL": TICKS, SPIN 5, TOF 200 200 ...
+  while (*c == ' ') ++c;
+  char u[64]; int n = 0;
+  bool cal = strncasecmp(c, "CAL ", 4) == 0 || strcasecmp(c, "STATUS") == 0 || strncasecmp(c, "LOAD", 4) == 0;
+  if (!cal) { memcpy(u, "CAL ", 4); n = 4; }
+  for (; *c && n < 63; ++c) u[n++] = toupper(*c);
+  while (n > 0 && u[n - 1] == ' ') --n;
+  u[n] = 0;
+  float a1 = 0, a2 = 0;
+  const char* sp1 = n > 4 ? strchr(u + 4, ' ') : NULL;
+  const char* sp2 = sp1 ? strchr(sp1 + 1, ' ') : NULL;
+  if (sp1) a1 = parseNum(sp1 + 1);
+  if (sp2) a2 = parseNum(sp2 + 1);
   if (!HAS_ENCODERS && needsEncoders(u)) {
     Serial.print(F("ERR ")); Serial.print(u); Serial.println(F(" needs wheel encoders: this robot has none (time-based mode). Use CAL TIMED or type the value on the Measure page."));
     return;
   }
-  if (u == "CAL TICKS") calTicks();
-  else if (u == "CAL END") calEnd();
-  else if (u == "CAL MAXSPEED") calMaxSpeed();
-  else if (u == "CAL FF") calFF();
-  else if (u.startsWith("CAL STEP")) calStep(a1 > 0 ? a1 : 0.15f);
-  else if (u.startsWith("CAL DRIVE")) calDrive(a1 > 0 ? a1 : 1.0f);
-  else if (u.startsWith("CAL DIST")) calDist(a1);
-  else if (u.startsWith("CAL SPIN")) calSpin(a1 > 0 ? a1 : 5);
-  else if (u.startsWith("CAL TURNS")) calTurns(a1);
-  else if (u.startsWith("CAL TIMED")) calTimed(a1 > 0 ? (unsigned long)a1 : 2000UL);
-  else if (u.startsWith("CAL TOF")) calTof(a1 > 0 ? (int)a1 : 100, a2);
-  else if (u == "STATUS") status();
-  else if (u == "LOAD SENSORS") { motorsEnabled = false; setPwm(0, 0); Serial.println(F("OK profile SENSORS (motors off)")); }
-  else if (u == "LOAD FINAL") { motorsEnabled = true; Serial.println(F("OK profile FINAL")); }
+  if (IS("CAL TICKS")) calTicks();
+  else if (IS("CAL END")) calEnd();
+  else if (IS("CAL MAXSPEED")) calMaxSpeed();
+  else if (IS("CAL FF")) calFF();
+  else if (STARTS("CAL STEP")) calStep(a1 > 0 ? a1 : 0.15f);
+  else if (STARTS("CAL DRIVE")) calDrive(a1 > 0 ? a1 : 1.0f);
+  else if (STARTS("CAL DIST")) calDist(a1);
+  else if (STARTS("CAL SPIN")) calSpin(a1 > 0 ? a1 : 5);
+  else if (STARTS("CAL TURNS")) calTurns(a1);
+  else if (STARTS("CAL TIMED")) calTimed(a1 > 0 ? (unsigned long)a1 : 2000UL);
+  else if (IS("CAL VMIN")) calVmin();
+  else if (STARTS("CAL RUN")) runStart(a1 > 0 ? a1 : 10.0f);
+  else if (IS("CAL STOP")) runStop();
+  else if (STARTS("CAL TOF")) calTof(a1 > 0 ? (int)a1 : 100, a2);
+  else if (IS("STATUS")) status();
+  else if (IS("LOAD SENSORS")) { motorsEnabled = false; setPwm(0, 0); Serial.println(F("OK profile SENSORS (motors off)")); }
+  else if (IS("LOAD FINAL")) { motorsEnabled = true; Serial.println(F("OK profile FINAL")); }
   else Serial.println(F("ERR unknown command"));
 }
 
 void loop() {
   // the "control loop": the sensors deliver readings at their own pace; STATUS reports the period of a full set
   idle(true);
+  if (running) runTick();
   while (Serial.available()) {
     char ch = Serial.read();
-    if (ch == '\n') { handle(line); line = ""; } else if (ch != '\r') line += ch;
+    if (ch == '\n') { line[lineLen] = 0; handle(line); lineLen = 0; }
+    else if (ch != '\r' && lineLen < 63) line[lineLen++] = ch;
   }
 }
 `;

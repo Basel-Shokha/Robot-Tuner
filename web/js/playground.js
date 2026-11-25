@@ -1,6 +1,6 @@
 // playground.js - 5. PLAYGROUND: live gains while the robot drives, presets, sweep with ghost robots.
 import { page, $, el, t, slider, toast } from './common.js';
-import { loadRobot, saveRobot } from './store.js';
+import { loadRobot, saveRobot, cruiseSpeed } from './store.js';
 import { loadEngine, S } from './engine.js';
 import { loadEnv } from './corridor.js';
 import { Scene, Runner, drawScene } from './simview.js';
@@ -21,6 +21,7 @@ const plots = {
   ce: new TimePlot(P, { title: t('plot.center_err'), series: [], window: 15 }),
   he: new TimePlot(P, { title: t('plot.heading_err'), series: [], window: 15 }),
   wheels: new TimePlot(P, { title: t('pg.plot_wheels'), series: [], window: 15 }),
+  turn: new TimePlot(P, { title: t('pg.plot_turn'), series: [], window: 15 }),
   pid: new TimePlot(P, { title: t('pg.plot_pid'), series: [], window: 15 }),
 };
 
@@ -33,16 +34,21 @@ function buildGains() {
     sliders.kp = slider({ key: 'pg.kp', min: 0, max: Math.max(100, k0 * 30), step: 'any', log: true, value: +robot.pid.kp.toPrecision(3), onInput: (v) => live('kp', v), hint: t('pg.kp_hint') }),
     sliders.ki = slider({ key: 'pg.ki', min: 0, max: 20, step: 'any', log: true, value: +robot.pid.ki.toPrecision(3), onInput: (v) => live('ki', v), hint: t('pg.ki_hint') }),
     sliders.kd = slider({ key: 'pg.kd', min: 0, max: Math.max(20, stored.pid.kd * 30), step: 'any', log: true, value: +robot.pid.kd.toPrecision(3), onInput: (v) => live('kd', v), hint: t('pg.kd_hint') }),
-    sliders.speed = slider({ key: 'pg.speed', unit: 'm/s', min: 0.02, max: MAX_SIM_SPEED, step: 0.005, value: +robot.pid.speed_mps.toFixed(3), onInput: (v) => live('speed_mps', v), hint: t('pg.speed_hint', { max: mx }) }),
+    sliders.speed = slider({ key: 'pg.speed_frac', min: 0, max: 1, step: 0.01, value: +robot.pid.speed_frac.toFixed(2), onInput: (v) => live('speed_frac', v), hint: t('pg.speed_frac_hint') }),
+    el('p', { class: 'muted', id: 'cruise-line' }),
     sliders.offset = slider({ key: 'pg.offset', unit: 'mm', min: -200, max: 200, step: 5, value: robot.pid.offset_mm || 0, onInput: (v) => { live('offset_mm', v); }, hint: t('pg.offset_hint') }),
-    el('p', { class: 'notice warn', id: 'speed-note', hidden: true, text: t('pg.speed_virtual', { max: mx }) }),
     el('small', { class: 'muted', text: t('pg.units') }));
-  speedNote();
+  cruiseLine();
 }
 function live(k, v) {
   robot.pid[k] = v;
-  speedNote();
-  if (!sweep) for (const r of runners) r.configure(effective(robot));
+  cruiseLine();
+  if (!sweep) for (const r of runners) r.configure(robot);
+}
+/** base = v_min + speed_frac (v_max - v_min): what the slider means in m/s for this robot */
+function cruiseLine() {
+  const e = document.getElementById('cruise-line'); if (!e) return;
+  e.textContent = t('pg.cruise_line', { v: fmt(cruiseSpeed(robot), 3), vmin: fmt(robot.motor.v_min_mps || 0, 3), vmax: fmt(robot.motor.max_speed_mps, 3), room: fmt(robot.motor.max_speed_mps - cruiseSpeed(robot), 3) });
 }
 
 function legend() {
@@ -53,7 +59,7 @@ function restart() {
   for (const r of runners) r.destroy();
   scene = new Scene(env);
   const variants = sweep ? sweep.values.map((v) => ({ r: patch(robot, sweep.param, v), label: `${t('pg.p_' + sweep.param)} = ${v}` })) : [{ r: robot, label: '' }];
-  runners = variants.map((x, i) => new Runner(engine, effective(x.r), env, { color: PALETTE[i % PALETTE.length], label: x.label }));
+  runners = variants.map((x, i) => new Runner(engine, x.r, env, { color: PALETTE[i % PALETTE.length], label: x.label }));
   scene.update(runners, true);
   const pose = scene.start(robot, seed);
   for (const r of runners) r.reset(pose, seed, scene.loopLength);  // same start AND same noise sequence for every ghost
@@ -63,28 +69,21 @@ function restart() {
   if (runners.length === 1) plots.ce.setSeries([{ name: t('plot.center_err_s'), color: PALETTE[0] }, { name: t('pg.target'), color: '#9aa6b0', dash: [5, 4] }]); set(plots.he, ['he'], [t('plot.heading_err_s')]);
   plots.wheels.setSeries([{ name: t('pg.cmd_l'), color: PALETTE[0] }, { name: t('pg.cmd_r'), color: PALETTE[1] }, { name: t('pg.real_l'), color: PALETTE[0], dash: [3, 3] }, { name: t('pg.real_r'), color: PALETTE[1], dash: [3, 3] }]);
   plots.pid.setSeries([{ name: 'P', color: PALETTE[0] }, { name: 'I', color: PALETTE[2] }, { name: 'D', color: PALETTE[3] }]);
+  plots.turn.setSeries(runners.length > 1 ? runners.flatMap((r) => [{ name: `${r.label}: ${t('pg.turn_asked')}`, color: r.color }, { name: `${r.label}: ${t('pg.turn_real')}`, color: r.color, dash: [3, 3] }])
+    : [{ name: t('pg.turn_asked'), color: PALETTE[0] }, { name: t('pg.turn_real'), color: PALETTE[1], dash: [3, 3] }]);
   legend(); render(); table();
   $('#env-sum').textContent = t('pg.env_sum', { mode: t(env.mode === 'track' ? 'corr.mode_track' : 'corr.mode_endless'), w: env.width_mm, a: env.start.angle_deg, o: env.start.offset_mm, n: env.noise.global });
 }
-/** Above the measured top speed the robot gets a "virtual" faster motor: simple lag motor model with the
- *  measured response time and a top speed of 1.15 x the requested cruise speed (room left to steer). */
-const MAX_SIM_SPEED = 1.0;
-function effective(r) {
-  if (r.pid.speed_mps <= stored.motor.max_speed_mps + 1e-9) return r;
-  const c = JSON.parse(JSON.stringify(r));
-  c.motor = { ...c.motor, model: 'lag', max_speed_mps: Math.min(1.15 * c.pid.speed_mps, 1.15 * MAX_SIM_SPEED) };
-  return c;
-}
-function speedNote() {
-  const el = document.getElementById('speed-note'); if (!el) return;
-  el.hidden = !(robot.pid.speed_mps > stored.motor.max_speed_mps + 1e-9);
-}
-function patch(r, k, v) { const c = JSON.parse(JSON.stringify(r)); if (k === 'speed') c.pid.speed_mps = v; else if (k === 'offset') c.pid.offset_mm = v; else c.pid[k] = v; return c; }
+function patch(r, k, v) { const c = JSON.parse(JSON.stringify(r)); if (k === 'speed') c.pid.speed_frac = v; else if (k === 'offset') c.pid.offset_mm = v; else c.pid[k] = v; return c; }
 
 function render() {
-  drawScene(view, scene, runners, { crashLabel: t('sim.crash') });
-  const L = runners[0], st = L.stats(1.0);
-  $('#ov').textContent = `${t('sim.time')} ${fmt(st.t, 1)} s · ${t('sim.mean_ce')} ${fmt(st.meanCe, 1)} mm` + (scene.loopLength ? ' · ' + t('sim.laps', { n: st.laps }) : '') + (L.last && L.last[S.sat] ? ' · ' + t('pg.saturated') : '') + (st.crashed ? ' · ' + t('sim.crashed') : '');
+  drawScene(view, scene, runners, { crashLabel: t('sim.crash'), clip: true });
+  const L = runners[0], st = L.stats(1.0), s = L.last;
+  // clipping lesson: which wheel is cut at v_max, and the turn the PID asked for vs the turn the wheels can give
+  const clipTxt = s && (s[S.clip_l] || s[S.clip_r])
+    ? ' · ' + t('pg.clipped', { w: t(s[S.clip_l] && s[S.clip_r] ? 'pg.both_wheels' : s[S.clip_l] ? 'pg.left_wheel' : 'pg.right_wheel'), a: fmt(s[S.turn], 3), r: fmt(s[S.real_turn], 3) }) : '';
+  $('#ov').textContent = `${t('sim.time')} ${fmt(st.t, 1)} s · ${t('sim.mean_ce')} ${fmt(st.meanCe, 1)} mm` + (scene.loopLength ? ' · ' + t('sim.laps', { n: st.laps }) : '') + clipTxt + (st.crashed ? ' · ' + t('sim.crashed') : '');
+  $('#ov').classList.toggle('clipping', !!clipTxt);
   if (runners.length > 1) runners.forEach((r, i) => { plots.ce.setData(i, r.h.t, r.h.ce); plots.he.setData(i, r.h.t, r.h.he); });
   else {
     plots.ce.setData(0, L.h.t, L.h.ce); plots.he.setData(0, L.h.t, L.h.he);
@@ -93,6 +92,11 @@ function render() {
   const h = L.h;
   plots.wheels.setData(0, h.t, h.vl); plots.wheels.setData(1, h.t, h.vr); plots.wheels.setData(2, h.t, h.wl); plots.wheels.setData(3, h.t, h.wr);
   plots.pid.setData(0, h.t, h.p); plots.pid.setData(1, h.t, h.i); plots.pid.setData(2, h.t, h.d);
+  if (runners.length > 1) runners.forEach((r, i) => { plots.turn.setData(2 * i, r.h.t, r.h.ta); plots.turn.setData(2 * i + 1, r.h.t, r.h.tr); });
+  else { plots.turn.setData(0, h.t, h.ta); plots.turn.setData(1, h.t, h.tr); }
+  const pct = (r) => { const q = r.h, n = q.t.length; return n ? 100 * q.cl.reduce((a, x, k) => a + (x || q.cr[k] ? 1 : 0), 0) / n : NaN; };
+  $('#clip-stat').textContent = !h.t.length ? '' : runners.length > 1
+    ? runners.map((r) => `${r.label}: ${t('pg.clip_stat', { p: fmt(pct(r), 0) })}`).join(' · ') : t('pg.clip_stat', { p: fmt(pct(L), 0) });
   Object.values(plots).forEach((p) => p.draw());
 }
 function table() {
@@ -115,13 +119,14 @@ function loop(ts) {
 view.onChange = render;
 $('#run').addEventListener('click', () => { if (runners.every((r) => !r.alive)) restart(); running = !running; $('#run').textContent = running ? t('sim.pause') : t('sim.run'); });
 $('#reset').addEventListener('click', () => { seed++; restart(); });
-$('#save-gains').addEventListener('click', () => { stored.pid = { ...stored.pid, kp: robot.pid.kp, ki: robot.pid.ki, kd: robot.pid.kd, speed_mps: robot.pid.speed_mps, offset_mm: robot.pid.offset_mm || 0 }; saveRobot(stored); toast(t('pg.saved'), 'ok'); });
+$('#save-gains').addEventListener('click', () => { stored.pid = { ...stored.pid, kp: robot.pid.kp, ki: robot.pid.ki, kd: robot.pid.kd, speed_frac: robot.pid.speed_frac, offset_mm: robot.pid.offset_mm || 0 }; saveRobot(stored); toast(t('pg.saved'), 'ok'); });
 
 // presets
 for (const id of PRESET_IDS) $('#presets').append(el('button', { class: 'small', text: t('preset.' + id), onclick: () => applyPreset(id) }));
 function applyPreset(id) {
-  [robot, env] = PRESETS[id](stored, loadEnv());
-  sweep = null; buildGains(); buildSweep();
+  let sw;
+  [robot, env, sw] = PRESETS[id](stored, loadEnv());
+  sweep = sw || null; buildGains(); buildSweep();
   $('#preset-desc').textContent = t('preset.' + id + '.desc');
   restart(); running = true; $('#run').textContent = t('sim.pause');
 }
@@ -133,16 +138,17 @@ function buildSweep() {
   const vals = el('input', { style: 'flex:1', value: '' });
   const fill = () => {
     if (sel.value === 'offset') { vals.value = '-60, -30, 0, 30, 60'; return; }
-    const b = sel.value === 'speed' ? robot.pid.speed_mps : robot.pid[sel.value];
-    const mul = sel.value === 'speed' ? [0.5, 1, 2, 4] : [0.25, 0.5, 1, 2, 4];
-    vals.value = mul.map((m) => +Math.min(sel.value === 'speed' ? MAX_SIM_SPEED : 1e9, Math.max(b, sel.value === 'ki' ? 0.01 : 1e-3) * m).toPrecision(2)).join(', ');
+    if (sel.value === 'speed') { vals.value = '0.5, 0.75, 1'; return; }
+    const b = robot.pid[sel.value];
+    vals.value = [0.25, 0.5, 1, 2, 4].map((m) => +(Math.max(b, sel.value === 'ki' ? 0.01 : 1e-3) * m).toPrecision(2)).join(', ');
   };
   sel.addEventListener('change', fill); fill();
   W.append(el('h3', { text: t('pg.sweep_h') }), el('p', { class: 'muted', text: t('pg.sweep_p') }),
     el('div', { class: 'row' }, sel, vals),
     el('div', { class: 'row' },
       el('button', { class: 'primary small', text: t('pg.sweep_run'), onclick: () => {
-        const v = vals.value.split(/[,;\s]+/).map(Number).filter((x) => Number.isFinite(x)).slice(0, 8);
+        let v = vals.value.split(/[,;\s]+/).map(Number).filter((x) => Number.isFinite(x)).slice(0, 8);
+        if (sel.value === 'speed') v = v.map((x) => Math.min(1, Math.max(0, x)));  // speed_frac is 0..1
         if (v.length < 2) return toast(t('pg.sweep_need2'), 'bad');
         sweep = { param: sel.value, values: v }; restart(); running = true; $('#run').textContent = t('sim.pause');
       } }),

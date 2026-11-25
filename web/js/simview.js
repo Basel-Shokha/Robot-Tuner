@@ -69,7 +69,7 @@ export class Scene {
   centerInView(x0, x1) { return this.endless ? this.corr.centerFlat(x0, x1) : this.track.center; }
 }
 
-const HIST_KEYS = ['t', 'x', 'y', 'ce', 'he', 'err', 'vl', 'vr', 'wl', 'wr', 'p', 'i', 'd', 'sat'];
+const HIST_KEYS = ['t', 'x', 'y', 'ce', 'he', 'err', 'vl', 'vr', 'wl', 'wr', 'p', 'i', 'd', 'sat', 'ta', 'tr', 'cl', 'cr'];
 // laps on a closed track: the guide position s jumps back by more than half the loop at the start line
 export class Runner {
   /** engine: Engine; robot: robot JSON (already patched with the gains to use); env; label; color */
@@ -109,6 +109,7 @@ export class Runner {
     h.ce.push(s[S.guide_ok] ? s[S.center_err] * 1000 : NaN); h.he.push(s[S.guide_ok] ? s[S.heading_err] * 180 / Math.PI : NaN);
     h.err.push(s[S.err] * 1000); h.vl.push(s[S.v_l]); h.vr.push(s[S.v_r]); h.wl.push(s[S.eff_l]); h.wr.push(s[S.eff_r]);
     h.p.push(s[S.p]); h.i.push(s[S.i]); h.d.push(s[S.d]); h.sat.push(s[S.sat]);
+    h.ta.push(s[S.turn]); h.tr.push(s[S.real_turn]); h.cl.push(s[S.clip_l]); h.cr.push(s[S.clip_r]);  // asked / real turn, clipped wheels
   }
   /** summary of the run so far: mean |centre error| (mm), max, mean |heading| (deg), distance (m) */
   stats(fromT = 0) {
@@ -151,7 +152,7 @@ export function drawScene(view, scene, runners, opts = {}) {
   runners.forEach((r, i) => {
     if (!r.last) return;
     if (i === 0 && opts.rays !== false) view.rays(r.sim.rays());
-    view.robot(r.sim.footprint(), r.color, i === 0 ? 1 : 0.6, r.last[S.theta]);
+    view.robot(r.sim.footprint(), r.color, i === 0 ? 1 : 0.6, r.last[S.theta], opts.clip ? [r.last[S.clip_l], r.last[S.clip_r]] : null);
     if (r.crashT !== null) view.text(r.last[S.x], r.last[S.y] + 0.06, '✕ ' + (opts.crashLabel || 'crash'), css('--bad'), 'center');
   });
   view.scaleBar();

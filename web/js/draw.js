@@ -69,8 +69,9 @@ export class View {
     g.restore();
   }
   /** footprint: [body, wheel, wheel, ...] polygons from Sim.footprint() */
-  robot(foot, color = css('--robot'), alpha = 1, heading = null) {
-    foot.slice(1).forEach((w) => this.poly(w, '#333a', null, alpha));
+  /** hot: [left, right] = draw that wheel red (its command is clipped at v_max); wheels alternate left, right */
+  robot(foot, color = css('--robot'), alpha = 1, heading = null, hot = null) {
+    foot.slice(1).forEach((w, k) => { const h = hot && hot[k % 2]; this.poly(w, h ? css('--bad') : '#333a', h ? css('--bad') : null, alpha); });
     this.poly(foot[0], color + '40', color, alpha);
     if (heading !== null) {
       const b = foot[0]; const fx = (b[0][0] + b[1][0]) / 2, fy = (b[0][1] + b[1][1]) / 2;

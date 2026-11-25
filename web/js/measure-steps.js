@@ -20,6 +20,17 @@ export function parseStep(line) {  // "CAL STEP 0.10 m/s (= ...): rise L 0.120s 
   const m = R('CAL STEP # m/s.*rise L #s R #s, overshoot L #% R #%, tau63 L #s R #s').exec(line);
   return m ? { target: +m[1], riseL: +m[2], riseR: +m[3], overL: +m[4], overR: +m[5], tauL: +m[6], tauR: +m[7], tau: (+m[6] + +m[7]) / 2 } : null;
 }
+// "CAL VMIN: left fwd 0.0210 m/s at PWM 36, right fwd 0.0190 m/s at PWM 39, left rev none, right rev 0.0200 m/s at PWM 42"
+export function parseVmin(line) {
+  if (!/^CAL VMIN:/.test(line.trim())) return null;
+  const out = {};
+  for (const m of line.matchAll(/(left|right) (fwd|rev) (none|([-+\d.eE]+) m\/s at PWM (\d+))/g)) out[`${m[1]}_${m[2]}`] = m[3] === 'none' ? null : { v: +m[4], pwm: +m[5] };
+  const vals = Object.values(out);
+  if (vals.length !== 4) return null;
+  const ok = vals.filter(Boolean);
+  return { wheels: out, vmin: ok.length === 4 ? Math.max(...ok.map((x) => x.v)) : null, missing: 4 - ok.length,
+    lo: ok.length ? Math.min(...ok.map((x) => x.v)) : null };
+}
 export function parseTimed(line) {  // "CAL TIMED done: full power for 2000 ms at PWM 255. Measure the distance D (m) ..."
   const m = /CAL TIMED done: full power for (\d+) ms/.exec(line); return m ? { ms: +m[1] } : null;
 }
@@ -68,6 +79,15 @@ export function sanity(step, v, robot) {
       if (v.max < 0.03 || v.max > 3) return ['bad', 'chk.speed_range', { v: v.max }];
       if (Math.abs(v.left - v.right) / v.max > 0.1) return ['warn', 'chk.speed_lr', { l: v.left, r: v.right }];
       return null;
+    case 'vmin': {
+      // the slowest speed every wheel drives steadily: must be well below the top speed, and the four values alike
+      const vmax = robot.motor.max_speed_mps;
+      if (v.vmin === null || v.missing) return ['bad', 'chk.vmin_missing', { n: v.missing }];
+      if (!(v.vmin > 0) || v.vmin >= vmax) return ['bad', 'chk.vmin_range', { v: v.vmin, max: vmax }];
+      if (v.vmin > 0.5 * vmax) return ['warn', 'chk.vmin_high', { v: v.vmin, max: vmax }];
+      if (v.lo > 0 && v.vmin / v.lo > 2) return ['warn', 'chk.vmin_spread', { lo: v.lo, hi: v.vmin }];
+      return null;
+    }
     case 'step':
       if (v.tau <= 0 || v.tau > 1) return ['bad', 'chk.tau_range', { v: v.tau }];
       return null;

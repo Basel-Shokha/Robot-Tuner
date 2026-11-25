@@ -3,7 +3,8 @@
 // A port of the upstream simulator (vendor/simulation-to-real-life/PID, see SOURCE_COMMIT):
 //   Robot::Step            -> Sim::Step        (ToF model, glitch filter, reading age, encoders, emergency,
 //                                                steering smoother, wheel model "simple" and "pid", slip, collisions)
-//   PidBrain::Control      -> Pid::Control     (err = left - right, clip, anti-windup I, filtered D, slowdown)
+//   PidBrain::Control      -> Pid::Control     (err = left - right, clip, anti-windup I, filtered D; pid_speed_mode 0 = upstream slowdown,
+//                                               1 = constant cruise speed v_min + speed_frac (v_max - v_min), used by the site)
 //   DriveSim (MotorModel)  -> Drive            (firmware wheel PID on the DC-motor model, quantised encoders)
 //   PerturbTrack, RandomSpawn, StraightGuide (polyline), EvaluateRobot (train.cpp reward)
 // The firmware files wheel_pid.h, emergency.h and steer_smooth.h are #included UNCHANGED from the vendor copy.
@@ -116,6 +117,11 @@ struct Config {
     // PID
     float kp = 1.0f, ki = 0.0f, kd = 0.1f, base_speed_frac = 0.65f;
     float pid_error_clip_m = 0.30f, pid_integral_limit = 0.50f, pid_d_filter_alpha = 0.30f, pid_slowdown_frac = 0.50f;
+    // Constant cruise speed (Robot Tuner's PID; upstream is adding it to PidController.hpp as speed_frac):
+    // pid_speed_mode 0 = upstream PidBrain (base_speed_frac with the slowdown rule), 1 = constant speed
+    // base = v_min + speed_frac * (v_max - v_min), no slowdown.
+    int pid_speed_mode = 0;
+    float pid_speed_frac = 0.75f, pid_v_min = 0.0f;
     int pid_mode = 0;                  // 0 two sides (left - right), 1 follow one wall
     int follow_side = 1;               // one side mode: 1 left wall, -1 right wall
     float follow_dist_m = 0.10f;
@@ -217,15 +223,20 @@ struct Pid {
     float setpoint = 0.0f;  // wanted left - right: 0 = centred
     int left_idx = 2, right_idx = 0;
     float integral = 0.0f, prev_err = 0.0f, d_filtered = 0.0f;
+    int speed_mode = 0;
+    float speed_frac = 0.75f, v_min = 0.0f;
     bool has_prev = false, sat = false;
-    // last tick, for plots
-    float err = 0.0f, p_term = 0.0f, i_term = 0.0f, d_term = 0.0f, turn = 0.0f, base = 0.0f;
+    // last tick, for plots: turn = asked turn (constant-speed mode: unclamped), real_turn = (v_r - v_l) / 2 after the
+    // wheel clamps, clip_l / clip_r = that wheel's command was cut at +-v_max
+    float err = 0.0f, p_term = 0.0f, i_term = 0.0f, d_term = 0.0f, turn = 0.0f, base = 0.0f, real_turn = 0.0f;
+    bool clip_l = false, clip_r = false;
 
     void Configure(const Config& c) {
         kp = c.kp; ki = c.ki; kd = c.kd; base_speed_frac = c.base_speed_frac;
         error_clip_m = c.pid_error_clip_m; integral_limit = c.pid_integral_limit;
         d_filter_alpha = std::clamp(c.pid_d_filter_alpha, 0.0f, 1.0f);
         slowdown_frac = std::clamp(c.pid_slowdown_frac, 0.0f, 1.0f);
+        speed_mode = c.pid_speed_mode; speed_frac = std::clamp(c.pid_speed_frac, 0.0f, 1.0f); v_min = c.pid_v_min;
         max_v = c.max_linear_speed_mps;
         mode = c.pid_mode; follow_side = c.follow_side; follow_dist = c.follow_dist_m;
         left_idx = right_idx = 0;
@@ -256,12 +267,20 @@ struct Pid {
         prev_err = e;
         has_prev = true;
         float t = kp * e + ki * integral + kd * d_filtered;
-        t = std::clamp(t, -max_v, max_v);
-        float b = base_speed_frac * max_v * (1.0f - slowdown_frac * std::abs(t) / max_v);
+        float b;
+        if (speed_mode == 1) {
+            // constant cruise speed: turn = Kp e + Ki I + Kd D, base = v_min + speed_frac (v_max - v_min),
+            // v_left = base - turn, v_right = base + turn, each clamped to +-v_max. No slowdown, no speed law.
+            b = v_min + speed_frac * (max_v - v_min);
+        } else {
+            t = std::clamp(t, -max_v, max_v);
+            b = base_speed_frac * max_v * (1.0f - slowdown_frac * std::abs(t) / max_v);
+        }
+        clip_l = std::abs(b - t) > max_v; clip_r = std::abs(b + t) > max_v;
         v_l = std::clamp(b - t, -max_v, max_v);
         v_r = std::clamp(b + t, -max_v, max_v);
         sat = std::abs((kp * e + ki * integral + kd * d_filtered) - 0.5f * (v_r - v_l)) > 0.002f;
-        err = e; p_term = kp * e; i_term = ki * integral; d_term = kd * d_filtered; turn = t; base = b;
+        err = e; p_term = kp * e; i_term = ki * integral; d_term = kd * d_filtered; turn = t; base = b; real_turn = 0.5f * (v_r - v_l);
     }
 };
 
@@ -916,6 +935,7 @@ inline bool ApplyKey(Config& c, const std::string& key, const float* v, int nv) 
         {"base_speed_frac", &Config::base_speed_frac}, {"pid_base_speed_frac", &Config::base_speed_frac},
         {"pid_error_clip_m", &Config::pid_error_clip_m}, {"pid_integral_limit", &Config::pid_integral_limit},
         {"pid_d_filter_alpha", &Config::pid_d_filter_alpha}, {"pid_slowdown_frac", &Config::pid_slowdown_frac},
+        {"pid_speed_frac", &Config::pid_speed_frac}, {"speed_frac", &Config::pid_speed_frac}, {"pid_v_min", &Config::pid_v_min},
         {"follow_dist_m", &Config::follow_dist_m}, {"center_offset_m", &Config::center_offset_m}, {"wall_noise_std_m", &Config::wall_noise_std_m}, {"max_episode_s", &Config::max_episode_s},
         {"spawn_margin_m", &Config::spawn_margin_m}, {"spawn_heading_min_frac", &Config::spawn_heading_min_frac},
         {"spawn_heading_random_deg", &Config::spawn_heading_random_deg}, {"spawn_lateral_random_frac", &Config::spawn_lateral_random_frac},
@@ -928,7 +948,7 @@ inline bool ApplyKey(Config& c, const std::string& key, const float* v, int nv) 
         {"four_wheel", &Config::four_wheel}, {"n_sensors", &Config::n_sensors}, {"tof_glitch_max_hold_steps", &Config::tof_glitch_max_hold_steps},
         {"tof_delay_steps", &Config::tof_delay_steps}, {"encoder_model", &Config::encoder_model}, {"wheel_model", &Config::wheel_model},
         {"sim_substeps", &Config::sim_substeps}, {"emerg_on", &Config::emerg_on}, {"steer_smooth", &Config::steer_smooth},
-        {"pid_mode", &Config::pid_mode}, {"follow_side", &Config::follow_side}, {"max_episode_steps", &Config::max_episode_steps},
+        {"pid_mode", &Config::pid_mode}, {"pid_speed_mode", &Config::pid_speed_mode}, {"follow_side", &Config::follow_side}, {"max_episode_steps", &Config::max_episode_steps},
     };
     if (nv < 1) return false;
     for (const auto& e : F) if (key == e.k) { c.*(e.p) = v[0]; return true; }

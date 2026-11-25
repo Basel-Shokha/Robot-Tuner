@@ -27,17 +27,17 @@ See [Supported hardware](#supported-hardware) for the boards, encoders and motor
    (or as `robot_hardware.txt`) to keep it or edit it later. The **Firmware** tab asks how the robot is wired
    (board, encoders, motor driver, sensor pins), checks the pins, and downloads a ready-to-flash sketch.
 2. **Measure** — connect the robot with a USB cable (Chrome or Edge) and let it measure itself step by step:
-   encoder ticks per turn, top speed, motor feed-forward, wheel response time, real track width (spin test),
+   encoder ticks per turn, top speed, slowest steady speed (v_min), motor feed-forward, wheel response time, real track width (spin test),
    sensor noise and bias, loop period and reading age. Every step explains what it measures, why it matters and
    what to do, and checks if the answer is plausible. No compatible firmware? The robot builder's **Firmware** tab
    generates a ready-to-flash Arduino sketch for your wiring, or type the values yourself.
 3. **Corridor** — an endless corridor with the errors of a real one (uneven walls, tilted boards, bumps, gaps,
    width steps — each on/off with its own size), or a track you draw (corners, S-bends) or import. Set the start
    pose (rotated up to ±80°, off-centre) and the noise.
-4. **Train PID** — the computer searches Kp, Ki, Kd (and the speed) for *your* robot: a grid search, then a
+4. **Train PID** — choose the cruise speed (`speed_frac`), then the computer searches Kp, Ki, Kd for *your* robot at that speed: a grid search, then a
    genetic algorithm, about 1–5 minutes. You get the crash rate and centring error at 0×, 1× and 2× noise, and
    ready-to-paste C code.
-5. **Playground** — move the gain sliders while the robot drives. Presets show the classic mistakes (P too low /
+5. **Playground** — move the gain and `speed_frac` sliders while the robot drives. A wheel whose command is cut at v_max turns red, with the asked vs real turn next to it. Presets show the classic mistakes (P too low /
    too high, no D, integral windup, too fast for the loop, wheel saturation). **Sweep** runs several values side
    by side as ghost robots from exactly the same start. The **Troubleshooting** page goes from "on the real robot it
    does X" to "try Y", each with a preset that reproduces it.
@@ -45,6 +45,21 @@ See [Supported hardware](#supported-hardware) for the boards, encoders and motor
 7. **Maze sandbox** — random or hand-drawn mazes (thick or thin walls), built wall by wall with small errors that
    add up like in a real maze. Run wall following, flood fill or DFS mapping — or your own JavaScript — and see the
    robot's own map next to the real maze, with exit found, time, distance, crashes and map error.
+
+**The PID** (the same arithmetic in the simulator, the exported `pid_gains.h` and the generated sketch):
+
+```
+e        = clamp(d_left - d_right, ±error_clip)            left / right = the ±45° sensors
+integral = clamp(integral + e·dt, ±integral_limit)          anti-windup
+d_filt   = α·d_raw + (1 − α)·d_filt                         α given per 50 ms, adjusted to the tick time
+turn     = Kp·e + Ki·integral + Kd·d_filt
+base     = v_min + speed_frac·(v_max − v_min)               constant cruise speed, speed_frac default 0.75
+v_left   = clamp(base − turn, ±v_max),  v_right = clamp(base + turn, ±v_max)
+```
+
+There is no slowdown rule and no speed law. v_max is the measured top speed, v_min the measured slowest steady
+speed (0 until measured). The higher `speed_frac`, the less room is left above `base` to turn: at 1.0 every turn
+clips the outer wheel (Playground preset "Same gains: 1.0 vs 0.75").
 
 **Loop period and delay:** the loop period is how often the robot decides (set by how fast the sensors deliver);
 the reading age (delay) is how old the distance is when the robot uses it. You don't choose these — you measure

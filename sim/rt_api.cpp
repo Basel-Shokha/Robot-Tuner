@@ -124,6 +124,7 @@ API float* rt_state(int id) {
     o[46] = s.emergency.count; o[47] = s.wheel_scale_l; o[48] = s.wheel_scale_r;
     o[49] = s.motor_mismatch[0]; o[50] = s.motor_mismatch[1];
     for (int i = 0; i < MAXS; ++i) o[51 + i] = s.sensor_angle_bias_deg[i];
+    o[56] = s.pid.clip_l; o[57] = s.pid.clip_r; o[58] = s.pid.real_turn;
     return o;
 }
 

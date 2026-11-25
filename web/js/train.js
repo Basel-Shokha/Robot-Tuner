@@ -1,6 +1,6 @@
 // train.js - 4. PID TRAINING: grid search, then GA refinement (upstream method), in Web Workers.
-import { page, $, el, t, download, toast } from './common.js';
-import { loadRobot, saveRobot } from './store.js';
+import { page, $, el, t, download, toast, slider } from './common.js';
+import { loadRobot, saveRobot, cruiseSpeed } from './store.js';
 import { loadEnv } from './corridor.js';
 import { grid, mutate, rngJS, trainEnv, trackSet, defaultTrainSettings, robotWidthMm } from './train-core.js';
 import { TimePlot } from './plot.js';
@@ -27,6 +27,13 @@ for (const [id, k] of [['#t-width', 'width_mm'], ['#t-spread', 'spread_pct'], ['
   inp.addEventListener('input', () => { const v = parseFloat(inp.value); if (Number.isFinite(v)) { TS[k] = v; setupText(); } });
 }
 setupText();
+// the cruise speed is chosen here, not trained: base = v_min + speed_frac (v_max - v_min)
+let speedFrac = Number.isFinite(TS.speed_frac) ? TS.speed_frac : robot.pid.speed_frac;
+const sfLine = el('small', { class: 'muted' });
+const sfText = () => { sfLine.textContent = t('tr.speed_frac_line', { v: fmt(cruiseSpeed(robot, speedFrac), 3), vmax: fmt(robot.motor.max_speed_mps, 3), vmin: fmt(robot.motor.v_min_mps || 0, 3) }); };
+$('#speed-frac').append(slider({ key: 'pg.speed_frac', min: 0, max: 1, step: 0.01, value: +speedFrac.toFixed(2), hint: t('tr.speed_frac_hint'),
+  onInput: (v) => { speedFrac = Math.min(1, Math.max(0, v)); TS.speed_frac = speedFrac; sfText(); try { localStorage.setItem('rt.train', JSON.stringify(TS)); } catch (e) { /* ignore */ } } }), sfLine);
+sfText();
 const fit = new TimePlot($('#plots'), { title: t('tr.plot_fit'), series: [{ name: t('tr.best'), color: '#0f6e52' }, { name: t('tr.gen_mean'), color: '#9aa6b0' }], keepAll: true, tUnit: '' });
 const crash = new TimePlot($('#plots'), { title: t('tr.plot_crash'), series: [{ name: t('tr.best'), color: '#c8352e' }], keepAll: true, tUnit: '', min: 0 });
 
@@ -58,7 +65,7 @@ function evalAll(jobs, onDone) {
 
 $('#start').addEventListener('click', async () => {
   stop = false; $('#start').disabled = true; $('#stop').disabled = false;
-  const E = EFFORT[$('#effort').value], ts = $('#train-speed').checked;
+  const E = EFFORT[$('#effort').value], ts = speedFrac;
   const t0 = performance.now();
   $('#status').textContent = t('tr.starting', { n: N });
   await initWorkers();
@@ -79,7 +86,7 @@ $('#start').addEventListener('click', async () => {
   // 2) GA refinement (elitism: the best reseeds the population with mutated copies)
   const r = rngJS(12345);
   for (let gen = 1; gen <= E.gens && !stop; gen++) {
-    const pop = [best.cand, ...Array.from({ length: E.pop - 1 }, (_, i) => mutate(i < E.pop / 2 ? best.cand : elite[i % elite.length], r, ts))];
+    const pop = [best.cand, ...Array.from({ length: E.pop - 1 }, (_, i) => mutate(i < E.pop / 2 ? best.cand : elite[i % elite.length], r))];
     res = await evalAll(pop.map((cand) => ({ cand, noise: 1, episodes: E.eps, gen, seed: 1 })), (d) => prog(d));
     doneAll += pop.length;
     if (stop) break;
@@ -103,8 +110,8 @@ function finish() { $('#start').disabled = false; $('#stop').disabled = true; if
 
 function showBest() {
   $('#best-card').hidden = false;
-  const c = best.cand, v = c.speed * robot.motor.max_speed_mps;
-  $('#best').innerHTML = [['Kp', fmt(c.kp, 4)], ['Ki', fmt(c.ki, 4)], ['Kd', fmt(c.kd, 4)], [t('pg.speed'), `${fmt(v, 3)} m/s (${fmt(100 * c.speed, 0)} %)`],
+  const c = best.cand, v = cruiseSpeed(robot, c.speed);
+  $('#best').innerHTML = [['Kp', fmt(c.kp, 4)], ['Ki', fmt(c.ki, 4)], ['Kd', fmt(c.kd, 4)], [t('pg.speed_frac'), `${fmt(c.speed, 2)} (${t('pg.speed')} ${fmt(v, 3)} m/s)`],
     [t('tr.score'), fmt(best.score, 0)], [t('tr.crash_pct'), fmt(100 * best.crash, 1) + ' %'], [t('tr.ce'), fmt(best.ce, 1) + ' mm']]
     .map(([a, b]) => `<tr><th>${a}</th><td class="num">${b}</td></tr>`).join('');
   exportCode();
@@ -125,5 +132,5 @@ $('#dl-cfg').addEventListener('click', () => download('config_pid.h', configH(ro
 $('#dl-model').addEventListener('click', () => download('best_pid_model.txt', modelTxt(robot, gains())));
 $('#use').addEventListener('click', () => {
   const g = gains(); const R = loadRobot();
-  R.pid = { ...R.pid, kp: g.kp, ki: g.ki, kd: g.kd, speed_mps: g.speed * R.motor.max_speed_mps }; saveRobot(R); toast(t('pg.saved'), 'ok');
+  R.pid = { ...R.pid, kp: g.kp, ki: g.ki, kd: g.kd, speed_frac: g.speed }; saveRobot(R); toast(t('pg.saved'), 'ok');
 });

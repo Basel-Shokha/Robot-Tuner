@@ -107,3 +107,13 @@ parses: change them together. After changing the generator:
 - `make firmware` generates every combination (`tools/gen_firmware_combos.mjs`) and compiles it with arduino-cli
   (cores `arduino:avr`, `esp32:esp32`; libraries `VL53L0X`, `VL53L1X`, `PinChangeInterrupt`). CI runs it on the latest
   cores and on esp32 core 3.3.
+
+## Constant-speed PID (pending upstream)
+
+The site runs the PID with a constant cruise speed: `sim/rt_engine.hpp` `Pid::Control` with `pid_speed_mode 1`
+(base = v_min + speed_frac (v_max - v_min), wheels clamped to +-v_max, no slowdown). Upstream
+(`Simulation-To-Real-Life` `PID/PidController.hpp`) is adding this mode as `speed_frac`. Until it is merged, the
+vendored copy is unchanged and `tests/native/equiv_upstream.cpp` checks only mode 0 against it; mode 1 is covered by
+`tests/native/pid_const.cpp` (formula), the golden scenarios `const_speed*` (native == WASM) and
+`tests/js/pid.test.mjs` (exported C == engine). Once upstream has it: update `vendor/`, add a mode-1 case to
+`equiv_upstream.cpp`, and take its defaults.

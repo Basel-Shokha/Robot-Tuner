@@ -72,7 +72,7 @@ test('the serial protocol: every line measure-steps.js parses is still printed',
       'CAL STEP ', ' m/s (= sketch PI): rise L ', 's, overshoot L ', '%, tau63 L ', 'CAL DRIVE done: ticks L ', 'CAL DIST: ticks per metre L ', '; suggestions wscale_l ',
       'CAL SPIN done: encoders say ', ' %, at the PWM clamp 0 % of the time -> ', 'CAL TURNS: effective track width ', 'CAL TOF ', ' mm std ', ' dropouts ', 'CAL: TOF done',
       ' bias vs ', 'ToF ages at the last tick: data-ready seen ', ' us ago (R/F/L), + 0 ms half budget', 'control loop (ToF data-ready): period ', 'CAL TIMED done: full power for ',
-      'Serial.begin(115200)', '"CAL " + u']) assert.ok(c.includes(s), `${combo.name}: ${s}`);
+      'Serial.begin(115200)', 'memcpy(u, "CAL ", 4)']) assert.ok(c.includes(s), `${combo.name}: ${s}`);
     assert.ok(!/undefined|NaN|\[object/.test(c), `${combo.name}: no undefined / NaN in the code`);
   }
 });

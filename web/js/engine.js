@@ -8,6 +8,7 @@ export const S = {
   pwm_l: 22, pwm_r: 23, enc_dist_l: 24, enc_dist_r: 25, s: 26, center_err: 27, heading_err: 28, half_width: 29,
   guide_ok: 30, left_idx: 31, right_idx: 32, dists: 33, raw: 38, steps: 43, ticks_l: 44, ticks_r: 45,
   emerg_count: 46, wscale_l: 47, wscale_r: 48, mismatch_l: 49, mismatch_r: 50, angle_bias: 51,
+  clip_l: 56, clip_r: 57, real_turn: 58,  // constant-speed PID: wheel command cut at +-v_max, turn after the clamps
 };
 export const STATE_LEN = 64;
 export const MAXS = 5;

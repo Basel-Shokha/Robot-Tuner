@@ -23,7 +23,7 @@ $('#connect').addEventListener('click', async () => {
 });
 $('#manual').addEventListener('change', render);
 // Calibration commands can be typed without "CAL": TICKS, SPIN 5, TOF 200 200 ... are sent as CAL TICKS etc.
-const CAL_WORDS = new Set(['TICKS', 'END', 'MAXSPEED', 'FF', 'STEP', 'DRIVE', 'DIST', 'SPIN', 'TURNS', 'TIMED', 'TOF', 'APPLY', 'STOP', 'DIR', 'AUTOTUNE']);
+const CAL_WORDS = new Set(['TICKS', 'END', 'MAXSPEED', 'VMIN', 'RUN', 'FF', 'STEP', 'DRIVE', 'DIST', 'SPIN', 'TURNS', 'TIMED', 'TOF', 'APPLY', 'STOP', 'DIR', 'AUTOTUNE']);
 export function expandCommand(c) {
   const w = c.trim().split(/\s+/)[0].toUpperCase();
   return CAL_WORDS.has(w) ? 'CAL ' + c.trim() : c.trim();
@@ -53,9 +53,18 @@ const STEPS = [
       await link.send('CAL MAXSPEED');
       const v = await link.waitFor(P.parseMaxSpeed, 8000);
       ui.result(v, 'maxspeed', [['ms.f.maxspeed', v.max, 'm/s']], () => {
-        const old = R.motor.max_speed_mps; R.motor.max_speed_mps = v.max;
-        if (R.pid.speed_mps > v.max || R.pid.speed_mps === old) R.pid.speed_mps = v.max * 0.8;
+        R.motor.max_speed_mps = v.max;  // the cruise speed follows: base = v_min + speed_frac (v_max - v_min)
         save(['motor.max_speed_mps']);
+      });
+    } },
+  { id: 'vmin', enc: true, fields: [['ms.f.vmin', () => R.motor.v_min_mps || 0, (v) => { R.motor.v_min_mps = v; }, 'm/s', 'motor.v_min_mps']],
+    async run(ui) {
+      await link.send('CAL VMIN');
+      const v = await link.waitFor(P.parseVmin, 300000);
+      const w = v.wheels, row = (k) => (w[k] ? `${fmt(w[k].v, 4)} m/s (PWM ${w[k].pwm})` : '—');
+      ui.result(v, 'vmin', [['ms.f.vmin', v.vmin ?? NaN, 'm/s'], ['ms.vmin.lf', row('left_fwd')], ['ms.vmin.rf', row('right_fwd')], ['ms.vmin.lr', row('left_rev')], ['ms.vmin.rr', row('right_rev')]], () => {
+        if (!(v.vmin > 0)) return;
+        R.motor.v_min_mps = +v.vmin.toFixed(4); save(['motor.v_min_mps']);
       });
     } },
   { id: 'ff', enc: true, fields: [['ms.f.ff_static', () => R.motor.ff_static, (v) => { R.motor.ff_static = v; }, 'PWM', 'motor.ff_static'], ['ms.f.ff_gain', () => R.motor.ff_gain, (v) => { R.motor.ff_gain = v; }, 'PWM/tick', 'motor.ff_gain']],
@@ -100,8 +109,7 @@ const STEPS = [
       const d = await ui.askNumber(t('ms.timed.ask'), 'm');
       const v = P.timedSpeed(d, tm.ms, R.motor.step_tau_s);
       ui.result({ left: v, right: v, max: v }, 'maxspeed', [['ms.f.maxspeed', v, 'm/s']], () => {
-        const old = R.motor.max_speed_mps; R.motor.max_speed_mps = +v.toFixed(4);
-        if (R.pid.speed_mps > v || R.pid.speed_mps === old) R.pid.speed_mps = v * 0.8;
+        R.motor.max_speed_mps = +v.toFixed(4);
         save(['motor.max_speed_mps']);
       });
     } },
@@ -215,7 +223,7 @@ function makeUI(out, s) {
     progress(f) { let b = out.querySelector('.progress'); if (!b) { b = el('div', { class: 'progress' }, el('div')); out.append(b); } b.firstChild.style.width = (100 * f) + '%'; },
     result(v, check, rows, apply) {
       const c = check ? P.sanity(check, v, R) : null;
-      out.append(el('table', {}, ...rows.map(([lab, val, unit]) => el('tr', {}, el('th', { text: lab.startsWith('ms.') ? t(lab) : lab }), el('td', { class: 'num', text: `${fmt(val, 4)} ${unit || ''}` })))));
+      out.append(el('table', {}, ...rows.map(([lab, val, unit]) => el('tr', {}, el('th', { text: lab.startsWith('ms.') ? t(lab) : lab }), el('td', { class: 'num', text: typeof val === 'string' ? val : `${fmt(val, 4)} ${unit || ''}` })))));
       if (c) out.append(el('p', { class: 'notice ' + (c[0] === 'bad' ? 'bad' : 'warn'), text: t(c[1], c[2]) }));
       else out.append(el('p', { class: 'pill ok', text: t('ms.plausible') }));
       out.append(el('button', { class: 'primary', text: t('ms.apply'), onclick: apply }));

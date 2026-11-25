@@ -15,10 +15,15 @@ export const PRESETS = {
     const [r, e] = base(robot, env, { angle_deg: 30, offset_mm: 40, random: false });
     r.pid.ki = Math.max(1.5, r.pid.ki * 80); r.pid.integral_limit = 3; e.noise.mismatch_pct = 4; return [r, e];
   },
-  too_fast: (robot, env) => { const [r, e] = base(robot, env); r.pid.speed_mps = r.motor.max_speed_mps; e.noise.delay_ms = 150; return [r, e]; },
+  too_fast: (robot, env) => { const [r, e] = base(robot, env); r.pid.speed_frac = 1; e.noise.delay_ms = 150; return [r, e]; },
   saturation: (robot, env) => {
     const [r, e] = base(robot, env, { angle_deg: 35, offset_mm: 0, random: false });
-    r.pid.speed_mps = r.motor.max_speed_mps; r.pid.slowdown_frac = 0; e.width_mm = Math.max(e.width_mm, 200); return [r, e];
+    r.pid.speed_frac = 1; e.width_mm = Math.max(e.width_mm, 200); return [r, e];
+  },
+  // the same gains side by side at speed_frac 1.0 (cruise = v_max: no room left to turn) and 0.75 (the default)
+  clip_compare: (robot, env) => {
+    const [r, e] = base(robot, env, { angle_deg: 35, offset_mm: 0, random: false });
+    e.width_mm = Math.max(e.width_mm, 200); return [r, e, { param: 'speed', values: [1, 0.75] }];
   },
   mismatch: (robot, env) => { const [r, e] = base(robot, env, { angle_deg: 0, offset_mm: 0, random: false }); r.pid.ki = 0; e.noise.mismatch_pct = 8; return [r, e]; },
 };

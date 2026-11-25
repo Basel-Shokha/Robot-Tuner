@@ -65,7 +65,7 @@ function buildForms() {
   // motor + timing
   const m = $('[data-panel="motor"]'); m.innerHTML = '';
   m.append(el('div', { class: 'card stack' }, el('h3', { text: t('builder.drive_h') }),
-    num('wheels', 'ticks_per_rev', 'builder.ticks', t('unit.ticks')), num('motor', 'max_speed_mps', 'builder.max_speed', 'm/s'),
+    num('wheels', 'ticks_per_rev', 'builder.ticks', t('unit.ticks')), num('motor', 'max_speed_mps', 'builder.max_speed', 'm/s'), num('motor', 'v_min_mps', 'builder.v_min', 'm/s'),
     num('motor', 'step_tau_s', 'builder.step_tau', 's'), el('small', { class: 'muted', text: t('builder.step_tau_note') })));
   m.append(el('div', { class: 'card stack' }, el('h3', { text: t('builder.timing_h') }),
     num('timing', 'loop_ms', 'builder.loop_ms', 'ms'), num('timing', 'age_ms', 'builder.age_ms', 'ms'), num('timing', 'age_jitter_ms', 'builder.age_jitter', 'ms'),
@@ -223,7 +223,7 @@ function blank(drive) {
   r.sensors = [makeSensor('VL53L0X', { name: 'right', x_mm: 110, y_mm: -40, angle_deg: -45 }), makeSensor('VL53L0X', { name: 'front', x_mm: 120, y_mm: 0, angle_deg: 0 }),
     makeSensor('VL53L0X', { name: 'left', x_mm: 110, y_mm: 40, angle_deg: 45 })];
   r.timing = { loop_ms: 33, age_ms: 25, age_jitter_ms: 15 };
-  r.pid = { ...r.pid, kp: 1.0, ki: 0.0, kd: 0.1, speed_mps: 0.3 };
+  r.pid = { ...r.pid, kp: 1.0, ki: 0.0, kd: 0.1, speed_frac: 0.75 };
   r.hardware = unoHardware();
   return r;
 }
