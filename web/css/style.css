@@ -227,3 +227,10 @@ td.num, th.num { text-align: end; font-variant-numeric: tabular-nums; }
 
 .theme-toggle { width: 100%; justify-content: center; }
 .topbar .theme-toggle { width: auto; }
+/* robot builder -> Firmware: long pin / driver names must not push the selects out of the card */
+[data-panel="firmware"] .field { grid-template-columns: minmax(80px, max-content) minmax(0, 1fr); }
+[data-panel="firmware"] .field select { width: 100%; min-width: 0; }
+[data-panel="firmware"] .row > .field { flex: 1 1 140px; }
+[data-panel="firmware"] .field:has(input) { grid-template-columns: minmax(0, 1fr) 90px; }
+[data-panel="firmware"] .field input { width: 90px; }
+[data-panel="firmware"] .row > .field { flex: 1 1 190px; }

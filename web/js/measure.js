@@ -4,6 +4,7 @@ import { loadRobot, saveRobot } from './store.js';
 import { RobotLink, serialSupported } from './serial.js';
 import * as P from './measure-steps.js';
 import { fmt } from './i18n.js';
+import { BOARDS, normalizeHardware, sensorWireName, sketchTicks, isLowRes } from './firmware-gen.js';
 
 await page();
 const link = new RobotLink();
@@ -22,7 +23,7 @@ $('#connect').addEventListener('click', async () => {
 });
 $('#manual').addEventListener('change', render);
 // Calibration commands can be typed without "CAL": TICKS, SPIN 5, TOF 200 200 ... are sent as CAL TICKS etc.
-const CAL_WORDS = new Set(['TICKS', 'END', 'MAXSPEED', 'FF', 'STEP', 'DRIVE', 'DIST', 'SPIN', 'TURNS', 'TOF', 'APPLY', 'STOP', 'DIR', 'AUTOTUNE']);
+const CAL_WORDS = new Set(['TICKS', 'END', 'MAXSPEED', 'FF', 'STEP', 'DRIVE', 'DIST', 'SPIN', 'TURNS', 'TIMED', 'TOF', 'APPLY', 'STOP', 'DIR', 'AUTOTUNE']);
 export function expandCommand(c) {
   const w = c.trim().split(/\s+/)[0].toUpperCase();
   return CAL_WORDS.has(w) ? 'CAL ' + c.trim() : c.trim();
@@ -32,12 +33,13 @@ $('#send').addEventListener('click', sendCmd);
 $('#cmd').addEventListener('keydown', (e) => { if (e.key === 'Enter') sendCmd(); });
 
 function save(paths) { for (const p of paths) R.source[p] = 'MEASURED'; saveRobot(R); toast(t('ms.saved'), 'ok'); render(); }
-const tofNames = () => R.sensors.map((s, i) => (s.name || ['right', 'front', 'left'][i] || 's' + i).toLowerCase());
+const tofNames = () => R.sensors.map(sensorWireName);  // the names the generated sketch prints
+const hwOf = () => normalizeHardware(R.hardware, R.sensors.length);
 
 // ---- step definitions: id, fields shown/typed {label, get, set, unit}, run(ui) ------------------------
 const STEPS = [
   { id: 'physical', physical: true },
-  { id: 'ticks', fields: [['ms.f.ticks', () => R.wheels.ticks_per_rev, (v) => { R.wheels.ticks_per_rev = v; }, '', 'wheels.ticks_per_rev']],
+  { id: 'ticks', enc: true, fields: [['ms.f.ticks', () => R.wheels.ticks_per_rev, (v) => { R.wheels.ticks_per_rev = v; }, '', 'wheels.ticks_per_rev']],
     async run(ui) {
       await link.send('CAL TICKS');
       ui.ask(t('ms.ticks.ask'), t('ms.ticks.done_btn'));
@@ -46,7 +48,7 @@ const STEPS = [
       const v = await link.waitFor(P.parseTicks, 5000);
       ui.result(v, 'ticks', [['ms.f.ticks', v.ticks]], () => { R.wheels.ticks_per_rev = v.ticks; save(['wheels.ticks_per_rev']); });
     } },
-  { id: 'maxspeed', fields: [['ms.f.maxspeed', () => R.motor.max_speed_mps, (v) => { R.motor.max_speed_mps = v; }, 'm/s', 'motor.max_speed_mps']],
+  { id: 'maxspeed', enc: true, fields: [['ms.f.maxspeed', () => R.motor.max_speed_mps, (v) => { R.motor.max_speed_mps = v; }, 'm/s', 'motor.max_speed_mps']],
     async run(ui) {
       await link.send('CAL MAXSPEED');
       const v = await link.waitFor(P.parseMaxSpeed, 8000);
@@ -56,7 +58,7 @@ const STEPS = [
         save(['motor.max_speed_mps']);
       });
     } },
-  { id: 'ff', fields: [['ms.f.ff_static', () => R.motor.ff_static, (v) => { R.motor.ff_static = v; }, 'PWM', 'motor.ff_static'], ['ms.f.ff_gain', () => R.motor.ff_gain, (v) => { R.motor.ff_gain = v; }, 'PWM/tick', 'motor.ff_gain']],
+  { id: 'ff', enc: true, fields: [['ms.f.ff_static', () => R.motor.ff_static, (v) => { R.motor.ff_static = v; }, 'PWM', 'motor.ff_static'], ['ms.f.ff_gain', () => R.motor.ff_gain, (v) => { R.motor.ff_gain = v; }, 'PWM/tick', 'motor.ff_gain']],
     async run(ui) {
       await link.send('CAL FF');
       const lines = await link.collect((l) => /FF sweep done|CAL: FF/.test(l), 120000);
@@ -66,13 +68,13 @@ const STEPS = [
         save(['motor.ff_static', 'motor.ff_gain']);
       });
     } },
-  { id: 'step', fields: [['ms.f.tau', () => R.motor.step_tau_s, (v) => { R.motor.step_tau_s = v; }, 's', 'motor.step_tau_s']],
+  { id: 'step', enc: true, fields: [['ms.f.tau', () => R.motor.step_tau_s, (v) => { R.motor.step_tau_s = v; }, 's', 'motor.step_tau_s']],
     async run(ui) {
       await link.send('CAL STEP');
       const v = await link.waitFor(P.parseStep, 15000);
       ui.result(v, 'step', [['ms.f.tau', v.tau, 's'], ['ms.f.rise', (v.riseL + v.riseR) / 2, 's'], ['ms.f.over', (v.overL + v.overR) / 2, '%']], () => { R.motor.step_tau_s = +v.tau.toFixed(4); save(['motor.step_tau_s']); });
     } },
-  { id: 'drive', fields: [['ms.f.scale_l', () => R.wheels.scale_l, (v) => { R.wheels.scale_l = v; }, '', 'wheels.scale_l'], ['ms.f.scale_r', () => R.wheels.scale_r, (v) => { R.wheels.scale_r = v; }, '', 'wheels.scale_r']],
+  { id: 'drive', enc: true, fields: [['ms.f.scale_l', () => R.wheels.scale_l, (v) => { R.wheels.scale_l = v; }, '', 'wheels.scale_l'], ['ms.f.scale_r', () => R.wheels.scale_r, (v) => { R.wheels.scale_r = v; }, '', 'wheels.scale_r']],
     async run(ui) {
       await link.send('CAL DRIVE 1');
       await link.waitFor(P.parseDriveDone, 60000);
@@ -81,7 +83,7 @@ const STEPS = [
       const v = await link.waitFor(P.parseDist, 5000);
       ui.result(v, null, [['ms.f.scale_l', v.scale_l], ['ms.f.scale_r', v.scale_r]], () => { R.wheels.scale_l = v.scale_l; R.wheels.scale_r = v.scale_r; save(['wheels.scale_l', 'wheels.scale_r']); });
     } },
-  { id: 'spin', fields: [['ms.f.track', () => R.wheels.track_effective_mm, (v) => { R.wheels.track_effective_mm = v; }, 'mm', 'wheels.track_effective_mm']],
+  { id: 'spin', enc: true, fields: [['ms.f.track', () => R.wheels.track_effective_mm, (v) => { R.wheels.track_effective_mm = v; }, 'mm', 'wheels.track_effective_mm']],
     async run(ui) {
       await link.send('CAL SPIN 5');
       const s = await link.waitFor(P.parseSpinDone, 120000);
@@ -90,6 +92,18 @@ const STEPS = [
       await link.send(`CAL TURNS ${n}`);
       const v = await link.waitFor(P.parseTurns, 5000);
       ui.result(v, 'spin', [['ms.f.track', v.track_m * 1000, 'mm']], () => { R.wheels.track_effective_mm = +(v.track_m * 1000).toFixed(1); save(['wheels.track_effective_mm']); });
+    } },
+  { id: 'timed', noEncOnly: true, fields: [['ms.f.maxspeed', () => R.motor.max_speed_mps, (v) => { R.motor.max_speed_mps = v; }, 'm/s', 'motor.max_speed_mps']],
+    async run(ui) {
+      await link.send('CAL TIMED 2000');
+      const tm = await link.waitFor(P.parseTimed, 10000);
+      const d = await ui.askNumber(t('ms.timed.ask'), 'm');
+      const v = P.timedSpeed(d, tm.ms, R.motor.step_tau_s);
+      ui.result({ left: v, right: v, max: v }, 'maxspeed', [['ms.f.maxspeed', v, 'm/s']], () => {
+        const old = R.motor.max_speed_mps; R.motor.max_speed_mps = +v.toFixed(4);
+        if (R.pid.speed_mps > v || R.pid.speed_mps === old) R.pid.speed_mps = v * 0.8;
+        save(['motor.max_speed_mps']);
+      });
     } },
   { id: 'tof', get fields() { return R.sensors.flatMap((s, i) => [[`#${i + 1} ${t('ms.f.noise')}`, () => s.noise_mm, (v) => { s.noise_mm = v; }, 'mm', `sensors.${i}.noise_mm`], [`#${i + 1} ${t('ms.f.bias')}`, () => s.bias_mm, (v) => { s.bias_mm = v; }, 'mm', `sensors.${i}.bias_mm`]]); },
     async run(ui) {
@@ -139,9 +153,13 @@ const open = new Set(['physical']);
 function render() {
   R = loadRobot();
   const box = $('#steps'); box.innerHTML = '';
-  STEPS.forEach((s, n) => box.append(stepCard(s, n + 1)));
+  const hw = hwOf(), noEnc = hw.encoder.type === 'none';
+  $('#hw-line').textContent = t('ms.hw_line', { board: BOARDS[hw.board].label, enc: t('fw.enc.' + hw.encoder.type) });
+  // without encoders the timed run replaces the encoder top-speed step; with encoders it is not shown
+  STEPS.filter((s) => (noEnc ? s.id !== 'maxspeed' : !s.noEncOnly)).forEach((s, n) => box.append(stepCard(s, n + 1, hw)));
 }
-function stepCard(s, n) {
+function stepCard(s, n, hw) {
+  const blocked = s.enc && hw.encoder.type === 'none';
   const k = 'ms.' + s.id;
   const done = s.fields && s.fields.every((f) => R.source[f[4]] === 'MEASURED');
   const card = el('section', { class: 'step' + (open.has(s.id) ? ' open' : '') + (done ? ' done' : '') });
@@ -157,15 +175,18 @@ function stepCard(s, n) {
     card.append(head, body); return card;
   }
   const out = el('div', { class: 'stack' });
-  const manual = $('#manual').checked || !link.connected;
-  const startBtn = el('button', { class: 'primary', text: t('ms.start'), disabled: !link.connected ? true : null });
+  const manual = $('#manual').checked || !link.connected || blocked;
+  if (blocked) body.append(el('p', { class: 'notice warn', text: t('ms.needs_enc') }));
+  if (!blocked && hw.encoder.type === 'single' && (s.id === 'ticks' || s.id === 'spin')) body.append(el('p', { class: 'notice', text: t('ms.note_single') }));
+  if (!blocked && isLowRes(hw, sketchTicks(R, hw)) && (s.id === 'ff' || s.id === 'step' || s.id === 'maxspeed')) body.append(el('p', { class: 'notice', text: t('ms.note_lowres') }));
+  const startBtn = el('button', { class: 'primary', text: t('ms.start'), disabled: !link.connected || blocked ? true : null });
   const ui = makeUI(out, s);
   startBtn.addEventListener('click', async () => {
     startBtn.disabled = true; out.innerHTML = '';
     try { await s.run(ui); } catch (e) { out.append(el('p', { class: 'notice bad', text: t('ms.failed') + ' ' + e.message })); }
     startBtn.disabled = false;
   });
-  body.append(el('div', { class: 'row' }, startBtn, link.connected ? null : el('span', { class: 'muted', text: t('ms.connect_first') })), out);
+  if (!blocked) body.append(el('div', { class: 'row' }, startBtn, link.connected ? null : el('span', { class: 'muted', text: t('ms.connect_first') })), out);
   if (manual) {
     const man = el('div', { class: 'card stack' }, el('b', { text: t('ms.type_h') }));
     for (const [lab, get, set, unit, path] of s.fields) {

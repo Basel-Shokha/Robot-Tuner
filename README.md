@@ -15,19 +15,22 @@ Open it at the GitHub Pages address of this repository, or locally (see below).
 | Supported | Not supported |
 |---|---|
 | Differential drive: **2 driven wheels** (+ caster), or **4-wheel skid steer** with the left pair and the right pair driven together | Mecanum or omni wheels |
-| **Wheel encoders** on the driven wheels | Car-like steering (a steered front axle) |
-| **1 to 5 distance sensors**: VL53L0X, VL53L1X (short / long), Sharp GP2Y0A21 / GP2Y0A41, HC-SR04, or your own values | Robots without wheel encoders |
+| **Wheel encoders** on the driven wheels (quadrature, single-channel or AS5600); without encoders only a limited time-based mode | Car-like steering (a steered front axle) |
+| **1 to 5 distance sensors**: VL53L0X, VL53L1X (short / long), Sharp GP2Y0A21 / GP2Y0A41, HC-SR04, or your own values | |
+
+See [Supported hardware](#supported-hardware) for the boards, encoders and motor drivers the sketch generator handles.
 
 ## The workflow
 
 1. **Robot builder** — draw your robot from above: body, wheels, caster, where each sensor sits and where it looks.
    Choose sensors from the library (datasheet values filled in; change any of them). Export it as one JSON file
-   (or as `robot_hardware.txt`) to keep it or edit it later.
+   (or as `robot_hardware.txt`) to keep it or edit it later. The **Firmware** tab asks how the robot is wired
+   (board, encoders, motor driver, sensor pins), checks the pins, and downloads a ready-to-flash sketch.
 2. **Measure** — connect the robot with a USB cable (Chrome or Edge) and let it measure itself step by step:
    encoder ticks per turn, top speed, motor feed-forward, wheel response time, real track width (spin test),
    sensor noise and bias, loop period and reading age. Every step explains what it measures, why it matters and
-   what to do, and checks if the answer is plausible. No compatible firmware? Flash the small Arduino sketch
-   offered on the page, or type the values yourself.
+   what to do, and checks if the answer is plausible. No compatible firmware? The robot builder's **Firmware** tab
+   generates a ready-to-flash Arduino sketch for your wiring, or type the values yourself.
 3. **Corridor** — an endless corridor with the errors of a real one (uneven walls, tilted boards, bumps, gaps,
    width steps — each on/off with its own size), or a track you draw (corners, S-bends) or import. Set the start
    pose (rotated up to ±80°, off-centre) and the noise.
@@ -46,6 +49,35 @@ Open it at the GitHub Pages address of this repository, or locally (see below).
 **Loop period and delay:** the loop period is how often the robot decides (set by how fast the sensors deliver);
 the reading age (delay) is how old the distance is when the robot uses it. You don't choose these — you measure
 them. What you choose is the **speed**.
+
+## Supported hardware
+
+The robot builder's **Firmware** tab generates `robot_tuner_min.ino` for the wiring you enter: pins, libraries and
+code. It answers the same serial commands as before (`CAL TICKS`, `CAL FF`, `CAL TOF`, `STATUS`, ...), so the Measure
+page works the same for every robot. It checks the pins (interrupt / PWM / analog ability, pins used twice, USB
+serial, I2C, ESP32 strapping and input-only pins) and can fill in free pins for you. Every combination is compiled
+with arduino-cli in CI (`make firmware`, `tools/compile_firmware.sh`).
+
+| Part | Option | How the sketch does it | Library (Library Manager) | Notes |
+|---|---|---|---|---|
+| **Board** | Arduino Uno / Nano | `arduino:avr:uno` | — | attachInterrupt only on D2 / D3; PWM on D3, D5, D6, D9–D11; I2C on A4 / A5. 3× VL53L1X + all features fit (≤ 95 % flash) |
+| | Arduino Mega 2560 | `arduino:avr:mega` | — | attachInterrupt on D2, D3, D18–D21; I2C on D20 / D21 |
+| | ESP32 (WROOM-32 DevKit) | `esp32:esp32:esp32`, core 3.x or 4.x | — | GPIO 34–39 input only (no pull-ups), 0 / 2 / 5 / 12 / 15 strapping (warned), 6–11 flash (not offered) |
+| **Encoders** | Quadrature A + B (Hall / optical) | ESP32: hardware pulse counter (PCNT, ESP-IDF `pulse_cnt` driver, x4). Uno / Mega: x1 (A on an interrupt pin, B read) or x4 (all edges) | `PinChangeInterrupt` (x4 on non-interrupt pins) | ticks per wheel turn = PPR × edges × gear ratio |
+| | Single channel (LM393 slotted disc, TT motors) | pulses counted on an interrupt, sign from the commanded motor direction, debounced | `PinChangeInterrupt` (if not on D2 / D3) | every reversal miscounts the pulses while the wheel still turns the old way (a few ticks each) |
+| | AS5600 magnetic (I2C) | angle read every 0.5 ms, turns counted from the wrap | — | two AS5600 share address 0x36: TCA9548A multiplexer, or a second I2C bus on the ESP32 |
+| | None | time-based mode: encoder commands answer `ERR`, `CAL TIMED` drives at full power for a set time | — | Measure page disables the encoder steps; turns drift |
+| | < 100 ticks per wheel turn | wheel speed from the time between pulses, not pulses per interval | — | automatic |
+| **Motor driver** | Two inputs IN1 / IN2: DRV8833, MX1508, L9110S, L298N with ENA jumper | both inputs PWM; brake = slow decay, coast = fast decay | — | brake / coast choice |
+| | PWM + DIR: DRV8838, DRV8835 (phase / enable), Cytron MD10C | PWM pin + direction pin | — | the driver decides brake / coast |
+| | EN + IN1 + IN2: L298N with ENA, TB6612FNG | PWM on EN, direction on IN1 / IN2, optional STBY held HIGH | — | brake / coast choice |
+| **Distance sensors** | VL53L0X, VL53L1X (short / long) | continuous mode, read when data is ready; several on one bus: XSHUT pins hold them off, then each gets its own address | `VL53L0X`, `VL53L1X` (Pololu) | number, position and angle from the Sensors tab (also used by the simulator) |
+| | HC-SR04 | one sensor pings at a time (no crosstalk), echo timeout from the max range | — | slow: a set of N sensors takes N × (echo + gap); 5 V ECHO needs a divider on the ESP32 |
+| | Sharp GP2Y0A21 / GP2Y0A41 | analog, power-law curve fit of the datasheet (`cm = A·V^-B`) | — | check with a ruler (`CAL TOF` bias) |
+
+Not supported by the generator: 4-wheel independent drive, mecanum, more than two drive channels, I2C multiplexers
+for the ToF sensors themselves, ESP32-S2 / S3 / C3 boards (other pin maps; the code itself would mostly work), and
+magnetic or optical encoders that need their own library (SPI AS5047, I2C AS5048).
 
 ## Running it on your own computer
 

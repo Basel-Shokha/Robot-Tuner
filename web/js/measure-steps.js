@@ -20,6 +20,11 @@ export function parseStep(line) {  // "CAL STEP 0.10 m/s (= ...): rise L 0.120s 
   const m = R('CAL STEP # m/s.*rise L #s R #s, overshoot L #% R #%, tau63 L #s R #s').exec(line);
   return m ? { target: +m[1], riseL: +m[2], riseR: +m[3], overL: +m[4], overR: +m[5], tauL: +m[6], tauR: +m[7], tau: (+m[6] + +m[7]) / 2 } : null;
 }
+export function parseTimed(line) {  // "CAL TIMED done: full power for 2000 ms at PWM 255. Measure the distance D (m) ..."
+  const m = /CAL TIMED done: full power for (\d+) ms/.exec(line); return m ? { ms: +m[1] } : null;
+}
+/** top speed from a timed full-power run: the first ~tau seconds are spent accelerating (first-order lag) */
+export function timedSpeed(distM, ms, tauS) { return distM / Math.max(0.2, ms / 1000 - Math.max(0, tauS || 0)); }
 export function parseDriveDone(line) { return /CAL DRIVE done/.test(line) ? { done: true, sat: /WARNING/.test(line) } : null; }
 export function parseDist(line) {  // "CAL DIST: ticks per metre L 59000.0 R 59010.0; suggestions wscale_l 0.9720 wscale_r 0.9721 ..."
   const m = R('suggestions wscale_l # wscale_r #').exec(line); return m ? { scale_l: +m[1], scale_r: +m[2] } : null;

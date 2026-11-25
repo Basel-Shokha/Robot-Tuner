@@ -95,3 +95,15 @@ The Measure page sends the commands of the upstream firmware `firmware/robot_fw_
 `CAL FF`, `CAL STEP`, `CAL DRIVE`/`DIST`, `CAL SPIN`/`TURNS`, `CAL TOF n true_mm`, `LOAD SENSORS` + `STATUS` +
 `LOAD FINAL`) and parses the result lines in `measure-steps.js` (unit-tested with real lines). The minimal sketch
 prints the same lines. Photos/GIFs for each step go to `web/img/measure/<step>.gif` (placeholders shown now).
+
+## Firmware generator
+
+`web/js/firmware-gen.js` builds `robot_tuner_min.ino` from `robot.hardware` (board, driver, encoders, sensor pins;
+edited on the builder's Firmware tab). The calibration code (`CORE`) prints exactly the lines `measure-steps.js`
+parses: change them together. After changing the generator:
+
+- `node tools/gen_example_firmware.mjs` rewrites the example robot's sketch (`firmware/` and `web/firmware/`; a test
+  checks they are current),
+- `make firmware` generates every combination (`tools/gen_firmware_combos.mjs`) and compiles it with arduino-cli
+  (cores `arduino:avr`, `esp32:esp32`; libraries `VL53L0X`, `VL53L1X`, `PinChangeInterrupt`). CI runs it on the latest
+  cores and on esp32 core 3.3.

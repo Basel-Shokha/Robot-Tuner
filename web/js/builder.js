@@ -2,6 +2,8 @@
 import { page, $, $$, el, t, download, pickFile, toast } from './common.js';
 import { loadRobot, saveRobot, defaultRobot, makeSensor, migrate, SENSOR_LIBRARY, SENSOR_FIELDS, robotToHardwareTxt, hardwareTxtToRobot, downloadName } from './store.js';
 import { View, robotShapes, css, PALETTE } from './draw.js';
+import { BOARDS, pinLabel, pinTags, ENCODERS, DRIVERS, generateSketch, validateHardware, hasErrors, suggestPins, computedTicksPerRev, sketchTicks,
+  isLowRes, edgesPerPulse, requiredLibraries, sensorWireName, normalizeHardware, defaultHardware, unoHardware } from './firmware-gen.js';
 
 await page();
 let R = loadRobot();
@@ -11,7 +13,7 @@ const view = new View($('#cv'), { scale: 1800, aspect: 0.75, minH: 360, maxH: 68
 function commit(redrawForm = false) {
   saveRobot(R);
   if (redrawForm) buildForms();
-  draw(); checks();
+  draw(); checks(); fwChecks();
   $('#json').textContent = JSON.stringify(R, null, 1);
 }
 function mark(path, tag = 'TYPED') { R.source[path] = tag; }
@@ -56,6 +58,7 @@ function buildForms() {
   R.sensors.forEach((sen, i) => s.append(sensorCard(sen, i)));
   const add = el('button', { text: t('builder.add_sensor'), disabled: R.sensors.length >= 5 ? true : null, onclick: () => {
     R.sensors.push(makeSensor(R.sensors[0] ? R.sensors[0].type : 'VL53L1X_short', { x_mm: R.body.front_mm - 10, angle_deg: 0, name: 's' + R.sensors.length }));
+    R.hardware.sensors.push({ xshut: -1, addr: 0x30 + R.sensors.length - 1, trig: -1, echo: -1, analog: -1 });
     selected = R.sensors.length - 1; commit(true);
   } });
   s.append(el('div', { class: 'row' }, add, el('span', { class: 'muted', text: t('builder.max5') })));
@@ -79,6 +82,7 @@ function buildForms() {
       ['tau_l_s', 's'], ['tau_r_s', 's'], ['battery_v', 'V'], ['nominal_v', 'V']]) st.append(num('motor', k, 'motor.' + k, u));
   }
   m.append(adv);
+  buildFirmware();
 }
 
 function sensorCard(sen, i) {
@@ -92,7 +96,7 @@ function sensorCard(sen, i) {
   });
   const name = el('input', { value: sen.name || '', style: 'width:90px' });
   name.addEventListener('input', () => { sen.name = name.value; commit(); });
-  const rm = el('button', { class: 'small', text: '✕', title: t('builder.remove'), onclick: () => { R.sensors.splice(i, 1); selected = -1; commit(true); } });
+  const rm = el('button', { class: 'small', text: '✕', title: t('builder.remove'), onclick: () => { R.sensors.splice(i, 1); R.hardware.sensors.splice(i, 1); selected = -1; commit(true); } });
   if (R.sensors.length <= 1) rm.disabled = true;
   card.append(el('div', { class: 'row' }, el('b', { text: `#${i + 1}` }), name, type, el('span', { class: 'spacer' }), rm));
   card.append(el('small', { class: 'muted', text: t(SENSOR_LIBRARY[sen.type].note) }));
@@ -220,10 +224,166 @@ function blank(drive) {
     makeSensor('VL53L0X', { name: 'left', x_mm: 110, y_mm: 40, angle_deg: 45 })];
   r.timing = { loop_ms: 33, age_ms: 25, age_jitter_ms: 15 };
   r.pid = { ...r.pid, kp: 1.0, ki: 0.0, kd: 0.1, speed_mps: 0.3 };
+  r.hardware = unoHardware();
   return r;
 }
 $('#new-2wd').addEventListener('click', () => { if (confirm(t('builder.confirm_new'))) { R = blank('2wd'); commit(true); fitRobot(); draw(); } });
 $('#new-4wd').addEventListener('click', () => { if (confirm(t('builder.confirm_new'))) { R = blank('4wd'); commit(true); fitRobot(); draw(); } });
 $('#reset-example').addEventListener('click', () => { if (confirm(t('builder.confirm_new'))) { R = defaultRobot(); commit(true); fitRobot(); draw(); } });
 
+function showTab(id) {
+  $$('[role="tab"]').forEach((x) => x.setAttribute('aria-selected', x.dataset.tab === id));
+  $$('[data-panel]').forEach((p) => { p.hidden = p.dataset.panel !== id; });
+}
 buildForms(); fitRobot(); commit();
+if (location.hash === '#firmware') showTab('firmware');
+
+// ---- 5. FIRMWARE: what hardware the robot has -> a ready-to-flash sketch ------------------------------------
+function fwSel(options, value, onChange) {
+  const s = el('select', {}, ...options.map(([v, label]) => el('option', { value: String(v), text: label })));
+  s.value = String(value);
+  s.addEventListener('change', () => onChange(s.value));
+  return s;
+}
+function fwField(labelKey, control, noteKey) {
+  const f = el('label', { class: 'field' }, el('span', { text: t(labelKey) }), control);
+  return noteKey ? el('div', { class: 'stack' }, f, el('small', { class: 'muted', text: t(noteKey) })) : f;
+}
+function pinSelect(obj, key, labelKey, vars) {
+  const hw = R.hardware, B = BOARDS[hw.board];
+  const opts = [[-1, '—'], ...B.pins.map((p) => [p, `${pinLabel(hw.board, p)}${pinTags(hw.board, p).length ? '  · ' + pinTags(hw.board, p).join(' ') : ''}`])];
+  const s = fwSel(opts, obj[key] ?? -1, (v) => { obj[key] = +v; fwChanged(false); });
+  return el('label', { class: 'field' }, el('span', { text: t(labelKey, vars) }), s);
+}
+function fwNum(obj, key, labelKey, step = 'any') {
+  const inp = el('input', { type: 'number', step, value: obj[key] });
+  inp.addEventListener('input', () => { const v = parseFloat(inp.value); if (Number.isFinite(v)) { obj[key] = v; fwChanged(false, true); } });
+  return fwField(labelKey, inp);
+}
+// ticks/rev follows the encoder description until it has been measured
+function syncTicks() {
+  const c = computedTicksPerRev(R.hardware);
+  if (c > 0 && !/MEASURED|IMPORTED/.test(R.source['wheels.ticks_per_rev'] || '')) { R.wheels.ticks_per_rev = c; R.source['wheels.ticks_per_rev'] = 'TYPED'; }
+}
+function fwChanged(rebuild, ticks = false) {
+  if (ticks || rebuild) syncTicks();
+  commit();
+  if (rebuild) buildFirmware(); else fwTicksLine();
+}
+function signSel(obj, key, labelKey) { return fwField(labelKey, fwSel([[1, '+1'], [-1, '−1']], obj[key] < 0 ? -1 : 1, (v) => { obj[key] = +v; fwChanged(false); })); }
+
+function buildFirmware() {
+  R.hardware = normalizeHardware(R.hardware, R.sensors.length);
+  const hw = R.hardware, B = BOARDS[hw.board], box = $('[data-panel="firmware"]');
+  box.innerHTML = '';
+  box.append(el('p', { class: 'muted', text: t('fw.intro') }));
+  // board
+  const pinRows = B.pins.map((p) => el('tr', {}, el('td', { class: 'num', text: pinLabel(hw.board, p) }), el('td', { text: pinTags(hw.board, p).join(', ') || t('fw.plain_io') })));
+  box.append(el('div', { class: 'card stack' }, el('h3', { text: t('fw.board_h') }),
+    fwField('fw.board', fwSel(Object.entries(BOARDS).map(([k, b]) => [k, b.label]), hw.board, (v) => {
+      hw.board = v; hw.i2c = { sda: BOARDS[v].i2c.sda, scl: BOARDS[v].i2c.scl };
+      R.hardware = suggestPins(R, hw, true).hw; fwChanged(true);
+    }), 'fw.board_note.' + hw.board),
+    el('details', {}, el('summary', { text: t('fw.pin_table') }), el('small', { class: 'muted', text: t('fw.pin_table_note.' + hw.board) }),
+      el('table', {}, el('tr', {}, el('th', { text: t('fw.pin') }), el('th', { text: t('fw.can') })), ...pinRows))));
+  // motor driver
+  const d = hw.driver;
+  const drv = el('div', { class: 'card stack' }, el('h3', { text: t('fw.driver_h') }),
+    fwField('fw.driver', fwSel(DRIVERS.map((k) => [k, t('fw.drv.' + k)]), d.type, (v) => { d.type = v; R.hardware = suggestPins(R, hw, true).hw; fwChanged(true); }), 'fw.drv_note.' + d.type));
+  for (const [side, m] of [['L', d.left], ['R', d.right]]) {
+    const sideTxt = t(side === 'L' ? 'fw.left' : 'fw.right');
+    if (d.type === 'pwm_dir') drv.append(pinSelect(m, 'a', 'fw.pin_pwm', { s: sideTxt }), pinSelect(m, 'b', 'fw.pin_dir', { s: sideTxt }));
+    if (d.type === 'in1_in2') drv.append(pinSelect(m, 'a', 'fw.pin_in1', { s: sideTxt }), pinSelect(m, 'b', 'fw.pin_in2', { s: sideTxt }));
+    if (d.type === 'en_in1_in2') drv.append(pinSelect(m, 'en', 'fw.pin_en', { s: sideTxt }), pinSelect(m, 'a', 'fw.pin_in1', { s: sideTxt }), pinSelect(m, 'b', 'fw.pin_in2', { s: sideTxt }));
+  }
+  if (d.type !== 'in1_in2') drv.append(pinSelect(d, 'stby', 'fw.pin_stby'));
+  if (d.type !== 'pwm_dir') drv.append(fwField('fw.stop', fwSel([['brake', t('fw.stop_brake')], ['coast', t('fw.stop_coast')]], d.stop, (v) => { d.stop = v; fwChanged(false); }), d.type === 'in1_in2' ? 'fw.stop_note_in12' : 'fw.stop_note_en'));
+  drv.append(el('div', { class: 'row' }, signSel(d, 'sign_l', 'fw.motor_sign_l'), signSel(d, 'sign_r', 'fw.motor_sign_r')), el('small', { class: 'muted', text: t('fw.sign_note') }));
+  box.append(drv);
+  // encoders
+  const e = hw.encoder;
+  const enc = el('div', { class: 'card stack' }, el('h3', { text: t('fw.enc_h') }),
+    fwField('fw.enc', fwSel(ENCODERS.map((k) => [k, t('fw.enc.' + k)]), e.type, (v) => { e.type = v; R.hardware = suggestPins(R, hw, true).hw; fwChanged(true, true); }), 'fw.enc_note.' + e.type));
+  if (e.type === 'quadrature' && B.arch === 'avr') {
+    enc.append(fwField('fw.avr_mode', fwSel([['x1', t('fw.avr_x1')], ['x4', t('fw.avr_x4')]], e.avr_mode, (v) => { e.avr_mode = v; R.hardware = suggestPins(R, hw, true).hw; fwChanged(true, true); })));
+  }
+  if (e.type === 'quadrature') {
+    for (const [side, c] of [['L', e.left], ['R', e.right]]) {
+      const s = t(side === 'L' ? 'fw.left' : 'fw.right');
+      enc.append(pinSelect(c, 'a', 'fw.pin_enc_a', { s }), pinSelect(c, 'b', 'fw.pin_enc_b', { s }));
+    }
+  }
+  if (e.type === 'single') enc.append(pinSelect(e.left, 'a', 'fw.pin_enc', { s: t('fw.left') }), pinSelect(e.right, 'a', 'fw.pin_enc', { s: t('fw.right') }));
+  if (e.type === 'as5600') {
+    enc.append(fwField('fw.as5600_bus', fwSel([['mux', t('fw.as5600_mux')], ...(B.arch === 'esp32' ? [['two_buses', t('fw.as5600_two')]] : [])], e.as5600_bus,
+      (v) => { e.as5600_bus = v; R.hardware = suggestPins(R, hw, true).hw; fwChanged(true); })));
+    if (e.as5600_bus === 'mux') enc.append(el('div', { class: 'row' }, fwNum(e, 'mux_ch_l', 'fw.mux_ch_l', 1), fwNum(e, 'mux_ch_r', 'fw.mux_ch_r', 1)));
+    else enc.append(pinSelect(e, 'sda2', 'fw.pin_sda2'), pinSelect(e, 'scl2', 'fw.pin_scl2'));
+  }
+  if (e.type === 'quadrature' || e.type === 'single') enc.append(fwNum(e, 'ppr', e.type === 'single' ? 'fw.slots' : 'fw.ppr'));
+  if (e.type !== 'none') enc.append(fwNum(e, 'gear', e.type === 'as5600' ? 'fw.gear_magnet' : 'fw.gear'));
+  if (e.type === 'quadrature' || e.type === 'as5600') enc.append(el('div', { class: 'row' }, signSel(e, 'sign_l', 'fw.enc_sign_l'), signSel(e, 'sign_r', 'fw.enc_sign_r')));
+  enc.append(el('p', { id: 'fw-ticks', class: 'muted' }));
+  box.append(enc);
+  // I2C + sensors
+  const sens = el('div', { class: 'card stack' }, el('h3', { text: t('fw.sensors_h') }), el('p', { class: 'muted', text: t('fw.sensors_note') }));
+  if (B.arch === 'esp32') sens.append(el('div', { class: 'row' }, pinSelect(hw.i2c, 'sda', 'fw.pin_sda'), pinSelect(hw.i2c, 'scl', 'fw.pin_scl')));
+  else sens.append(el('p', { class: 'muted', text: t('fw.i2c_fixed', { sda: pinLabel(hw.board, B.i2c.sda), scl: pinLabel(hw.board, B.i2c.scl) }) }));
+  R.sensors.forEach((s, i) => {
+    const p = hw.sensors[i], row = el('div', { class: 'stack', style: `border-inline-start:4px solid ${PALETTE[i % PALETTE.length]};padding-inline-start:8px` },
+      el('b', { text: `#${i + 1} ${sensorWireName(s, i)} — ${t('sensor.' + s.type)} (${s.angle_deg}°)` }));
+    if (/^VL53/.test(s.type)) {
+      const addr = el('input', { value: '0x' + (+p.addr).toString(16), style: 'width:70px' });
+      addr.addEventListener('change', () => { const v = parseInt(addr.value, 16); if (v >= 0x08 && v < 0x78) { p.addr = v; fwChanged(false); } });
+      row.append(el('div', { class: 'row' }, pinSelect(p, 'xshut', 'fw.pin_xshut'), fwField('fw.addr', addr)));
+    } else if (s.type === 'HC_SR04') row.append(el('div', { class: 'row' }, pinSelect(p, 'trig', 'fw.pin_trig'), pinSelect(p, 'echo', 'fw.pin_echo')));
+    else row.append(pinSelect(p, 'analog', 'fw.pin_analog'));
+    sens.append(row);
+  });
+  box.append(sens);
+  // checks + download
+  box.append(el('div', { class: 'row' }, el('button', { text: t('fw.suggest'), onclick: () => {
+    const { hw: h, failed } = suggestPins(R, R.hardware, true); R.hardware = h; fwChanged(true);
+    if (failed.length) toast(t('fw.suggest_failed', { roles: failed.join(', ') }), 'bad');
+  } }), el('small', { class: 'muted', text: t('fw.suggest_note') })));
+  box.append(el('div', { id: 'fw-checks', class: 'card' }));
+  const libs = el('ul', { id: 'fw-libs' });
+  const pre = el('pre', { id: 'fw-code' });
+  const det = el('details', {}, el('summary', { text: t('fw.preview') }), pre);
+  det.addEventListener('toggle', () => { if (det.open) pre.textContent = generateSketch(R, R.hardware).code; });
+  box.append(el('div', { class: 'card stack' }, el('h3', { text: t('fw.download_h') }),
+    el('div', { class: 'row' }, el('button', { class: 'primary', id: 'fw-dl', text: t('fw.download'), onclick: () => {
+      const g = generateSketch(R, R.hardware);
+      if (hasErrors(g.messages) && !confirm(t('fw.confirm_errors'))) return;
+      download(g.fileName, g.code, 'text/plain');
+    } })),
+    el('p', { class: 'muted', text: t('fw.download_note') }),
+    el('b', { text: t('fw.libs_h') }), libs, el('p', { class: 'muted', id: 'fw-core' }), det));
+  fwTicksLine(); fwChecks();
+}
+function fwTicksLine() {
+  const p = $('#fw-ticks'); if (!p) return;
+  const hw = R.hardware, c = computedTicksPerRev(hw), used = sketchTicks(R, hw);
+  if (hw.encoder.type === 'none') { p.textContent = t('fw.ticks_none'); return; }
+  p.textContent = t('fw.ticks_line', { c: +c.toFixed(1), e: edgesPerPulse(hw), u: +(+used).toFixed(1) }) + (isLowRes(hw, used) ? ' ' + t('fw.ticks_low') : '');
+}
+function fwChecks() {
+  const box = $('#fw-checks'); if (!box) return;
+  const list = validateHardware(R, R.hardware);
+  const order = { bad: 0, warn: 1, info: 2 };
+  list.sort((a, b) => order[a.level] - order[b.level]);
+  box.innerHTML = '';
+  box.append(el('h3', { text: t('fw.checks_h') }));
+  if (!hasErrors(list)) box.append(el('p', {}, el('span', { class: 'pill ok', text: t('chk.ok') }), ' ', t('fw.pins_ok')));
+  for (const m of list) box.append(el('p', {}, el('span', { class: 'pill ' + (m.level === 'info' ? '' : m.level), text: m.level === 'info' ? t('fw.info') : t('chk.' + m.level) }), ' ', t(m.key, m.vars)));
+  const libs = $('#fw-libs');
+  if (libs) {
+    const L = requiredLibraries(R, R.hardware);
+    libs.innerHTML = '';
+    if (!L.length) libs.append(el('li', { text: t('fw.libs_none') }));
+    for (const l of L) libs.append(el('li', {}, el('code', { text: l.name }), ` (${l.by}) — ${l.why}`));
+    $('#fw-core').textContent = t(BOARDS[R.hardware.board].arch === 'esp32' ? 'fw.core_esp32' : 'fw.core_avr');
+  }
+  const pre = $('#fw-code');
+  if (pre && pre.closest('details').open) pre.textContent = generateSketch(R, R.hardware).code;
+}

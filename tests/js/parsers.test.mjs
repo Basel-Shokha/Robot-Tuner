@@ -24,3 +24,9 @@ test('sanity checks flag implausible values', () => {
   assert.equal(P.sanity('spin', { track_m: 0.125 }, robot), null);
   assert.equal(P.sanity('ticks', { ticks: 8291, left: 8290, right: 8293 }), null);
 });
+
+test('time-based top speed (robots without encoders)', () => {
+  const v = P.parseTimed('CAL TIMED done: full power for 2000 ms at PWM 255. Measure the distance D (m): top speed = D / time');
+  assert.deepEqual(v, { ms: 2000 });
+  assert.ok(Math.abs(P.timedSpeed(0.57, 2000, 0.1) - 0.3) < 1e-9);  // 0.57 m in 2 s with a 0.1 s start-up -> 0.3 m/s
+});

@@ -5,6 +5,8 @@
 // Frame (same as upstream robot_hardware.txt): origin = midpoint of the drive axle, +x forward, +y LEFT,
 // angles counter-clockwise from +x.
 
+import { defaultHardware, normalizeHardware, BOARDS } from './firmware-gen.js';
+
 export const SCHEMA = 'robot-tuner/robot@1';
 
 // ---- sensor library (typical datasheet values; every one can be overridden per sensor) ----------------
@@ -65,6 +67,8 @@ export function defaultRobot() {
     pid: { kp: 0.586855, ki: 0.0158843, kd: 0.384207, speed_mps: 0.156, error_clip_mm: 80, integral_limit: 0.5, d_filter_alpha: 0.3, slowdown_frac: 0.5,
       mode: 'two_sides', follow_side: 'left', follow_mm: 100, offset_mm: 0 },
     smoothing: { on: true, tau_s: 0.10, turn_accel: 1.5, lin_accel: 0.5, max_step: 0.0105 },
+    // wiring for the generated Arduino sketch (robot builder -> Firmware; see firmware-gen.js)
+    hardware: defaultHardware(),
     source: {
       'wheels.ticks_per_rev': 'MEASURED', 'wheels.track_effective_mm': 'MEASURED', 'motor.max_speed_mps': 'MEASURED',
       'motor.ff_gain': 'MEASURED', 'motor.step_tau_s': 'MEASURED', 'timing.loop_ms': 'MEASURED', 'timing.age_ms': 'MEASURED',
@@ -90,6 +94,7 @@ export function migrate(r) {
   const out = { ...d, ...r, schema: SCHEMA };
   for (const k of ['body', 'wheels', 'caster', 'motor', 'timing', 'pid', 'smoothing']) out[k] = { ...d[k], ...(r[k] || {}) };
   out.sensors = (Array.isArray(r.sensors) && r.sensors.length ? r.sensors : d.sensors).slice(0, 5).map((s) => ({ ...makeSensor(s.type || 'VL53L1X_short'), ...s }));
+  out.hardware = normalizeHardware(r.hardware, out.sensors.length);
   out.source = { ...(r.source || {}) };
   return out;
 }
@@ -179,6 +184,40 @@ export function robotToHardwareTxt(r) {
   L.push(`# robot: ${r.name}`);
   L.push('# Frame: origin = midpoint of the drive axle, +x forward, +y LEFT, angles CCW (deg), lengths in mm.');
   L.push('');
+  const hw = r.hardware ? normalizeHardware(r.hardware, r.sensors.length) : null;
+  if (hw) {
+    const pinNames = r.sensors.map((s, i) => (r.sensors.length === 3 ? ['right', 'front', 'left'][i] : (s.name || 's' + i)));
+    L.push('# Board / pins (Robot builder -> Firmware)');
+    L.push(`board                    ${hw.board.padStart(10)}   # TYPED  ${BOARDS[hw.board].label}`);
+    L.push(`motor_driver             ${hw.driver.type.padStart(10)}   # TYPED  in1_in2 | pwm_dir | en_in1_in2`);
+    L.push(`encoder_type             ${hw.encoder.type.padStart(10)}   # TYPED  quadrature | single | as5600 | none`);
+    // upstream names: *_pwm = PWM / IN1, *_dir = DIR / IN2
+    for (const [side, m] of [['right', hw.driver.right], ['left', hw.driver.left]]) {
+      line(`pin_motor_${side}_pwm`, m.a, 'TYPED', hw.driver.type === 'pwm_dir' ? 'PWM' : 'IN1');
+      line(`pin_motor_${side}_dir`, m.b, 'TYPED', hw.driver.type === 'pwm_dir' ? 'DIR' : 'IN2');
+      if (hw.driver.type === 'en_in1_in2') line(`pin_motor_${side}_en`, m.en, 'TYPED');
+    }
+    line('motor_right_sign', hw.driver.sign_r, 'TYPED'); line('motor_left_sign', hw.driver.sign_l, 'TYPED');
+    L.push(`motor_stop               ${hw.driver.stop.padStart(10)}   # TYPED  brake | coast`);
+    if (hw.driver.stby >= 0) line('pin_motor_stby', hw.driver.stby, 'TYPED');
+    line('enc_ppr', hw.encoder.ppr, 'TYPED', 'pulses (or slots) per motor turn, per channel');
+    line('enc_gear', hw.encoder.gear, 'TYPED', 'motor (or magnet) turns per wheel turn');
+    L.push(`enc_decoding             ${hw.encoder.avr_mode.padStart(10)}   # TYPED  x1 | x4 (Uno / Mega quadrature)`);
+    L.push(`as5600_bus               ${hw.encoder.as5600_bus.padStart(10)}   # TYPED  mux | two_buses`);
+    line('as5600_mux_addr', '0x' + (+hw.encoder.mux_addr).toString(16), 'TYPED'); line('as5600_mux_ch_left', hw.encoder.mux_ch_l, 'TYPED'); line('as5600_mux_ch_right', hw.encoder.mux_ch_r, 'TYPED');
+    line('pin_i2c2_sda', hw.encoder.sda2, 'TYPED'); line('pin_i2c2_scl', hw.encoder.scl2, 'TYPED');
+    for (const [side, c] of [['right', hw.encoder.right], ['left', hw.encoder.left]]) { line(`pin_enc_${side}_a`, c.a, 'TYPED'); line(`pin_enc_${side}_b`, c.b, 'TYPED'); }
+    line('enc_right_sign', hw.encoder.sign_r, 'TYPED'); line('enc_left_sign', hw.encoder.sign_l, 'TYPED');
+    line('pin_i2c_sda', hw.i2c.sda, 'TYPED'); line('pin_i2c_scl', hw.i2c.scl, 'TYPED');
+    hw.sensors.forEach((p, i) => {
+      if (p.xshut >= 0) line(`pin_xshut_${pinNames[i]}`, p.xshut, 'TYPED');
+      if (p.xshut >= 0) line(`tof_addr_${pinNames[i]}`, '0x' + (+p.addr).toString(16), 'TYPED');
+      if (p.trig >= 0) line(`pin_trig_${pinNames[i]}`, p.trig, 'TYPED');
+      if (p.echo >= 0) line(`pin_echo_${pinNames[i]}`, p.echo, 'TYPED');
+      if (p.analog >= 0) line(`pin_analog_${pinNames[i]}`, p.analog, 'TYPED');
+    });
+    L.push('');
+  }
   L.push('# Geometry (mm)');
   line('wheel_diameter_mm', r.wheels.diameter_mm, src('wheels.diameter_mm'));
   line('wheel_width_mm', r.wheels.width_mm, src('wheels.width_mm'));
@@ -239,14 +278,14 @@ export function robotToHardwareTxt(r) {
 /** Read the keys of a robot_hardware.txt (ours or upstream's) into a robot (missing keys keep `base`). */
 export function hardwareTxtToRobot(text, base = defaultRobot()) {
   const r = JSON.parse(JSON.stringify(base));
-  const kv = {};
+  const kv = {}, words = {};
   const poses = [];
   for (const raw of text.split('\n')) {
     const line = raw.replace(/#.*/, '').trim();
     if (!line) continue;
     const [k, ...v] = line.split(/\s+/);
     if (k.startsWith('tof_pose_') && v.length >= 3) poses.push({ name: k.slice(9), x_mm: +v[0], y_mm: +v[1], angle_deg: +v[2] });
-    else kv[k] = +v[0];
+    else { kv[k] = +v[0]; words[k] = v[0]; }
   }
   const set = (key, obj, field, f = (x) => x) => { if (kv[key] !== undefined && !Number.isNaN(kv[key])) { obj[field] = f(kv[key]); r.source[`${objName(obj, r)}.${field}`] = 'IMPORTED'; } };
   set('wheel_diameter_mm', r.wheels, 'diameter_mm'); set('wheel_width_mm', r.wheels, 'width_mm'); set('wheel_track_mm', r.wheels, 'track_mm');
@@ -281,7 +320,42 @@ export function hardwareTxtToRobot(text, base = defaultRobot()) {
     const front = { x_mm: fx, y_mm: 0, angle_deg: 0 };
     [right, front, left].forEach((p, i) => { r.sensors[i] = { ...(r.sensors[i] || makeSensor('VL53L1X_short')), ...p }; });
   }
+  readPins(r, kv, words);
   return migrate(r);
+}
+// pin_* keys (upstream robot_hardware.txt names) -> robot.hardware
+function readPins(r, kv, words) {
+  const hw = normalizeHardware(r.hardware, r.sensors.length);
+  const has = (k) => kv[k] !== undefined && Number.isFinite(kv[k]);
+  if (words.board && BOARDS[words.board]) hw.board = words.board;
+  if (['in1_in2', 'pwm_dir', 'en_in1_in2'].includes(words.motor_driver)) hw.driver.type = words.motor_driver;
+  if (['quadrature', 'single', 'as5600', 'none'].includes(words.encoder_type)) hw.encoder.type = words.encoder_type;
+  for (const side of ['right', 'left']) {
+    const m = hw.driver[side], c = hw.encoder[side];
+    if (has(`pin_motor_${side}_pwm`)) m.a = kv[`pin_motor_${side}_pwm`];
+    if (has(`pin_motor_${side}_dir`)) m.b = kv[`pin_motor_${side}_dir`];
+    if (has(`pin_motor_${side}_en`)) m.en = kv[`pin_motor_${side}_en`];
+    if (has(`pin_enc_${side}_a`)) c.a = kv[`pin_enc_${side}_a`];
+    if (has(`pin_enc_${side}_b`)) c.b = kv[`pin_enc_${side}_b`];
+  }
+  if (['brake', 'coast'].includes(words.motor_stop)) hw.driver.stop = words.motor_stop;
+  if (['x1', 'x4'].includes(words.enc_decoding)) hw.encoder.avr_mode = words.enc_decoding;
+  if (['mux', 'two_buses'].includes(words.as5600_bus)) hw.encoder.as5600_bus = words.as5600_bus;
+  for (const [key, obj, field] of [['pin_motor_stby', hw.driver, 'stby'], ['enc_ppr', hw.encoder, 'ppr'], ['enc_gear', hw.encoder, 'gear'], ['as5600_mux_addr', hw.encoder, 'mux_addr'],
+    ['as5600_mux_ch_left', hw.encoder, 'mux_ch_l'], ['as5600_mux_ch_right', hw.encoder, 'mux_ch_r'], ['pin_i2c2_sda', hw.encoder, 'sda2'], ['pin_i2c2_scl', hw.encoder, 'scl2']]) if (has(key)) obj[field] = kv[key];
+  if (has('motor_right_sign')) hw.driver.sign_r = kv.motor_right_sign; if (has('motor_left_sign')) hw.driver.sign_l = kv.motor_left_sign;
+  if (has('enc_right_sign')) hw.encoder.sign_r = kv.enc_right_sign; if (has('enc_left_sign')) hw.encoder.sign_l = kv.enc_left_sign;
+  if (has('pin_i2c_sda')) hw.i2c.sda = kv.pin_i2c_sda; if (has('pin_i2c_scl')) hw.i2c.scl = kv.pin_i2c_scl;
+  const names = r.sensors.map((s, i) => (r.sensors.length === 3 ? ['right', 'front', 'left'][i] : (s.name || 's' + i)));
+  names.forEach((n, i) => {
+    const p = hw.sensors[i];
+    if (has(`pin_xshut_${n}`)) p.xshut = kv[`pin_xshut_${n}`];
+    if (has(`tof_addr_${n}`)) p.addr = kv[`tof_addr_${n}`];
+    if (has(`pin_trig_${n}`)) p.trig = kv[`pin_trig_${n}`];
+    if (has(`pin_echo_${n}`)) p.echo = kv[`pin_echo_${n}`];
+    if (has(`pin_analog_${n}`)) p.analog = kv[`pin_analog_${n}`];
+  });
+  r.hardware = hw;
 }
 function objName(obj, r) { for (const k of ['wheels', 'body', 'caster', 'motor', 'timing']) if (r[k] === obj) return k; return '?'; }
 
