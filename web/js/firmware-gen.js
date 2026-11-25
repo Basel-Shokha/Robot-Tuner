@@ -811,7 +811,7 @@ export function generateSketch(robot, hwIn) {
   const sinL = Math.abs(Math.sin(angles[li] * Math.PI / 180)), sinR = Math.abs(Math.sin(angles[ri] * Math.PI / 180));
   w('// ---- wall-following PID (RUN): constant cruise speed, the same formula as the simulator ----',
     '//   e = clamp(left - right - setpoint, +-ERROR_CLIP); integral = clamp(integral + e dt, +-INTEGRAL_LIMIT)',
-    '//   d_filt = alpha d_raw + (1 - alpha) d_filt; turn = KP e + KI integral + KD d_filt',
+    '//   d_filt = alpha d_raw + (1 - alpha) d_filt; turn = clamp(KP e + KI integral + KD d_filt, +-V_MAX)',
     '//   base = V_MIN + SPEED_FRAC (V_MAX - V_MIN); v_left = base - turn, v_right = base + turn, clamped to +-V_MAX',
     `const float PID_KP = ${f(p.kp, 6)}f, PID_KI = ${f(p.ki, 6)}f, PID_KD = ${f(p.kd, 6)}f;`,
     `const float PID_SPEED_FRAC = ${f(p.speed_frac, 4)}f;   // cruise = ${(vmin + p.speed_frac * (vmax - vmin)).toFixed(3)} m/s`,
@@ -1063,7 +1063,7 @@ void pidControl(float left, float right, float dt, float& vl, float& vr) {
   float alpha = 1.0f - powf(1.0f - PID_D_ALPHA, dt / 0.05f);
   pidD = alpha * rawD + (1.0f - alpha) * pidD;
   pidPrev = e; pidHas = true;
-  float turn = PID_KP * e + PID_KI * pidI + PID_KD * pidD;
+  float turn = constrain(PID_KP * e + PID_KI * pidI + PID_KD * pidD, -PID_V_MAX, PID_V_MAX);
   float base = PID_V_MIN + PID_SPEED_FRAC * (PID_V_MAX - PID_V_MIN);   // constant cruise speed
   vl = constrain(base - turn, -PID_V_MAX, PID_V_MAX);
   vr = constrain(base + turn, -PID_V_MAX, PID_V_MAX);

@@ -86,6 +86,7 @@ static rt::Config ToRt(const SimConfig& s, float kp, float ki, float kd) {
     c.kp = kp; c.ki = ki; c.kd = kd; c.base_speed_frac = s.pid_base_speed_frac;
     c.pid_error_clip_m = s.pid_error_clip_m; c.pid_integral_limit = s.pid_integral_limit; c.pid_d_filter_alpha = s.pid_d_filter_alpha;
     c.pid_slowdown_frac = s.pid_slowdown_frac;
+    c.pid_speed_mode = s.cs_mode; c.pid_speed_frac = s.cs_speed_frac; c.pid_v_min = s.cs_v_min_mps;  // constant cruise speed
     c.wall_noise_std_m = s.wall_noise_std_m; c.spawn_margin_m = s.spawn_margin_m; c.spawn_heading_min_frac = s.spawn_heading_min_frac;
     c.spawn_heading_random_deg = s.spawn_heading_random_deg; c.spawn_lateral_random_frac = s.spawn_lateral_random_frac;
     return c;
@@ -202,6 +203,15 @@ int main() {
     SimConfig wide = base;
     wide.tof_rays = 7; wide.tof_noise_pct_of_range = 0.03f; wide.steer_smooth = 0; wide.pid_base_speed_frac = 0.6f;
     RunPair("7 rays, no smoothing, 60% speed", wide, "n_straight_short", 6, 20000, true, true, true);
+    // constant cruise speed (upstream PidBrain const_speed: base = cs_v_min + cs_frac (top - cs_v_min), no slowdown)
+    SimConfig cs = base;
+    cs.cs_mode = 1;  // upstream defaults cs_speed_frac 0.75, cs_v_min_mps 0.013
+    RunPair("constant speed, defaults", cs, "w20_err_A", 7, 20000, true, true, true);
+    RunPair("constant speed, corner", cs, "c90_l_20", 8, 20000, true, true, true);
+    SimConfig csfull = cs; csfull.cs_speed_frac = 1.0f;  // cruise = top speed: the outer wheel clips on every turn
+    RunPair("constant speed, speed_frac 1", csfull, "c90_l_20", 9, 20000, true, true, true);
+    SimConfig csslow = cs; csslow.cs_speed_frac = 0.3f; csslow.cs_v_min_mps = 0.05f; csslow.wheel_model = 0; csslow.encoder_model = 0;
+    RunPair("constant speed, slow, simple wheels", csslow, "w20_s", 10, 20000, true, false, true);
     std::printf(g_fail ? "FAILED (%d)\n" : "OK: the engine reproduces the upstream simulator bit for bit\n", g_fail);
     return g_fail ? 1 : 0;
 }

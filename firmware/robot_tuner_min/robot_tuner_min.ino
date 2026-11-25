@@ -189,11 +189,11 @@ void i2cSetup() {
 
 // ---- wall-following PID (RUN): constant cruise speed, the same formula as the simulator ----
 //   e = clamp(left - right - setpoint, +-ERROR_CLIP); integral = clamp(integral + e dt, +-INTEGRAL_LIMIT)
-//   d_filt = alpha d_raw + (1 - alpha) d_filt; turn = KP e + KI integral + KD d_filt
+//   d_filt = alpha d_raw + (1 - alpha) d_filt; turn = clamp(KP e + KI integral + KD d_filt, +-V_MAX)
 //   base = V_MIN + SPEED_FRAC (V_MAX - V_MIN); v_left = base - turn, v_right = base + turn, clamped to +-V_MAX
 const float PID_KP = 0.586855f, PID_KI = 0.015884f, PID_KD = 0.384207f;
-const float PID_SPEED_FRAC = 0.75f;   // cruise = 0.117 m/s
-const float PID_V_MAX = 0.156f, PID_V_MIN = 0.0f;   // measured top speed, slowest steady speed (CAL VMIN)
+const float PID_SPEED_FRAC = 0.75f;   // cruise = 0.120 m/s
+const float PID_V_MAX = 0.156f, PID_V_MIN = 0.013f;   // measured top speed, slowest steady speed (CAL VMIN)
 const float PID_ERROR_CLIP = 0.08f, PID_INTEGRAL_LIMIT = 0.5f, PID_D_ALPHA = 0.3f;   // alpha per 50 ms
 const float PID_SETPOINT = 0.0f;   // wanted left - right (0 = centred)
 const int PID_LEFT = 2, PID_RIGHT = 0;   // sensors looking most to the left / right
@@ -437,7 +437,7 @@ void pidControl(float left, float right, float dt, float& vl, float& vr) {
   float alpha = 1.0f - powf(1.0f - PID_D_ALPHA, dt / 0.05f);
   pidD = alpha * rawD + (1.0f - alpha) * pidD;
   pidPrev = e; pidHas = true;
-  float turn = PID_KP * e + PID_KI * pidI + PID_KD * pidD;
+  float turn = constrain(PID_KP * e + PID_KI * pidI + PID_KD * pidD, -PID_V_MAX, PID_V_MAX);
   float base = PID_V_MIN + PID_SPEED_FRAC * (PID_V_MAX - PID_V_MIN);   // constant cruise speed
   vl = constrain(base - turn, -PID_V_MAX, PID_V_MAX);
   vr = constrain(base + turn, -PID_V_MAX, PID_V_MAX);

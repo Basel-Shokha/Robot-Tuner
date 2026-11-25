@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { defaultRobot, migrate, robotToConfig, cruiseSpeed, robotToHardwareTxt, hardwareTxtToRobot } from '../../web/js/store.js';
 import { grid, mutate, rngJS, episodeConfig } from '../../web/js/train-core.js';
-import { cFunction, configH, modelTxt } from '../../web/js/export.js';
+import { cFunction, configH, modelTxt, simConfigLines } from '../../web/js/export.js';
 import { generateSketch } from '../../web/js/firmware-gen.js';
 import { mergeEnv } from '../../web/js/corridor.js';
 import * as P from '../../web/js/measure-steps.js';
@@ -17,7 +17,7 @@ const root = new URL('../../', import.meta.url).pathname;
 
 test('base = v_min + speed_frac (v_max - v_min); speed_frac defaults to 0.75', () => {
   const r = defaultRobot();
-  assert.equal(r.pid.speed_frac, 0.75);
+  assert.equal(r.pid.speed_frac, 0.75); assert.equal(r.motor.v_min_mps, 0.013);  // upstream cs_speed_frac, cs_v_min_mps
   assert.equal(r.pid.speed_mps, undefined); assert.equal(r.pid.slowdown_frac, undefined);
   r.motor.max_speed_mps = 0.5; r.motor.v_min_mps = 0.1;
   assert.ok(Math.abs(cruiseSpeed(r) - 0.4) < 1e-12);
@@ -83,9 +83,9 @@ int main() {
   // the config defines and the model file carry the same cruise speed
   const h = configH(r, g);
   assert.match(h, /DEF_PID_SPEED_FRAC\s+0\.800000f/); assert.match(h, /DEF_PID_V_MIN\s+0\.0200000f/); assert.match(h, /DEF_PID_SLOWDOWN_FRAC\s+0\.00000f/);
-  const base = cruiseSpeed(r, 0.8) / r.motor.max_speed_mps;
-  assert.match(modelTxt(r, g), new RegExp(`speed_frac 0.8\\nbase_speed_frac ${+base.toPrecision(6)}`));
-  assert.doesNotMatch(modelTxt(r, g), /v_min/);  // today's upstream reads v_min as "use the speed law"
+  assert.match(modelTxt(r, g), /\nconst_speed 1\n/);   // upstream PidController.hpp Load: constant-speed mode on
+  assert.doesNotMatch(modelTxt(r, g), /v_min/);        // a v_min model key would switch on upstream's speed law
+  assert.equal(simConfigLines(r, g), 'cs_mode 1\ncs_speed_frac 0.8\ncs_v_min_mps 0.02\n');
 });
 
 test('the generated sketch runs the same PID with speed_frac and v_min filled in', () => {

@@ -11,6 +11,8 @@
 //   record [--track NAME] [--model PATH] [--seed N] [--out FILE] [--open]
 //          [--top-speed V]            forward top speed of the recorded run (m/s; default: the trained 0.156)
 //          [--spawn x,y,deg]          start pose (default: the track file's spawn)
+//          [--perturb]                jitter the walls (wall_noise_std_m) with this seed's rng, as tools/tune/evalrun does: with
+//                                     --seed 2000 + S*100003 + k this replays evalrun --fixed-spawn --seed0 S trial k at 1x exactly
 //          [--resim LIST]             EXPERIMENTAL "what if faster": also re-simulate the same run (same track, start pose,
 //                                     seed) with the top speed x each multiplier, capped at 0.156 m/s; "auto" = x1.0,
 //                                     x1.25, x1.5, ... up to 0.156
@@ -178,7 +180,7 @@ static const char* DefaultModels[] = {"best_robot_model.txt", "best_pid_model.tx
 struct Args {
     std::string track, model, out, resim, resim_json, spawn;
     unsigned seed = 1234;
-    bool open = false, ramp = false;
+    bool open = false, ramp = false, perturb = false;
     float top = 0.0f;
 };
 
@@ -284,6 +286,7 @@ int main(int argc, char** argv) {
         else if (k == "--spawn") a.spawn = next();
         else if (k == "--resim") a.resim = next();
         else if (k == "--ramp") a.ramp = true;
+        else if (k == "--perturb") a.perturb = true;
         else if (k == "--resim-json") a.resim_json = next();
         else std::cerr << "Warning: unknown argument '" << k << "' ignored.\n";
     }
@@ -350,6 +353,7 @@ int main(int argc, char** argv) {
     }
 
     std::mt19937 rng(a.seed);
+    if (a.perturb) t.walls = PerturbTrack(t.walls, cfg.wall_noise_std_m, rng);  // same rng order as evalrun
     bot.Reset(sp0, sh0, cfg.tof_max_range_m);
     bot.SampleHardwareBias(cfg, rng);
     const Wall* finish = t.finish.has_finish ? &t.finish.segment : nullptr;

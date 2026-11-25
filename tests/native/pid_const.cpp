@@ -1,7 +1,8 @@
 // Unit test of the constant-cruise-speed PID (sim/rt_engine.hpp Pid::Control, pid_speed_mode 1):
 //   e = clamp(d_left - d_right, +-error_clip); integral = clamp(integral + e dt, +-integral_limit);
 //   d_filt = alpha d_raw + (1 - alpha) d_filt; turn = Kp e + Ki integral + Kd d_filt;
-//   base = v_min + speed_frac (v_max - v_min); v_left = base - turn, v_right = base + turn, each clamped to +-v_max.
+//   turn clamped to +-v_max (as upstream PidBrain); base = v_min + speed_frac (v_max - v_min);
+//   v_left = base - turn, v_right = base + turn, each clamped to +-v_max.  (= upstream PidBrain const_speed)
 #include "../../sim/rt_api.cpp"
 #include <cstdio>
 
@@ -24,6 +25,9 @@ static void tick(Pid& p, float left, float right, float dt, float& vl, float& vr
 
 int main() {
     float vl, vr;
+    {   // defaults = upstream SimConfig: cs_speed_frac 0.75, cs_v_min_mps 0.013
+        Config c; check(c.pid_speed_frac == 0.75f && c.pid_v_min == 0.013f, "defaults speed_frac 0.75, v_min 0.013");
+    }
     {   // centred: no turn, both wheels at base = v_min + speed_frac (v_max - v_min)
         Pid p = make(2, 0, 0, 0.75f, 0.1f);
         tick(p, 0.2f, 0.2f, 0.025f, vl, vr);
@@ -44,7 +48,7 @@ int main() {
         Pid p = make(2, 0, 0, 0.75f, 0.1f);
         tick(p, 0.40f, 0.20f, 0.025f, vl, vr);
         float turn = 2.0f * 0.2f, base = 0.4f;
-        check(near(p.turn, turn), "asked turn is not clamped");
+        check(near(p.turn, turn), "asked turn");
         check(near(vr, 0.5f) && near(vl, base - turn), "right wheel clamped to v_max, left = base - turn");
         check(p.clip_r && !p.clip_l, "clip flag on the right wheel only");
         check(near(p.real_turn, 0.5f * (vr - vl)) && p.real_turn < turn, "real turn < asked turn");
@@ -57,11 +61,13 @@ int main() {
         tick(z, 0.2f, 0.2f, 0.025f, vl, vr);
         check(near(z.base, 0.1f), "speed_frac 0: base = v_min");
     }
-    {   // a huge turn: both wheels clamp to +-v_max (base - turn below -v_max)
+    {   // a huge turn: turn is first clamped to +-v_max (upstream), then each wheel to +-v_max
         Pid p = make(10, 0, 0, 0.5f, 0.0f);
-        tick(p, 0.40f, 0.10f, 0.025f, vl, vr);   // e clipped to 0.3 -> turn 3
+        tick(p, 0.40f, 0.10f, 0.025f, vl, vr);   // e clipped to 0.3 -> asked turn 3, clamped to 0.5
         check(near(p.err, 0.30f), "error clipped to +-error_clip");
-        check(near(vl, -0.5f) && near(vr, 0.5f) && p.clip_l && p.clip_r, "both wheels clamped to +-v_max");
+        check(near(p.turn, 3.0f), "asked turn (shown in the playground) is Kp e = 3");
+        check(near(vl, 0.25f - 0.5f) && near(vr, 0.5f), "wheels = base -+ clamp(turn, +-v_max), each clamped to +-v_max");
+        check(p.clip_l && p.clip_r, "both wheels would be past v_max with the asked turn");
     }
     {   // integral with anti-windup
         Pid p = make(0, 1, 0, 0.75f, 0.0f);

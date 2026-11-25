@@ -52,13 +52,14 @@ See [Supported hardware](#supported-hardware) for the boards, encoders and motor
 e        = clamp(d_left - d_right, ±error_clip)            left / right = the ±45° sensors
 integral = clamp(integral + e·dt, ±integral_limit)          anti-windup
 d_filt   = α·d_raw + (1 − α)·d_filt                         α given per 50 ms, adjusted to the tick time
-turn     = Kp·e + Ki·integral + Kd·d_filt
+turn     = clamp(Kp·e + Ki·integral + Kd·d_filt, ±v_max)
 base     = v_min + speed_frac·(v_max − v_min)               constant cruise speed, speed_frac default 0.75
 v_left   = clamp(base − turn, ±v_max),  v_right = clamp(base + turn, ±v_max)
 ```
 
-There is no slowdown rule and no speed law. v_max is the measured top speed, v_min the measured slowest steady
-speed (0 until measured). The higher `speed_frac`, the less room is left above `base` to turn: at 1.0 every turn
+This is upstream `PID/PidController.hpp` in its constant-speed mode (`cs_mode 1` / `const_speed 1`, defaults
+`cs_speed_frac 0.75`, `cs_v_min_mps 0.013`). There is no slowdown rule and no speed law. v_max is the measured top
+speed, v_min the measured slowest steady speed (0.013 m/s, the upstream default, until measured). The higher `speed_frac`, the less room is left above `base` to turn: at 1.0 every turn
 clips the outer wheel (Playground preset "Same gains: 1.0 vs 0.75").
 
 **Loop period and delay:** the loop period is how often the robot decides (set by how fast the sensors deliver);
@@ -115,6 +116,6 @@ English now. Hebrew and Arabic (right-to-left) are prepared: all text is in `web
 ## Where the physics comes from
 
 The simulator is the C++ simulator of the **Simulation-To-Real-Life** project
-(`Basel-Shokha/Simulation-To-Real-Life`, commit `efa1645a5d0f7aeebe9655f0cba7c57cd81a99a2`, copied to `vendor/`),
+(`Basel-Shokha/Simulation-To-Real-Life`, commit `a929bcb86d9668703cdff2d39b76cbd67436d9a8`, copied to `vendor/`),
 compiled to WebAssembly. Automatic tests check that the browser gives exactly the same numbers as the C++ program.
 See [DEVELOPERS.md](DEVELOPERS.md).

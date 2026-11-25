@@ -53,6 +53,12 @@ struct PidBrain {
     bool fc_new_reading = true;  // JOB 11: false = no new side reading this tick: the D term is not updated
     bool speed_law = false;
     float k_slow = 0.5f, k_slow_d = 0.05f, v_min = 0.06f;
+    // Constant cruise speed (SimConfig cs_*; on with cs_mode 1 or "const_speed 1" in the model file): base =
+    // cs_v_min + cs_frac * (top - cs_v_min) for the whole run, v_l = base - turn, v_r = base + turn, clamped to +-max.
+    // No slow-down term, no speed law. Off by default: the old models drive exactly as before.
+    bool const_speed = false;
+    float cs_frac = 0.75f, cs_vmin = 0.013f, cs_base = 0.0f;
+    float CsBase(float top_v) const { return cs_base > 0.0f ? cs_base : cs_vmin + cs_frac * (top_v - cs_vmin); }
 
     // --- Fixed shaping, from pid_params.txt (not trained, not saved) --------------------------------
     bool train_base_speed = false;
@@ -90,6 +96,7 @@ struct PidBrain {
         integral_limit = cfg.pid_integral_limit;
         d_filter_alpha = std::clamp(cfg.pid_d_filter_alpha, 0.0f, 1.0f);
         slowdown_frac = std::clamp(cfg.pid_slowdown_frac, 0.0f, 1.0f);
+        const_speed = cfg.cs_mode != 0; cs_frac = cfg.cs_speed_frac; cs_vmin = cfg.cs_v_min_mps; cs_base = cfg.cs_base_mps;
 
         // Angles are measured counter-clockwise, so the largest angle looks left.
         left_idx = 0;
@@ -141,6 +148,7 @@ struct PidBrain {
             float turn_h = std::clamp(kp * err + ki * integral + kd * d_filtered, -max_v, max_v);
             float base_h = base_speed_frac * top_v * (1.0f - slowdown_frac * std::abs(turn_h) / max_v);
             if (speed_law) base_h = std::clamp(top_v - k_slow * std::abs(err) - k_slow_d * std::abs(d_filtered), std::min(v_min, top_v), top_v);
+            if (const_speed) base_h = CsBase(top_v);
             v_l = std::clamp(base_h - turn_h, -max_v, max_v);
             v_r = std::clamp(base_h + turn_h, -max_v, max_v);
             sat = std::abs((kp * err + ki * integral + kd * d_filtered) - 0.5f * (v_r - v_l)) > 0.002f;
@@ -160,6 +168,7 @@ struct PidBrain {
         // Slow down while turning hard (like a driver in a sharp bend), then split into wheels.
         float base = base_speed_frac * top_v * (1.0f - slowdown_frac * std::abs(turn) / max_v);
         if (speed_law) base = std::clamp(top_v - k_slow * std::abs(err) - k_slow_d * std::abs(d_filtered), std::min(v_min, top_v), top_v);
+        if (const_speed) base = CsBase(top_v);  // constant cruise: exactly base +- turn
         v_l = std::clamp(base - turn, -max_v, max_v);
         v_r = std::clamp(base + turn, -max_v, max_v);
         // Saturated: more than 2 mm/s of the requested turn was lost to the turn or wheel clamps.
@@ -201,6 +210,7 @@ struct PidBrain {
         f << "base_speed_frac " << base_speed_frac << "\n";
         f << "error_clip_m " << error_clip_m << "\n";
         if (speed_law) f << "k_slow " << k_slow << "\nk_slow_d " << k_slow_d << "\nv_min " << v_min << "\n";
+        if (const_speed) f << "const_speed 1\n";
         f << "track_width " << hw.track_width << "\n";
         return true;
     }
@@ -232,6 +242,7 @@ struct PidBrain {
             else if (key == "base_speed_frac") file_base = v;
             else if (key == "track_width") hw.track_width = v;
             else if (key == "error_clip_m") error_clip_m = v;
+            else if (key == "const_speed") const_speed = const_speed || v != 0.0f;
             else if (key == "k_slow") { k_slow = v; speed_law = true; }
             else if (key == "k_slow_d") { k_slow_d = v; speed_law = true; }
             else if (key == "v_min") { v_min = v; speed_law = true; }  // optional: overrides pid_params.txt (narrow-corridor models)

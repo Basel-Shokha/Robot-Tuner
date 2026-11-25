@@ -57,7 +57,7 @@ export function defaultRobot() {
       k_l: 0.000613, k_r: 0.000618, static_l: 3.2, static_r: 3.8, breakaway_l: 20, breakaway_r: 20,
       tau_l_s: 0.0362, tau_r_s: 0.04,
       wheel_pid_period_ms: 10, wheel_kp: 2, wheel_ki: 0.001, wheel_kd: 5, ff_static: 4, ff_gain: 2.785,
-      v_min_mps: 0,               // slowest speed every wheel drives steadily (Measure -> Slowest speed); 0 = not measured
+      v_min_mps: 0.013,           // slowest steady wheel speed (Measure -> Slowest speed); upstream cs_v_min_mps (CAL FF: PWM 25)
     },
     sensors: [
       Object.assign(makeSensor('VL53L1X_short', { name: 'right', x_mm: 100.76, y_mm: -10.24, angle_deg: -45 }), { noise_mm: 4 }),
@@ -65,8 +65,9 @@ export function defaultRobot() {
       Object.assign(makeSensor('VL53L1X_short', { name: 'left', x_mm: 98.64, y_mm: 8.12, angle_deg: 45 }), { noise_mm: 4 }),
     ],
     timing: { loop_ms: 25, age_ms: 22.2, age_jitter_ms: 18 },
-    // Constant cruise speed: base = v_min + speed_frac (v_max - v_min), v_left = base - turn, v_right = base + turn,
-    // each clamped to +-v_max (v_max = motor.max_speed_mps, v_min = motor.v_min_mps). No slowdown, no speed law.
+    // Constant cruise speed = upstream PidController.hpp const_speed (cs_speed_frac 0.75): base = v_min + speed_frac (v_max - v_min),
+    // turn clamped to +-v_max, v_left = base - turn, v_right = base + turn, each clamped to +-v_max
+    // (v_max = motor.max_speed_mps, v_min = motor.v_min_mps). No slowdown, no speed law.
     pid: { kp: 0.586855, ki: 0.0158843, kd: 0.384207, speed_frac: 0.75, error_clip_mm: 80, integral_limit: 0.5, d_filter_alpha: 0.3,
       mode: 'two_sides', follow_side: 'left', follow_mm: 100, offset_mm: 0 },
     smoothing: { on: true, tau_s: 0.10, turn_accel: 1.5, lin_accel: 0.5, max_step: 0.0105 },

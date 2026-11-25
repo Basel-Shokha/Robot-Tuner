@@ -138,6 +138,17 @@ struct SimConfig {
     // exp_wheel_max_mps: the wheel speed ceiling the controllers clamp to (with a stronger motor = a virtual max).
     float exp_top_speed_mps = 0.0f;
     float exp_wheel_max_mps = 0.0f;
+    // Constant cruise speed (Nov 2026, docs/results/constspeed): PID / LineFit (TLS, RANSAC, Hough) drive at
+    //   base = cs_v_min_mps + cs_speed_frac * (v_max - cs_v_min_mps), the same for the whole run (no slow-down in turns,
+    //   no cos^2 law, no brakes); PID is exactly v_l = base - turn, v_r = base + turn. On when cs_mode is 1 OR the
+    //   model file says "const_speed 1". cs_base_mps > 0 replaces the formula (fixed-speed benchmark). Off by default.
+    //   fixed_speed_mps > 0 (NN 5-8-2 / NN-map / NN-LineFit, simulator benchmark only): the network only steers, the
+    //   forward speed is this constant (NN 5-8-2: turn = (v_r - v_l) / 2; NN-map: its speed output is ignored).
+    int cs_mode = 0;
+    float cs_speed_frac = 0.75f;
+    float cs_v_min_mps = 0.013f;  // CAL FF 2026-11-04: PWM 25 = lowest step where both wheels moved in all 4 sweeps (38-39 ticks/50 ms)
+    float cs_base_mps = 0.0f;
+    float fixed_speed_mps = 0.0f;
     // JOB 11 (comparison only, 0 = off): the controller runs on a fixed clock (control_period_s) and takes the NEWEST
     // reading of each sensor; each sensor ranges on its own (period tof_period_s x (1 + N(0, fc_clock_tol)), random phase),
     // a sample is usable fc_read_s after it completes and describes the pose budget/2 before completion.
@@ -385,6 +396,11 @@ inline SimConfig LoadConfig(const std::string& path) {
             else if (key == "tof_rays") ss >> config.tof_rays;
             else if (key == "exp_top_speed_mps") ss >> config.exp_top_speed_mps;
             else if (key == "exp_wheel_max_mps") ss >> config.exp_wheel_max_mps;
+            else if (key == "cs_mode") ss >> config.cs_mode;
+            else if (key == "cs_speed_frac") ss >> config.cs_speed_frac;
+            else if (key == "cs_v_min_mps") ss >> config.cs_v_min_mps;
+            else if (key == "cs_base_mps") ss >> config.cs_base_mps;
+            else if (key == "fixed_speed_mps") ss >> config.fixed_speed_mps;
             else if (key == "fixed_clock") ss >> config.fixed_clock;
             else if (key == "fc_clock_tol") ss >> config.fc_clock_tol;
             else if (key == "fc_read_s") ss >> config.fc_read_s;
