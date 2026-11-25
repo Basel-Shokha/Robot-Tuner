@@ -104,7 +104,7 @@ function rulerAnim(label) {
 }
 
 /** the media element for one step: a video if one is set in VIDEOS, else the animation (null if none fits) */
-export function stepMedia(id, { n, label, turnWord, videoWord, soonWord }) {
+export function stepMedia(id, { n, label, turnWord, videoWord }) {
   const url = VIDEOS[id] || '';
   const box = document.createElement('figure');
   box.className = 'media';
@@ -120,6 +120,6 @@ export function stepMedia(id, { n, label, turnWord, videoWord, soonWord }) {
     tof: () => tofAnim(label),
   }[id];
   if (!svg) return null;
-  box.innerHTML = svg() + `<figcaption>${url ? `<a class="btn small" href="${url}" target="_blank" rel="noopener">${videoWord}</a>` : `<span class="muted">${soonWord}</span>`}</figcaption>`;
+  box.innerHTML = svg() + (url ? `<figcaption><a class="btn small" href="${url}" target="_blank" rel="noopener">${videoWord}</a></figcaption>` : '');
   return box;
 }

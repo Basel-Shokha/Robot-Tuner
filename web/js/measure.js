@@ -199,7 +199,7 @@ function stepCard(s, n, hw) {
   const body = el('div', { class: 'body' });
   body.append(el('dl', {}, el('dt', { text: t('ms.what') }), el('dd', { text: t(k + '.what') }), el('dt', { text: t('ms.why') }), el('dd', { text: t(k + '.why') }),
     el('dt', { text: t('ms.how') }), el('dd', { text: t(k + '.how') })));
-  const media = stepMedia(s.id, { n: reps[s.id] || 1, label: t(k + '.title'), turnWord: t(s.id === 'spin' ? 'ms.rep.spin_word' : 'ms.rep.turn_word'), videoWord: t('ms.video'), soonWord: t('ms.video_soon') });
+  const media = stepMedia(s.id, { n: reps[s.id] || 1, label: t(k + '.title'), turnWord: t(s.id === 'spin' ? 'ms.rep.spin_word' : 'ms.rep.turn_word'), videoWord: t('ms.video') });
   if (media) body.append(media);
   if (reps[s.id] !== undefined) {
     const R0 = P.REPS[s.id];

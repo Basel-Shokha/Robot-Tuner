@@ -1,6 +1,6 @@
 // common.js - page chrome shared by every page: header + navigation, language menu, scope note, footer,
 // offline service worker. Each page calls `await page()` before its own code.
-import { initI18n, t, LANGS, currentLang, setLang, applyI18n } from './i18n.js';
+import { initI18n, t, applyI18n } from './i18n.js';
 import { startTour, offerTour } from './tour.js';
 
 // The workflow is a real sequence (each step feeds the next), so it is numbered; the rest is not.
@@ -57,8 +57,6 @@ export async function page() {
       <div class="rail-group"><div class="rail-title">${t('nav.group_beyond')}</div><nav class="rail-links">${BEYOND.map(link).join('')}</nav></div>
       <div class="rail-foot">
         <button class="small theme-toggle" type="button"></button>
-        <label><span class="sr-only">${t('nav.language')}</span>
-          <select id="lang-select">${LANGS.map((l) => `<option value="${l.code}"${l.code === currentLang() ? ' selected' : ''}${l.code !== 'en' ? ' disabled' : ''}>${l.name}${l.code !== 'en' ? ' (' + t('nav.soon') + ')' : ''}</option>`).join('')}</select></label>
         <span>${t('footer.offline')}</span>
       </div>
     </aside>
@@ -101,7 +99,6 @@ export async function page() {
 
   app.querySelectorAll('.theme-toggle').forEach((b) => b.addEventListener('click', () => applyTheme(theme() === 'dark' ? 'light' : 'dark')));
   applyTheme(theme());
-  app.querySelector('#lang-select').addEventListener('change', (e) => setLang(e.target.value));
   const tog = app.querySelector('#nav-toggle');
   tog.addEventListener('click', () => { const o = app.classList.toggle('nav-open'); tog.setAttribute('aria-expanded', o); });
   main.addEventListener('click', () => { app.classList.remove('nav-open'); tog.setAttribute('aria-expanded', 'false'); });
