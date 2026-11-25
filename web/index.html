@@ -12,10 +12,16 @@
     <div>
       <h1 data-i18n="home.h1"></h1>
       <p class="lead" data-i18n="home.lead"></p>
+      <ul class="gets" id="gets">
+        <li data-i18n-html="home.get_1"></li>
+        <li data-i18n-html="home.get_2"></li>
+        <li data-i18n-html="home.get_3"></li>
+      </ul>
       <div class="row" style="margin-top:18px">
-        <a class="btn primary" href="builder.html" data-i18n="home.cta_build"></a>
-        <a class="btn" href="playground.html" data-i18n="home.cta_play"></a>
+        <a class="btn primary big" id="start-here" href="builder.html" data-i18n="home.cta_start"></a>
+        <a class="btn" href="tutorial.html" data-i18n="home.cta_learn"></a>
       </div>
+      <p class="muted small-note" data-i18n="home.start_note"></p>
     </div>
     <figure class="hero-demo" style="margin:0">
       <div class="canvas-wrap"><canvas id="demo"></canvas></div>
@@ -28,18 +34,29 @@
   </section>
 
   <h2 data-i18n="home.route_h"></h2>
-  <ol class="route">
+  <ol class="route" id="route">
     <li><span class="n">1</span><h3 data-i18n="nav.builder"></h3><p data-i18n="home.f_builder"></p><a href="builder.html" data-i18n="home.open"></a></li>
     <li><span class="n">2</span><h3 data-i18n="nav.measure"></h3><p data-i18n="home.f_measure"></p><a href="measure.html" data-i18n="home.open"></a></li>
     <li><span class="n">3</span><h3 data-i18n="nav.corridor"></h3><p data-i18n="home.f_corridor"></p><a href="corridor.html" data-i18n="home.open"></a></li>
     <li><span class="n">4</span><h3 data-i18n="nav.train"></h3><p data-i18n="home.f_train"></p><a href="train.html" data-i18n="home.open"></a></li>
     <li><span class="n">5</span><h3 data-i18n="nav.playground"></h3><p data-i18n="home.f_playground"></p><a href="playground.html" data-i18n="home.open"></a></li>
   </ol>
+  <h2 data-i18n="home.more_h"></h2>
   <div class="extras">
     <a href="tutorial.html"><h3 data-i18n="nav.tutorial"></h3><p data-i18n="home.f_tutorial"></p></a>
     <a href="troubleshoot.html"><h3 data-i18n="nav.troubleshoot"></h3><p data-i18n="home.f_troubleshoot"></p></a>
     <a href="maze.html"><h3 data-i18n="nav.maze"></h3><p data-i18n="home.f_maze"></p></a>
   </div>
+
+  <section class="card knowhow" id="knowhow">
+    <h3 data-i18n="home.know_h"></h3>
+    <ul>
+      <li data-i18n-html="home.know_guide"></li>
+      <li data-i18n-html="home.know_next"></li>
+      <li data-i18n-html="home.know_save"></li>
+      <li data-i18n-html="home.know_norobot"></li>
+    </ul>
+  </section>
 
   <section class="scope">
     <div><h3 data-i18n="home.in_scope"></h3><ul><li data-i18n="home.in_1"></li><li data-i18n="home.in_2"></li><li data-i18n="home.in_3"></li></ul></div>

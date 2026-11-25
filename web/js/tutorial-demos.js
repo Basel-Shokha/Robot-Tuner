@@ -1,48 +1,25 @@
-// tutorial-demos.js - small interactive demos for the PID tutorial (pure JS, a simple model of the robot
-// between two walls; the full simulator is in the playground).
-//   y: distance of the robot from the corridor centre (m, + = left), th: heading (rad, + = left)
-//   two side sensors at +-45 deg see the walls; error = left - right ~ -(2.83 y + 0.4 th) (small angles)
-//   turn = Kp e + Ki int(e) + Kd de/dt (m/s); omega = 2 turn / track; y' = v sin th
+// tutorial-demos.js - small interactive demos for the PID tutorial. The model is in tutorial-sim.js (pure, tested);
+// the full simulator is in the playground.
 import { el, t, slider } from './common.js';
 import { TimePlot } from './plot.js';
 import { css, PALETTE } from './draw.js';
-import { gauss, rng } from './corridor.js';
+import { simulate, corridorCurve, settleDistance, GRAPH_PRESETS, wheelCommands } from './tutorial-sim.js';
+export { simulate };
 
-export function simulate(p, T = 8, dt = 0.025) {
-  const v = p.v ?? 0.15, track = 0.125, W = 0.25;
-  let y = p.y0 ?? 0.04, th = p.th0 ?? 0, integ = 0, prev = null, dfil = 0;
-  const r = rng(7), delaySteps = Math.round((p.delay ?? 0) / dt), hist = [];
-  const out = { t: [], y: [], e: [], turn: [], crash: false };
-  for (let k = 0; k * dt <= T; k++) {
-    const cl = Math.cos(Math.PI / 4 - th), cr = Math.cos(Math.PI / 4 + th);
-    const dl = cl > 0.1 ? Math.min(1.3, (W / 2 - y) / cl) : 1.3, dr = cr > 0.1 ? Math.min(1.3, (W / 2 + y) / cr) : 1.3;
-    let e = dl - dr + (p.noise ?? 0) * gauss(r) + (p.bias ?? 0);
-    hist.push(e); e = hist[Math.max(0, hist.length - 1 - delaySteps)];
-    integ = Math.max(-0.5, Math.min(0.5, integ + e * dt));
-    const raw = prev === null ? 0 : (e - prev) / dt; prev = e;
-    dfil = 0.3 * raw + 0.7 * dfil;
-    let turn = (p.kp ?? 0) * e + (p.ki ?? 0) * integ + (p.kd ?? 0) * dfil;
-    turn = Math.max(-v, Math.min(v, turn));
-    const om = 2 * turn / track + (p.mismatch ?? 0) * v / track;
-    th += om * dt; y += v * Math.sin(th) * dt;
-    out.t.push(k * dt); out.y.push(y * 1000); out.e.push(e * 1000); out.turn.push(turn);
-    if (Math.abs(y) > W / 2 - 0.035) { out.crash = true; break; }
-  }
-  return out;
-}
-
-/** opts: {sliders: ['kp','ki','kd','delay','noise','mismatch'], init: {...}, compare: boolean} */
+/** opts: {sliders: ['kp','ki','kd','delay','noise','mismatch','alpha'], init: {...}, model: {...extra simulate params}} */
 export function lateralDemo(box, opts) {
-  const p = { kp: 1, ki: 0, kd: 0, delay: 0, noise: 0, mismatch: 0, y0: 0.04, ...opts.init };
+  const p = { kp: 1, ki: 0, kd: 0, delay: 0, noise: 0, mismatch: 0, y0: 0.04, ...opts.model, ...opts.init };
   const ctrl = el('div', { class: 'grid-3' });
-  const plot = new TimePlot(box, { title: t('tut.demo_plot'), series: [{ name: t('tut.demo_now'), color: PALETTE[0] }, { name: t('tut.demo_ref'), color: '#9aa6b0', dash: [4, 3] }], keepAll: true, height: 170 });
+  const showU = opts.show === 'turn';
+  const plot = new TimePlot(box, { title: t(showU ? 'tut.demo_plot_u' : 'tut.demo_plot'), series: [{ name: t('tut.demo_now'), color: PALETTE[0] }, { name: t('tut.demo_ref'), color: '#9aa6b0', dash: [4, 3] }], keepAll: true, height: 170 });
   const msg = el('p', { class: 'muted' });
   box.prepend(ctrl); box.append(msg);
   const ref = simulate(p);
-  const DEF = { kp: [0, 10, 0.05, 'Kp', ''], ki: [0, 5, 0.05, 'Ki', ''], kd: [0, 2, 0.01, 'Kd', ''], delay: [0, 0.3, 0.01, t('tut.delay'), 's'], noise: [0, 0.02, 0.001, t('tut.noise'), 'm'], mismatch: [-0.1, 0.1, 0.005, t('tut.mismatch'), ''] };
+  const DEF = { kp: [0, 10, 0.05, 'Kp', ''], ki: [0, 5, 0.05, 'Ki', ''], kd: [0, 2, 0.01, 'Kd', ''], delay: [0, 0.3, 0.01, t('tut.delay'), 's'],
+    noise: [0, 0.02, 0.001, t('tut.noise'), 'm'], mismatch: [-0.1, 0.1, 0.005, t('tut.mismatch'), ''], alpha: [0.05, 1, 0.05, t('tut.alpha'), ''] };
   const run = () => {
-    const s = simulate(p);
-    plot.setData(0, s.t, s.y); plot.setData(1, ref.t, ref.y); plot.draw();
+    const s = simulate(p), k = showU ? 'turn' : 'y', sc = showU ? 1000 : 1;
+    plot.setData(0, s.t, s[k].map((v) => v * sc)); plot.setData(1, ref.t, ref[k].map((v) => v * sc)); plot.draw();
     msg.textContent = s.crash ? t('tut.demo_crash') : t('tut.demo_final', { y: s.y[s.y.length - 1].toFixed(1) });
   };
   for (const k of opts.sliders) {
@@ -52,7 +29,66 @@ export function lateralDemo(box, opts) {
   run();
 }
 
-/** the geometry demo: drag the robot, see both distances and the error */
+/** "distance from the centre vs distance driven": sliders for Kp, Ki, Kd plus the four example settings */
+export function corridorGraph(box) {
+  const g = { ...GRAPH_PRESETS.good };
+  const plot = new TimePlot(box, { title: t('tut.g_title'), tUnit: ' cm', keepAll: true, fixed: true, min: -8, max: 8, height: 230,
+    series: [{ name: t('tut.g_yours'), color: PALETTE[0], width: 2.2 }, { name: t('tut.g_good'), color: '#9aa6b0', dash: [4, 3] }] });
+  const msg = el('p', { class: 'muted', 'aria-live': 'polite' });
+  const sl = {
+    kp: slider({ label: 'Kp', min: 0, max: 5, step: 0.05, value: g.kp, onInput: (v) => { g.kp = v; run(); } }),
+    ki: slider({ label: 'Ki', min: 0, max: 1, step: 0.01, value: g.ki, onInput: (v) => { g.ki = v; run(); } }),
+    kd: slider({ label: 'Kd', min: 0, max: 3, step: 0.05, value: g.kd, onInput: (v) => { g.kd = v; run(); } }),
+  };
+  const presets = el('div', { class: 'row' }, el('span', { class: 'muted', text: t('tut.g_try') }));
+  for (const k of Object.keys(GRAPH_PRESETS)) {
+    presets.append(el('button', { class: 'small', type: 'button', text: t('tut.g_p_' + k), onclick: () => {
+      Object.assign(g, GRAPH_PRESETS[k]); for (const q of ['kp', 'ki', 'kd']) sl[q].set(g[q], false); run();
+    } }));
+  }
+  box.prepend(el('div', { class: 'grid-3' }, sl.kp, sl.ki, sl.kd), presets);
+  box.append(el('small', { class: 'muted', text: t('tut.g_axis') }), msg);
+  const ref = corridorCurve(GRAPH_PRESETS.good);
+  function run() {
+    const c = corridorCurve(g);
+    plot.setData(0, c.x, c.y); plot.setData(1, ref.x, ref.y); plot.draw();
+    const d = settleDistance(c);
+    const late = Math.max(...c.y.slice(-Math.floor(c.y.length / 4)).map(Math.abs));
+    msg.textContent = Number.isFinite(d) ? t('tut.g_settled', { d: d.toFixed(0) })
+      : late > 3 ? t('tut.g_wobble') : t('tut.g_slow', { y: late.toFixed(1) });
+  }
+  run();
+}
+
+/** the wheel mixer: e -> u -> base -/+ u, with the speed range and clipping */
+export function wheelDemo(box) {
+  const p = { u: 0.03, frac: 0.75, vmin: 0.05, vmax: 0.3 };
+  const out = el('div', { class: 'wheels-demo' });
+  const bar = (label) => {
+    const fill = el('div', { class: 'wd-fill' }), val = el('span', { class: 'mono' });
+    const row = el('div', { class: 'wd-row' }, el('span', { class: 'wd-lab', text: label }), el('div', { class: 'wd-bar' }, fill, el('i', { class: 'wd-min' }), el('i', { class: 'wd-max' })), val);
+    out.append(row); return { fill, val, row };
+  };
+  const L = bar(t('tut.w_left')), B = bar('base'), Rr = bar(t('tut.w_right'));
+  const note = el('p', { class: 'muted', 'aria-live': 'polite' });
+  box.append(el('div', { class: 'grid-2' },
+    slider({ label: t('tut.w_u'), unit: 'm/s', min: -0.3, max: 0.3, step: 0.005, value: p.u, onInput: (v) => { p.u = v; draw(); } }),
+    slider({ label: 'speed_frac', min: 0, max: 1, step: 0.05, value: p.frac, onInput: (v) => { p.frac = v; draw(); } })), out, note);
+  function draw() {
+    const w = wheelCommands(p.u, p);
+    const pos = (v) => Math.max(0, Math.min(100, v / 0.35 * 100));
+    for (const [b, raw, clip] of [[L, w.left, w.leftClip], [B, w.base, w.base], [Rr, w.right, w.rightClip]]) {
+      b.fill.style.width = pos(clip) + '%';
+      b.fill.classList.toggle('clipped', raw !== clip);
+      b.val.textContent = raw !== clip ? `${raw.toFixed(3)} → ${clip.toFixed(3)} m/s` : `${clip.toFixed(3)} m/s`;
+    }
+    out.style.setProperty('--vmin', pos(p.vmin) + '%'); out.style.setProperty('--vmax', pos(p.vmax) + '%');
+    note.textContent = w.clipped ? t('tut.w_clipped') : t('tut.w_ok', { d: (2 * p.u).toFixed(3) });
+  }
+  draw();
+}
+
+/** the geometry demo: move the robot, see both distances and the error */
 export function geometryDemo(box) {
   const c = el('canvas'); const wrap = el('div', { class: 'canvas-wrap' }, c); box.append(wrap);
   const info = el('p', { class: 'mono' }); box.append(info);
@@ -70,7 +106,8 @@ export function geometryDemo(box) {
       g.strokeStyle = col; g.lineWidth = 2; g.beginPath(); g.moveTo(X(0), Y(y)); g.lineTo(X(Math.cos(a) * dd), Y(y + Math.sin(a) * dd)); g.stroke();
     }
     g.save(); g.translate(X(0), Y(y)); g.rotate(-th); g.fillStyle = css('--robot') + '55'; g.strokeStyle = css('--robot'); g.fillRect(-25, -22, 60, 44); g.strokeRect(-25, -22, 60, 44); g.restore();
-    info.textContent = `${t('tut.left')} ${(dl * 1000).toFixed(0)} mm   ${t('tut.right')} ${(dr * 1000).toFixed(0)} mm   ${t('tut.error')} = ${((dl - dr) * 1000).toFixed(0)} mm`;
+    const e = (dl - dr) * 1000;
+    info.textContent = `${t('tut.left')} ${(dl * 1000).toFixed(0)} mm   ${t('tut.right')} ${(dr * 1000).toFixed(0)} mm   e = ${e.toFixed(0)} mm  → ${t(Math.abs(e) < 3 ? 'tut.e_zero' : e > 0 ? 'tut.e_pos' : 'tut.e_neg')}`;
   }
   new ResizeObserver(draw).observe(wrap);
   draw();

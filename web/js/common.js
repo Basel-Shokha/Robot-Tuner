@@ -1,6 +1,7 @@
 // common.js - page chrome shared by every page: header + navigation, language menu, scope note, footer,
 // offline service worker. Each page calls `await page()` before its own code.
 import { initI18n, t, LANGS, currentLang, setLang, applyI18n } from './i18n.js';
+import { startTour, offerTour } from './tour.js';
 
 // The workflow is a real sequence (each step feeds the next), so it is numbered; the rest is not.
 export const STEPS = [
@@ -73,26 +74,29 @@ export async function page() {
   footer.innerHTML = `<p>${t('footer.scope')}</p><p><a href="https://github.com/Basel-Shokha/Robot-Tuner">GitHub</a></p>`;
   pageEl.append(footer);
 
-  // step pages: "Step n of 5" above the title, and the way on at the bottom
+  // every page: a head row with the Guide button; step pages also get "Step n of 5" above the title and the way on
   const si = STEPS.findIndex((p) => p.id === id);
   const h1 = main.querySelector('h1');
-  if (si >= 0 && h1) {
+  if (h1) {
     const line = document.createElement('div');
     line.className = 'stepline';
-    line.innerHTML = `<b>${t('page.step', { n: si + 1, total: STEPS.length })}</b>`;
+    line.innerHTML = (si >= 0 ? `<b>${t('page.step', { n: si + 1, total: STEPS.length })}</b>` : '<span></span>')
+      + `<button type="button" class="small guide-btn" aria-label="${t('tour.btn_label')}"><span aria-hidden="true">?</span> ${t('tour.btn')}</button>`;
     const head = document.createElement('div');
     head.className = 'page-head';
     h1.before(head);
     head.append(line, h1);
     const intro = head.nextElementSibling;
     if (intro && intro.tagName === 'P') head.append(intro);
-    if (si + 1 < STEPS.length) {
-      const nx = STEPS[si + 1];
-      const box = document.createElement('div');
-      box.className = 'next-step';
-      box.innerHTML = `<a class="btn primary" href="${nx.href}">${t('page.next', { name: t(nx.key) })}</a>`;
-      main.append(box);
-    }
+    line.querySelector('.guide-btn').addEventListener('click', () => startTour(id));
+    setTimeout(() => offerTour(id), 900);
+  }
+  if (si >= 0 && si + 1 < STEPS.length) {
+    const nx = STEPS[si + 1];
+    const box = document.createElement('div');
+    box.className = 'next-step';
+    box.innerHTML = `<a class="btn primary" href="${nx.href}">${t('page.next', { name: t(nx.key) })}</a>`;
+    main.append(box);
   }
 
   app.querySelectorAll('.theme-toggle').forEach((b) => b.addEventListener('click', () => applyTheme(theme() === 'dark' ? 'light' : 'dark')));

@@ -68,11 +68,39 @@ export function summarizeTiming(periods, ages) {
   return { loop_ms: +mean(periods).toFixed(2), age_ms: +mean(flat).toFixed(2), age_jitter_ms: +(Math.max(...flat) - Math.min(...flat)).toFixed(2) };
 }
 
+// ---- repeated measurements: count N times, divide by N --------------------------------------------------
+export const REPS = { ticks: { def: 5, min: 5, max: 10 }, spin: { def: 10, min: 3, max: 20 } };
+/** a whole number of repetitions inside the allowed range (default when not a number) */
+export function clampReps(n, r) { n = Math.round(+n); return Number.isFinite(n) ? Math.max(r.min, Math.min(r.max, n)) : r.def; }
+/** mean and spread of repeated values; spread = (max - min) / mean in % */
+export function repStats(xs) {
+  const mean = xs.reduce((a, b) => a + b, 0) / xs.length, min = Math.min(...xs), max = Math.max(...xs);
+  return { mean, min, max, spreadPct: mean ? 100 * (max - min) / Math.abs(mean) : 0 };
+}
+/** ticks per revolution from one count per turn: reps = [{left, right}, ...] (each = one full turn) */
+export function ticksFromReps(reps) {
+  const L = repStats(reps.map((r) => r.left)), Rt = repStats(reps.map((r) => r.right));
+  return { n: reps.length, left: L.mean, right: Rt.mean, ticks: (L.mean + Rt.mean) / 2, spread: Math.max(L.spreadPct, Rt.spreadPct), spreadL: L.spreadPct, spreadR: Rt.spreadPct };
+}
+/** ticks per revolution from totals over n full turns */
+export function ticksFromTotals(totalL, totalR, n) {
+  if (!(n > 0)) return null;
+  return { n, left: totalL / n, right: totalR / n, ticks: (totalL + totalR) / 2 / n, spread: 0 };
+}
+/** effective track width from a spin test: the robot believed it turned encTurns with trackM; really it turned realTurns */
+export function trackFromSpin(trackM, encTurns, realTurns) {
+  if (!(realTurns > 0) || !(encTurns > 0)) return null;
+  return { track_m: trackM * encTurns / realTurns, perTurnErrPct: 100 * (encTurns - realTurns) / realTurns };
+}
+/** the counted turns must be close to the commanded ones (a slip, or counting the wrong thing, gives nonsense) */
+export function turnsPlausible(real, n) { return real > 0.7 * n && real < 1.3 * n; }
+
 // ---- sanity checks: [level, i18n key, vars] or null ---------------------------------------------------
 export function sanity(step, v, robot) {
   switch (step) {
     case 'ticks':
       if (v.ticks < 20 || v.ticks > 100000) return ['bad', 'chk.ticks_range', { v: v.ticks }];
+      if (v.spread > 2) return ['warn', 'chk.ticks_reps', { v: v.spread.toFixed(1) }];
       if (Math.abs(v.left - v.right) / v.ticks > 0.02) return ['warn', 'chk.ticks_lr', { l: v.left, r: v.right }];
       return null;
     case 'maxspeed':

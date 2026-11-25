@@ -184,7 +184,7 @@ td.num, th.num { text-align: end; font-variant-numeric: tabular-nums; }
 .step > .body { padding: 0 16px 16px 54px; display: none; }
 [dir="rtl"] .step > .body { padding: 0 54px 16px 16px; }
 .step.open > .body { display: block; }
-.step .media { border: 1.5px dashed var(--line); border-radius: var(--r-m); min-height: 110px; display: grid; place-items: center; color: var(--muted); font-size: .85rem; text-align: center; padding: 10px; background: var(--panel-2); margin: 10px 0; }
+.step .media { border: 1px solid var(--line); border-radius: var(--r-m); color: var(--muted); font-size: .85rem; text-align: center; padding: 10px; background: var(--panel-2); margin: 10px 0; max-width: 460px; }
 .step dl { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 4px 0 8px; }
 .step dt { font-weight: 650; color: var(--muted); }
 .step dd { margin: 0; max-width: 70ch; }
@@ -236,3 +236,88 @@ td.num, th.num { text-align: end; font-variant-numeric: tabular-nums; }
 [data-panel="firmware"] .row > .field { flex: 1 1 190px; }
 /* playground clipping lesson: the overlay turns red while a wheel command is cut at v_max */
 .overlay.clipping { color: var(--red); }
+
+/* ---------- page head: Guide button ----------------------------------------------------------------- */
+.page-head .stepline { justify-content: space-between; }
+.guide-btn { font-weight: 650; color: var(--green); border-color: var(--green); }
+.guide-btn span { display: inline-grid; place-items: center; width: 17px; height: 17px; border-radius: 50%; background: var(--green); color: var(--accent-ink); font-size: .72rem; margin-inline-end: 2px; }
+.hero .page-head .stepline { margin-bottom: 10px; }
+
+/* ---------- guided tour ------------------------------------------------------------------------------ */
+.tour-shield { position: fixed; inset: 0; z-index: 90; }
+.tour-hole { position: fixed; z-index: 91; border-radius: var(--r-m); box-shadow: 0 0 0 3px var(--amber), 0 0 0 9999px rgba(10, 20, 28, .55); pointer-events: none; transition: all .25s ease; }
+.tour-box { position: fixed; z-index: 92; background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: var(--r-l); padding: 14px 16px 12px; box-shadow: 0 10px 30px rgba(0, 0, 0, .25); }
+.tour-box h3 { margin: 2px 0 6px; font-size: 1.05rem; }
+.tour-box p { margin: 0 0 12px; color: var(--ink-2); font-size: .95rem; }
+.tour-count { font-size: .75rem; font-weight: 700; color: var(--amber-ink); letter-spacing: .03em; }
+.tour-btns { display: flex; gap: 8px; align-items: center; }
+.tour-btns .spacer { flex: 1; }
+.tour-offer { position: fixed; z-index: 60; bottom: 16px; inset-inline-end: 16px; max-width: 320px; background: var(--panel); border: 1px solid var(--line); border-inline-start: 4px solid var(--green); border-radius: var(--r-l); padding: 12px 14px; box-shadow: 0 8px 24px rgba(0, 0, 0, .18); }
+.tour-offer p { margin: 0 0 10px; font-size: .93rem; }
+.tour-offer .tour-btns { justify-content: flex-end; }
+
+/* ---------- home intro ------------------------------------------------------------------------------- */
+.gets { list-style: none; padding: 0; margin: 14px 0 0; display: grid; gap: 8px; max-width: 52ch; }
+.gets li { padding-inline-start: 26px; position: relative; color: var(--ink-2); }
+.gets li::before { content: "✓"; position: absolute; inset-inline-start: 0; color: var(--green); font-weight: 800; }
+.btn.big { font-size: 1.08rem; padding: 11px 22px; }
+.small-note { font-size: .88rem; margin-top: 10px; max-width: 52ch; }
+.knowhow { margin-top: 24px; }
+.knowhow ul { margin: 6px 0 0; padding-inline-start: 18px; display: grid; gap: 4px; }
+
+/* ---------- tutorial --------------------------------------------------------------------------------- */
+.tut { max-width: 1060px; }
+.tut section { margin-block: 34px; scroll-margin-top: 16px; }
+.tut #toc { display: flex; flex-wrap: wrap; gap: 4px 18px; }
+.tut-pair { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+@media (max-width: 960px) { .tut-pair { grid-template-columns: 1fr; } }
+.tut-pair .demo { position: sticky; top: 12px; }
+@media (max-width: 960px) { .tut-pair .demo { position: static; } }
+.prose { max-width: 70ch; line-height: 1.6; }
+.prose ul, .prose ol { padding-inline-start: 22px; }
+.prose li { margin: 4px 0; }
+.math { font-family: "Cambria Math", "STIX Two Math", Georgia, serif; font-size: 1.12rem; text-align: center; background: var(--panel-2); border-radius: var(--r-m); padding: 8px 10px; direction: ltr; overflow-x: auto; }
+.hint { border-inline-start: 3px solid var(--amber); background: var(--amber-soft); padding: 8px 12px; border-radius: var(--r-s); }
+.demo-h { display: block; margin-bottom: 8px; color: var(--green); }
+pre.code { background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--r-m); padding: 10px 12px; overflow-x: auto; font: .82rem/1.5 var(--mono); direction: ltr; text-align: left; }
+table.gains { border-collapse: collapse; width: 100%; max-width: 720px; background: var(--panel); }
+table.gains th, table.gains td { text-align: start; padding: 7px 12px; border-bottom: 1px solid var(--line-2); }
+table.gains thead th { background: var(--accent-soft); }
+.deeper summary { font-size: 1.02rem; }
+.deeper .prose { margin-top: 12px; max-width: none; }
+.wheels-demo { display: grid; gap: 8px; margin: 10px 0; --vmin: 14%; --vmax: 86%; }
+.wd-row { display: grid; grid-template-columns: 90px 1fr 150px; gap: 10px; align-items: center; font-size: .9rem; }
+.wd-bar { position: relative; height: 16px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 3px; }
+.wd-fill { height: 100%; background: var(--green); border-radius: 2px; transition: width .1s; }
+.wd-fill.clipped { background: var(--red); }
+.wd-min, .wd-max { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--ink-2); }
+.wd-min { inset-inline-start: var(--vmin); } .wd-max { inset-inline-start: var(--vmax); }
+
+/* ---------- measure: animations, repetitions ---------------------------------------------------------- */
+.media svg.anim { width: 100%; height: auto; max-height: 170px; display: block; }
+.media figcaption { font-size: .8rem; margin-top: 4px; }
+.media video { width: 100%; border-radius: var(--r-s); }
+.anim .a-floor, .anim .a-ref { stroke: var(--ink-2); stroke-width: 2; }
+.anim .a-ref { stroke: var(--amber); stroke-width: 3; }
+.anim .a-tyre { fill: var(--ink); } .anim .a-tyre-f { fill: var(--ink); }
+.anim .a-rim { fill: var(--panel-2); } .anim .a-hub { fill: var(--ink-2); }
+.anim .a-mark { stroke: var(--red); stroke-width: 5; stroke-linecap: round; }
+.anim .a-arrow { fill: none; stroke: var(--green); stroke-width: 3; } .anim .a-head { fill: var(--green); }
+.anim .a-body { fill: var(--accent-soft); stroke: var(--green); stroke-width: 2; }
+.anim .a-nose { fill: var(--green); }
+.anim .a-block { fill: var(--line); }
+.anim .a-beam { stroke: var(--red); stroke-width: 2; stroke-dasharray: 5 4; animation: a-dash 1s linear infinite; }
+.anim .a-tape line { stroke: var(--amber); stroke-width: 2; stroke-dasharray: 2 3; }
+.anim .a-rulerbar { fill: var(--amber-soft); stroke: var(--amber); }
+.anim text { fill: var(--ink); font: 600 13px var(--font); }
+.anim .a-count { font-size: 18px; font-weight: 800; fill: var(--green); }
+.anim .a-small { font-size: 11px; font-weight: 500; fill: var(--muted); }
+@keyframes a-spin { to { transform: rotate(360deg); } }
+@keyframes a-drive { 0%, 10% { transform: translateX(0); } 70%, 100% { transform: translateX(240px); } }
+@keyframes a-fade { 0%, 65% { opacity: 0; } 75%, 100% { opacity: 1; } }
+@keyframes a-ruler { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+@keyframes a-dash { to { stroke-dashoffset: -18; } }
+.reps { max-width: 360px; }
+.reps-table { margin: 8px 0; }
+.calc { margin-top: 6px; }
+.calc .field { margin-top: 6px; }

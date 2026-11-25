@@ -4,6 +4,7 @@ import { loadRobot, saveRobot } from './store.js';
 import { RobotLink, serialSupported } from './serial.js';
 import * as P from './measure-steps.js';
 import { fmt } from './i18n.js';
+import { stepMedia } from './measure-media.js';
 import { BOARDS, normalizeHardware, sensorWireName, sketchTicks, isLowRes } from './firmware-gen.js';
 
 await page();
@@ -41,12 +42,23 @@ const STEPS = [
   { id: 'physical', physical: true },
   { id: 'ticks', enc: true, fields: [['ms.f.ticks', () => R.wheels.ticks_per_rev, (v) => { R.wheels.ticks_per_rev = v; }, '', 'wheels.ticks_per_rev']],
     async run(ui) {
+      // one count per full turn (CAL TICKS ... CAL END, restarted at once), so every turn can be checked;
+      // the total over N turns divided by N is the same as one long count
+      const n = reps.ticks, counts = [];
+      const table = ui.repTable(['ms.rep.turn', 'ms.rep.left', 'ms.rep.right']);
       await link.send('CAL TICKS');
-      ui.ask(t('ms.ticks.ask'), t('ms.ticks.done_btn'));
-      await ui.answered();
-      await link.send('CAL END');
-      const v = await link.waitFor(P.parseTicks, 5000);
-      ui.result(v, 'ticks', [['ms.f.ticks', v.ticks]], () => { R.wheels.ticks_per_rev = v.ticks; save(['wheels.ticks_per_rev']); });
+      for (let k = 1; k <= n; k++) {
+        ui.ask(t('ms.ticks.ask_k', { k, n }), t('ms.ticks.done_k', { k, n }));
+        await ui.answered();
+        const got = link.waitFor(P.parseTicks, 5000);
+        await link.send('CAL END');
+        const v = await got;
+        if (k < n) await link.send('CAL TICKS');
+        counts.push(v); table.add([k, v.left, v.right]);
+      }
+      const v = P.ticksFromReps(counts);
+      ui.result(v, 'ticks', [['ms.rep.n', String(n)], ['ms.rep.spread', `${fmt(v.spread, 2)} %`], ['ms.rep.left_avg', v.left], ['ms.rep.right_avg', v.right], ['ms.f.ticks', v.ticks]],
+        () => { R.wheels.ticks_per_rev = +v.ticks.toFixed(2); save(['wheels.ticks_per_rev']); });
     } },
   { id: 'maxspeed', enc: true, fields: [['ms.f.maxspeed', () => R.motor.max_speed_mps, (v) => { R.motor.max_speed_mps = v; }, 'm/s', 'motor.max_speed_mps']],
     async run(ui) {
@@ -94,13 +106,22 @@ const STEPS = [
     } },
   { id: 'spin', enc: true, fields: [['ms.f.track', () => R.wheels.track_effective_mm, (v) => { R.wheels.track_effective_mm = v; }, 'mm', 'wheels.track_effective_mm']],
     async run(ui) {
-      await link.send('CAL SPIN 5');
-      const s = await link.waitFor(P.parseSpinDone, 120000);
+      const n = reps.spin;
+      await link.send(`CAL SPIN ${n}`);
+      const s = await link.waitFor(P.parseSpinDone, 30000 * n);
       if (!s.trusted) ui.warn(t('ms.spin.untrusted'));
-      const n = await ui.askNumber(t('ms.spin.ask'), t('ms.turns'));
-      await link.send(`CAL TURNS ${n}`);
-      const v = await link.waitFor(P.parseTurns, 5000);
-      ui.result(v, 'spin', [['ms.f.track', v.track_m * 1000, 'mm']], () => { R.wheels.track_effective_mm = +(v.track_m * 1000).toFixed(1); save(['wheels.track_effective_mm']); });
+      let real;
+      for (;;) {
+        real = await ui.askNumber(t('ms.spin.ask_n', { n }), t('ms.turns'));
+        if (P.turnsPlausible(real, n)) break;
+        ui.warn(t('ms.spin.implausible', { r: real, n }));
+      }
+      const got = link.waitFor(P.parseTurns, 5000);
+      await link.send(`CAL TURNS ${real}`);
+      const v = await got;
+      ui.result(v, 'spin', [['ms.rep.spins', `${n}`], ['ms.rep.counted', `${real}`], ['ms.rep.enc_turns', `${fmt(s.turns, 3)}`],
+        ['ms.rep.per_turn', `${fmt(100 * (s.turns - real) / real, 2)} %`], ['ms.f.track', v.track_m * 1000, 'mm']],
+      () => { R.wheels.track_effective_mm = +(v.track_m * 1000).toFixed(1); save(['wheels.track_effective_mm']); });
     } },
   { id: 'timed', noEncOnly: true, fields: [['ms.f.maxspeed', () => R.motor.max_speed_mps, (v) => { R.motor.max_speed_mps = v; }, 'm/s', 'motor.max_speed_mps']],
     async run(ui) {
@@ -158,6 +179,7 @@ const STEPS = [
 ];
 
 const open = new Set(['physical']);
+const reps = { ticks: P.REPS.ticks.def, spin: P.REPS.spin.def };   // repetitions chosen per step
 function render() {
   R = loadRobot();
   const box = $('#steps'); box.innerHTML = '';
@@ -177,7 +199,15 @@ function stepCard(s, n, hw) {
   const body = el('div', { class: 'body' });
   body.append(el('dl', {}, el('dt', { text: t('ms.what') }), el('dd', { text: t(k + '.what') }), el('dt', { text: t('ms.why') }), el('dd', { text: t(k + '.why') }),
     el('dt', { text: t('ms.how') }), el('dd', { text: t(k + '.how') })));
-  body.append(el('div', { class: 'media', 'data-slot': `img/measure/${s.id}.gif`, text: t('ms.media', { f: `img/measure/${s.id}.gif` }) }));
+  const media = stepMedia(s.id, { n: reps[s.id] || 1, label: t(k + '.title'), turnWord: t(s.id === 'spin' ? 'ms.rep.spin_word' : 'ms.rep.turn_word'), videoWord: t('ms.video'), soonWord: t('ms.video_soon') });
+  if (media) body.append(media);
+  if (reps[s.id] !== undefined) {
+    const R0 = P.REPS[s.id];
+    const inp = el('input', { type: 'number', min: R0.min, max: R0.max, step: 1, value: reps[s.id], class: 'reps-input' });
+    inp.addEventListener('change', () => { reps[s.id] = P.clampReps(inp.value, R0); open.add(s.id); render(); });
+    body.append(el('label', { class: 'field reps' }, el('span', { text: t('ms.rep.choose_' + s.id, { min: R0.min, max: R0.max }) }), inp),
+      el('p', { class: 'muted', text: t('ms.rep.why') }));
+  }
   if (s.physical) {
     body.append(el('p', { text: t('ms.physical.p') }), el('a', { class: 'btn', href: 'builder.html', text: t('ms.physical.btn') }));
     card.append(head, body); return card;
@@ -202,16 +232,55 @@ function stepCard(s, n, hw) {
       man.append(el('label', { class: 'field' }, el('span', { text: (lab.startsWith('ms.') ? t(lab) : lab) + (unit ? ` (${unit})` : '') }), inp));
       inp.addEventListener('change', () => { const v = parseFloat(inp.value); if (Number.isFinite(v)) { set(v); R.source[path] = 'MEASURED'; saveRobot(R); } });
     }
+    if (s.id === 'ticks' || s.id === 'spin') man.append(calcBox(s.id, man));
     man.append(el('small', { class: 'muted', text: t('ms.type_note') }));
     body.append(man);
   }
   card.append(head, body);
   return card;
 }
+/** manual mode: compute the value from N repetitions (total ticks over N turns, or counted turns of N spins) */
+function calcBox(id, man) {
+  const num = (v) => el('input', { type: 'number', step: 'any', value: v });
+  const res = el('p', { class: 'mono' });
+  const box = el('details', { class: 'calc' }, el('summary', { text: t('ms.calc.h_' + id) }));
+  const target = () => man.querySelector('input');
+  const put = (v) => { const i = target(); i.value = v; i.dispatchEvent(new Event('change')); };
+  if (id === 'ticks') {
+    const n = num(reps.ticks), l = num(''), r = num('');
+    const go = () => {
+      const v = P.ticksFromTotals(+l.value, +r.value, P.clampReps(n.value, P.REPS.ticks));
+      if (!v || !(+l.value > 0) || !(+r.value > 0)) { res.textContent = ''; return; }
+      const c = P.sanity('ticks', v, R);
+      res.textContent = t('ms.calc.ticks_res', { n: v.n, l: fmt(v.left, 1), r: fmt(v.right, 1), v: fmt(v.ticks, 1) }) + (c ? '  ⚠ ' + t(c[1], c[2]) : '');
+      res.dataset.v = v.ticks.toFixed(2);
+    };
+    for (const i of [n, l, r]) i.addEventListener('input', go);
+    box.append(el('label', { class: 'field' }, el('span', { text: t('ms.calc.turns') }), n), el('label', { class: 'field' }, el('span', { text: t('ms.calc.total_l') }), l),
+      el('label', { class: 'field' }, el('span', { text: t('ms.calc.total_r') }), r));
+  } else {
+    const tw = num(R.wheels.track_effective_mm || R.wheels.track_mm), n = num(reps.spin), real = num('');
+    const go = () => {
+      const v = P.trackFromSpin(+tw.value, +n.value, +real.value);
+      if (!v) { res.textContent = ''; return; }
+      const warn = P.turnsPlausible(+real.value, +n.value) ? '' : '  ⚠ ' + t('ms.spin.implausible', { r: real.value, n: n.value });
+      res.textContent = t('ms.calc.spin_res', { v: fmt(v.track_m, 1), e: fmt(v.perTurnErrPct, 2) }) + warn;
+      res.dataset.v = v.track_m.toFixed(1);
+    };
+    for (const i of [tw, n, real]) i.addEventListener('input', go);
+    box.append(el('label', { class: 'field' }, el('span', { text: t('ms.calc.track_used') }), tw), el('label', { class: 'field' }, el('span', { text: t('ms.calc.spins_cmd') }), n),
+      el('label', { class: 'field' }, el('span', { text: t('ms.calc.spins_real') }), real));
+  }
+  box.append(res, el('button', { type: 'button', text: t('ms.calc.use'), onclick: () => { if (res.dataset.v) put(res.dataset.v); } }));
+  return box;
+}
 function makeUI(out, s) {
   let resolveAns = null;
   return {
-    ask(text, btn) { out.append(el('p', { class: 'notice', text }), el('button', { text: btn, onclick: () => resolveAns && resolveAns() })); },
+    ask(text, btn) {
+      out.querySelectorAll('.ask').forEach((e) => e.remove());
+      out.append(el('div', { class: 'ask stack' }, el('p', { class: 'notice', text }), el('button', { class: 'primary', text: btn, onclick: (ev) => { ev.target.disabled = true; if (resolveAns) resolveAns(); } })));
+    },
     answered() { return new Promise((r) => { resolveAns = r; }); },
     askNumber(text, unit) {
       return new Promise((res) => {
@@ -220,6 +289,12 @@ function makeUI(out, s) {
       });
     },
     warn(text) { out.append(el('p', { class: 'notice warn', text })); },
+    /** a table that fills row by row (one row per repetition) */
+    repTable(heads) {
+      const tb = el('table', { class: 'reps-table' }, el('tr', {}, ...heads.map((h) => el('th', { text: t(h) }))));
+      out.append(tb);
+      return { add: (cells) => tb.append(el('tr', {}, ...cells.map((c) => el('td', { class: 'num', text: String(c) })))) };
+    },
     progress(f) { let b = out.querySelector('.progress'); if (!b) { b = el('div', { class: 'progress' }, el('div')); out.append(b); } b.firstChild.style.width = (100 * f) + '%'; },
     result(v, check, rows, apply) {
       const c = check ? P.sanity(check, v, R) : null;

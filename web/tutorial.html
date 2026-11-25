@@ -4,35 +4,75 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title data-i18n="nav.tutorial">PID tutorial</title>
 <link rel="stylesheet" href="css/style.css"><link rel="icon" href="img/icon.svg">
-<style>.tut{max-width:900px;margin:auto}.tut section{margin-block:28px}</style>
 </head>
 <body data-page="tutorial">
 <main class="tut">
   <h1 data-i18n="tut.h1"></h1>
   <p class="muted" data-i18n="tut.note"></p>
-  <nav class="card" id="toc"></nav>
-  <!-- Each section: title + TEXT SLOT (placeholder until Basel's text arrives in i18n/<lang>.json) + optional demo.
-       To fill a slot, replace the value of the key named in data-slot in web/i18n/en.json (and he/ar). -->
-  <section id="s1"><h2 data-i18n="tut.s1.title"></h2><div class="placeholder" data-slot="tut.s1.body" data-i18n-html="tut.s1.body"></div><div class="card" id="demo-geom"></div></section>
-  <section id="s2"><h2 data-i18n="tut.s2.title"></h2><div class="placeholder" data-slot="tut.s2.body" data-i18n-html="tut.s2.body"></div><div class="card" id="demo-p"></div></section>
-  <section id="s3"><h2 data-i18n="tut.s3.title"></h2><div class="placeholder" data-slot="tut.s3.body" data-i18n-html="tut.s3.body"></div><div class="card" id="demo-d"></div></section>
-  <section id="s4"><h2 data-i18n="tut.s4.title"></h2><div class="placeholder" data-slot="tut.s4.body" data-i18n-html="tut.s4.body"></div><div class="card" id="demo-i"></div></section>
-  <section id="s5"><h2 data-i18n="tut.s5.title"></h2><div class="placeholder" data-slot="tut.s5.body" data-i18n-html="tut.s5.body"></div><div class="card" id="demo-delay"></div></section>
-  <section id="s6"><h2 data-i18n="tut.s6.title"></h2><div class="placeholder" data-slot="tut.s6.body" data-i18n-html="tut.s6.body"></div>
-    <p><a class="btn" href="playground.html" data-i18n="tut.to_pg"></a> <a class="btn" href="train.html" data-i18n="tut.to_train"></a></p></section>
+  <nav class="card" id="toc" aria-label="Contents"></nav>
+
+  <section id="s1"><h2 data-i18n="tut.s1.title"></h2><div class="prose" data-i18n-html="tut.s1.body"></div></section>
+
+  <section id="s2"><h2 data-i18n="tut.s2.title"></h2>
+    <div class="tut-pair"><div class="prose" data-i18n-html="tut.s2.body"></div>
+      <div class="card demo" id="demo-geom"><b class="demo-h" data-i18n="tut.s2.demo"></b></div></div>
+    <div class="prose" data-i18n-html="tut.s2.body2"></div>
+    <pre class="code">float e = d_left - d_right;                 // our choice: left minus right
+// keep the sign consistent with the wheels:  v_left = base - u, v_right = base + u
+integral += e * dt;                         // I: the past
+float d = (e - prev_e) / dt;                // D: the future (slope)
+prev_e = e;
+float u = kp * e + ki * integral + kd * d;  // P: the present</pre>
+  </section>
+
+  <section id="s3"><h2 data-i18n="tut.s3.title"></h2>
+    <div class="tut-pair"><div class="prose" data-i18n-html="tut.s3.body"></div>
+      <div class="card demo" id="demo-d"><b class="demo-h" data-i18n="tut.s3.demo"></b></div></div>
+  </section>
+
+  <section id="s4"><h2 data-i18n="tut.s4.title"></h2>
+    <div class="tut-pair"><div class="prose" data-i18n-html="tut.s4.body"></div>
+      <div class="card demo" id="demo-i"><b class="demo-h" data-i18n="tut.s4.demo"></b></div></div>
+  </section>
+
+  <section id="s5"><h2 data-i18n="tut.s5.title"></h2>
+    <div class="tut-pair"><div class="prose" data-i18n-html="tut.s5.body"></div>
+      <div class="card demo" id="demo-wheels"><b class="demo-h" data-i18n="tut.s5.demo"></b></div></div>
+    <div class="prose" data-i18n-html="tut.s5.body2"></div>
+  </section>
+
+  <section id="s6"><h2 data-i18n="tut.s6.title"></h2>
+    <div class="prose" data-i18n-html="tut.s6.table"></div>
+    <div class="card demo" id="demo-graph"><b class="demo-h" data-i18n="tut.s6.demo"></b></div>
+    <div class="prose" data-i18n-html="tut.s6.body"></div>
+    <p><a class="btn primary" href="playground.html" data-i18n="tut.to_pg"></a> <a class="btn" href="train.html" data-i18n="tut.to_train"></a></p>
+  </section>
+
+  <section id="s7"><h2 data-i18n="tut.s7.title"></h2>
+    <div class="tut-pair"><div class="prose" data-i18n-html="tut.s7.body"></div>
+      <div class="card demo" id="demo-filter"><b class="demo-h" data-i18n="tut.s7.demo"></b></div></div>
+    <pre class="code">integral = clamp(integral + e * dt, -i_limit, i_limit);       // anti-windup
+d_filt   = alpha * (e - prev_e) / dt + (1 - alpha) * d_filt;  // low-pass on D</pre>
+  </section>
+
+  <section id="s8"><h2 data-i18n="tut.s8.title"></h2><div class="prose" data-i18n-html="tut.s8.body"></div></section>
+
+  <section id="s9"><h2 data-i18n="tut.s9.title"></h2>
+    <details class="card deeper"><summary data-i18n="tut.s9.summary"></summary><div class="prose" data-i18n-html="tut.s9.body"></div></details>
+  </section>
 </main>
 <script type="module">
-import { page, $, el, t } from './js/common.js';
-import { lateralDemo, geometryDemo } from './js/tutorial-demos.js';
+import { page, $, el } from './js/common.js';
+import { lateralDemo, geometryDemo, corridorGraph, wheelDemo } from './js/tutorial-demos.js';
 await page();
-// slots that are still placeholders keep the dashed frame; filled ones (no "PLACEHOLDER" text) lose it
-document.querySelectorAll('.placeholder').forEach((p) => { if (!/PLACEHOLDER/.test(p.textContent)) p.classList.remove('placeholder'); });
-for (const s of document.querySelectorAll('section')) $('#toc').append(el('a', { href: '#' + s.id, text: s.querySelector('h2').textContent, style: 'display:block' }));
+for (const s of document.querySelectorAll('main section')) $('#toc').append(el('a', { href: '#' + s.id, text: s.querySelector('h2').textContent }));
+const side90 = { sensor_deg: 90 };   // sensors looking straight at the walls: e depends only on the position
 geometryDemo($('#demo-geom'));
-lateralDemo($('#demo-p'), { sliders: ['kp'], init: { kp: 0.3 } });
-lateralDemo($('#demo-d'), { sliders: ['kp', 'kd'], init: { kp: 2.5, kd: 0 } });
-lateralDemo($('#demo-i'), { sliders: ['kp', 'kd', 'ki', 'mismatch'], init: { kp: 1, kd: 0.2, ki: 0, mismatch: 0.05, y0: 0 } });
-lateralDemo($('#demo-delay'), { sliders: ['kp', 'kd', 'delay', 'noise'], init: { kp: 1, kd: 0.2, delay: 0.1 } });
+lateralDemo($('#demo-d'), { sliders: ['kp', 'kd'], init: { kp: 1, kd: 0 }, model: side90 });
+lateralDemo($('#demo-i'), { sliders: ['ki', 'mismatch'], init: { kp: 1, kd: 0.5, ki: 0, mismatch: 0.05, y0: 0 }, model: side90 });
+wheelDemo($('#demo-wheels'));
+corridorGraph($('#demo-graph'));
+lateralDemo($('#demo-filter'), { sliders: ['kd', 'alpha', 'noise'], init: { kp: 1, kd: 0.3, noise: 0.008, alpha: 1 }, model: side90, show: 'turn' });
 </script>
 </body>
 </html>
