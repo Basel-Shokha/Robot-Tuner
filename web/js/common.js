@@ -45,16 +45,16 @@ export async function page() {
   const main = document.querySelector('main');
   const app = document.createElement('div');
   app.className = 'app';
+  // the menu: three titles; the arrow opens the list underneath (the group of the current page starts open)
+  const group = (g, key, pages, body) => `<details class="rail-group" data-group="${g}"${pages.some((p) => p.id === id) ? ' open' : ''}>
+        <summary class="rail-title">${t(key)}</summary>${body}</details>`;
   const link = (p) => `<a href="${p.href}"${p.id === id ? ' aria-current="page"' : ''}>${t(p.key)}</a>`;
   app.innerHTML = `
     <aside class="rail" id="rail" aria-label="${t('nav.menu')}">
       <a class="brand" href="index.html">${LOGO}<span>Robot Tuner</span></a>
-      <div class="rail-group">
-        <div class="rail-title">${t('nav.group_steps')}</div>
-        <ol class="track">${STEPS.map((p, i) => `<li class="${p.id === id ? 'current' : seen.has(p.id) ? 'visited' : ''}"><a href="${p.href}"${p.id === id ? ' aria-current="page"' : ''}><span class="stop"><span>${i + 1}</span></span>${t(p.key)}</a></li>`).join('')}</ol>
-      </div>
-      <div class="rail-group"><div class="rail-title">${t('nav.group_learn')}</div><nav class="rail-links">${LEARN.map(link).join('')}</nav></div>
-      <div class="rail-group"><div class="rail-title">${t('nav.group_beyond')}</div><nav class="rail-links">${BEYOND.map(link).join('')}</nav></div>
+      ${group('steps', 'nav.group_steps', STEPS, `<ol class="track">${STEPS.map((p, i) => `<li class="${p.id === id ? 'current' : seen.has(p.id) ? 'visited' : ''}"><a href="${p.href}"${p.id === id ? ' aria-current="page"' : ''}><span class="stop"><span>${i + 1}</span></span>${t(p.key)}</a></li>`).join('')}</ol>`)}
+      ${group('learn', 'nav.group_learn', LEARN, `<nav class="rail-links">${LEARN.map(link).join('')}</nav>`)}
+      ${group('beyond', 'nav.group_beyond', BEYOND, `<nav class="rail-links">${BEYOND.map(link).join('')}</nav>`)}
       <div class="rail-foot">
         <button class="small theme-toggle" type="button"></button>
         <span>${t('footer.offline')}</span>

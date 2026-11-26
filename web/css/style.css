@@ -58,7 +58,13 @@ small { font-size: .85rem; }
 .brand svg { flex: none; }
 .rail-group { padding: 6px 0 10px; }
 .rail-group + .rail-group { border-block-start: 1px solid var(--line-2); padding-block-start: 12px; }
-.rail-title { padding: 0 20px 6px; color: var(--muted); font-size: .8rem; font-weight: 600; }
+.rail-title { padding: 8px 20px; color: var(--ink); font-size: .95rem; font-weight: 650; cursor: pointer; list-style: none; display: flex; align-items: center; justify-content: space-between; border-radius: var(--r-m); margin: 0 8px; padding-inline: 12px; }
+.rail-title::-webkit-details-marker { display: none; }
+.rail-title::after { content: ""; width: 8px; height: 8px; border-inline-end: 2px solid var(--muted); border-block-end: 2px solid var(--muted); transform: rotate(-45deg); transition: transform .15s; }
+[dir="rtl"] .rail-title::after { transform: rotate(45deg); }
+.rail-group[open] > .rail-title::after { transform: rotate(45deg); }
+.rail-title:hover { background: var(--panel-2); }
+.rail-group[open] > .rail-title { margin-bottom: 4px; }
 /* the corridor: two walls running down the steps */
 .track { list-style: none; margin: 0; padding: 0 12px 0 20px; position: relative; }
 .track::before, .track::after { content: ""; position: absolute; inset-block: 14px; width: 2px; background: var(--ink); border-radius: 1px; }
