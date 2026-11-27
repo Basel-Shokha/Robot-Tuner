@@ -191,7 +191,7 @@ void i2cSetup() {
 //   e = clamp(left - right - setpoint, +-ERROR_CLIP); integral = clamp(integral + e dt, +-INTEGRAL_LIMIT)
 //   d_filt = alpha d_raw + (1 - alpha) d_filt; turn = clamp(KP e + KI integral + KD d_filt, +-V_MAX)
 //   base = V_MIN + SPEED_FRAC (V_MAX - V_MIN); v_left = base - turn, v_right = base + turn, clamped to +-V_MAX
-const float PID_KP = 0.586855f, PID_KI = 0.015884f, PID_KD = 0.384207f;
+const float PID_KP = 0.457387f, PID_KI = 0.000167f, PID_KD = 0.255282f;
 const float PID_SPEED_FRAC = 0.75f;   // cruise = 0.120 m/s
 const float PID_V_MAX = 0.156f, PID_V_MIN = 0.013f;   // measured top speed, slowest steady speed (CAL VMIN)
 const float PID_ERROR_CLIP = 0.08f, PID_INTEGRAL_LIMIT = 0.5f, PID_D_ALPHA = 0.3f;   // alpha per 50 ms

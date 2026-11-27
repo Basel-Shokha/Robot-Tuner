@@ -15,7 +15,8 @@ export const PRESETS = {
     const [r, e] = base(robot, env, { angle_deg: 30, offset_mm: 40, random: false });
     r.pid.ki = Math.max(1.5, r.pid.ki * 80); r.pid.integral_limit = 3; e.noise.mismatch_pct = 4; return [r, e];
   },
-  too_fast: (robot, env) => { const [r, e] = base(robot, env); r.pid.speed_frac = 1; e.noise.delay_ms = 150; return [r, e]; },
+  // a (virtual) motor 4x faster than measured at the same speed_frac: the cruise speed scales with v_max
+  too_fast: (robot, env) => { const [r, e] = base(robot, env); r.sim_max_speed_mps = Math.min(1, 4 * r.motor.max_speed_mps); e.noise.delay_ms = 150; return [r, e]; },
   saturation: (robot, env) => {
     const [r, e] = base(robot, env, { angle_deg: 35, offset_mm: 0, random: false });
     r.pid.speed_frac = 1; e.width_mm = Math.max(e.width_mm, 200); return [r, e];

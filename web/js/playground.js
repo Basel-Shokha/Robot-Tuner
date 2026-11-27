@@ -35,20 +35,36 @@ function buildGains() {
     sliders.ki = slider({ key: 'pg.ki', min: 0, max: 20, step: 'any', log: true, value: +robot.pid.ki.toPrecision(3), onInput: (v) => live('ki', v), hint: t('pg.ki_hint') }),
     sliders.kd = slider({ key: 'pg.kd', min: 0, max: Math.max(20, stored.pid.kd * 30), step: 'any', log: true, value: +robot.pid.kd.toPrecision(3), onInput: (v) => live('kd', v), hint: t('pg.kd_hint') }),
     sliders.speed = slider({ key: 'pg.speed_frac', min: 0, max: 1, step: 0.01, value: +robot.pid.speed_frac.toFixed(2), onInput: (v) => live('speed_frac', v), hint: t('pg.speed_frac_hint') }),
+    sliders.vmax = slider({ key: 'pg.vmax', unit: 'm/s', min: 0.05, max: MAX_SIM_SPEED, step: 0.005, value: +vmaxOf(robot).toFixed(3), onInput: (v) => { robot.sim_max_speed_mps = v; live(); }, hint: t('pg.vmax_hint', { max: stored.motor.max_speed_mps }) }),
     el('p', { class: 'muted', id: 'cruise-line' }),
+    el('p', { class: 'notice warn', id: 'speed-note', hidden: true, text: t('pg.speed_virtual', { max: stored.motor.max_speed_mps }) }),
     sliders.offset = slider({ key: 'pg.offset', unit: 'mm', min: -200, max: 200, step: 5, value: robot.pid.offset_mm || 0, onInput: (v) => { live('offset_mm', v); }, hint: t('pg.offset_hint') }),
     el('small', { class: 'muted', text: t('pg.units') }));
   cruiseLine();
 }
 function live(k, v) {
-  robot.pid[k] = v;
+  if (k) robot.pid[k] = v;
   cruiseLine();
-  if (!sweep) for (const r of runners) r.configure(robot);
+  if (!sweep) for (const r of runners) r.configure(effective(robot));
+}
+/** "What if the motor were faster": the Max wheel speed control sets v_max in the simulator (default = the measured
+ *  top speed). Above the measured value the robot gets a virtual motor (lag model, measured response time); the cruise
+ *  speed v_min + speed_frac (v_max - v_min) scales with it. */
+const MAX_SIM_SPEED = 1.0;
+const vmaxOf = (r) => r.sim_max_speed_mps || stored.motor.max_speed_mps;
+function effective(r) {
+  const v = vmaxOf(r);
+  if (Math.abs(v - r.motor.max_speed_mps) < 1e-9) return r;
+  const c = JSON.parse(JSON.stringify(r));
+  c.motor = { ...c.motor, max_speed_mps: v, model: v > stored.motor.max_speed_mps + 1e-9 ? 'lag' : c.motor.model };
+  return c;
 }
 /** base = v_min + speed_frac (v_max - v_min): what the slider means in m/s for this robot */
 function cruiseLine() {
   const e = document.getElementById('cruise-line'); if (!e) return;
-  e.textContent = t('pg.cruise_line', { v: fmt(cruiseSpeed(robot), 3), vmin: fmt(robot.motor.v_min_mps || 0, 3), vmax: fmt(robot.motor.max_speed_mps, 3), room: fmt(robot.motor.max_speed_mps - cruiseSpeed(robot), 3) });
+  const r = effective(robot), vmax = r.motor.max_speed_mps, v = cruiseSpeed(r);
+  e.textContent = t('pg.cruise_line', { v: fmt(v, 3), vmin: fmt(r.motor.v_min_mps || 0, 3), vmax: fmt(vmax, 3), room: fmt(vmax - v, 3) });
+  const n = document.getElementById('speed-note'); if (n) n.hidden = !(vmax > stored.motor.max_speed_mps + 1e-9);
 }
 
 function legend() {
@@ -59,7 +75,7 @@ function restart() {
   for (const r of runners) r.destroy();
   scene = new Scene(env);
   const variants = sweep ? sweep.values.map((v) => ({ r: patch(robot, sweep.param, v), label: `${t('pg.p_' + sweep.param)} = ${v}` })) : [{ r: robot, label: '' }];
-  runners = variants.map((x, i) => new Runner(engine, x.r, env, { color: PALETTE[i % PALETTE.length], label: x.label }));
+  runners = variants.map((x, i) => new Runner(engine, effective(x.r), env, { color: PALETTE[i % PALETTE.length], label: x.label }));
   scene.update(runners, true);
   const pose = scene.start(robot, seed);
   for (const r of runners) r.reset(pose, seed, scene.loopLength);  // same start AND same noise sequence for every ghost

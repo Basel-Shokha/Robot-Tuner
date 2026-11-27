@@ -68,7 +68,7 @@ export function defaultRobot() {
     // Constant cruise speed = upstream PidController.hpp const_speed (cs_speed_frac 0.75): base = v_min + speed_frac (v_max - v_min),
     // turn clamped to +-v_max, v_left = base - turn, v_right = base + turn, each clamped to +-v_max
     // (v_max = motor.max_speed_mps, v_min = motor.v_min_mps). No slowdown, no speed law.
-    pid: { kp: 0.586855, ki: 0.0158843, kd: 0.384207, speed_frac: 0.75, error_clip_mm: 80, integral_limit: 0.5, d_filter_alpha: 0.3,
+    pid: { kp: 0.457387, ki: 0.000166577, kd: 0.255282, speed_frac: 0.75, error_clip_mm: 80, integral_limit: 0.5, d_filter_alpha: 0.3,
       mode: 'two_sides', follow_side: 'left', follow_mm: 100, offset_mm: 0 },
     smoothing: { on: true, tau_s: 0.10, turn_accel: 1.5, lin_accel: 0.5, max_step: 0.0105 },
     // wiring for the generated Arduino sketch (robot builder -> Firmware; see firmware-gen.js)

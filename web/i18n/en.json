@@ -284,7 +284,7 @@
  "preset.i_windup": "I windup",
  "preset.i_windup.desc": "A big Ki keeps adding up the error during the start manoeuvre; long after the robot is centred the stored integral still pushes it to the other side.",
  "preset.too_fast": "Too fast for the loop",
- "preset.too_fast.desc": "speed_frac 1.0 (cruising at the top speed) with old sensor data (150 ms extra delay): by the time it reacts it has already moved on. It reacts late and swings.",
+ "preset.too_fast.desc": "A motor 4× faster than measured (Max wheel speed) at the same speed_frac, with old sensor data (150 ms extra delay): by the time it reacts it has already moved on. It reacts late and swings.",
  "preset.saturation": "Wheel saturation",
  "preset.saturation.desc": "speed_frac 1.0: the cruise speed IS the top speed, so the outer wheel cannot go any faster and the turn the PID asks for is cut off (its wheel turns red). It cannot turn back in time.",
  "preset.mismatch": "Weak wheel, no I",
@@ -963,5 +963,8 @@
  "ms.calc.spins_real": "Spins you counted (fractions ok)",
  "ms.calc.spin_res": "Effective track width {v} mm (encoder error {e} % per turn)",
  "ms.calc.use": "Use this value",
- "chk.ticks_reps": "The turns disagree by {v} % (more than 2 %): a turn was not exactly one full turn, or the wheel slipped back. Repeat the step."
+ "chk.ticks_reps": "The turns disagree by {v} % (more than 2 %): a turn was not exactly one full turn, or the wheel slipped back. Repeat the step.",
+ "pg.vmax": "Max wheel speed (m/s)",
+ "pg.vmax_hint": "What if the motor were faster? Default = your robot's measured top speed ({max} m/s), up to 1 m/s. It raises v_max in the simulator, so the cruise speed scales with it.",
+ "pg.speed_virtual": "Max wheel speed above your robot's measured top speed ({max} m/s): simulating a stronger motor with the same response time. The real robot cannot do this without new motors."
 }

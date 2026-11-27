@@ -965,5 +965,8 @@
  "ms.calc.spins_real": "",
  "ms.calc.spin_res": "",
  "ms.calc.use": "",
- "chk.ticks_reps": ""
+ "chk.ticks_reps": "",
+ "pg.vmax": "",
+ "pg.vmax_hint": "",
+ "pg.speed_virtual": ""
 }
