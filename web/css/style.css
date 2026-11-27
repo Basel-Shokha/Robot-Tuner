@@ -327,3 +327,42 @@ table.gains thead th { background: var(--accent-soft); }
 .reps-table { margin: 8px 0; }
 .calc { margin-top: 6px; }
 .calc .field { margin-top: 6px; }
+
+/* ---- "Generate code" / "I have my own code" choices, own-code steps, numbers guide ---- */
+.choices { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; margin: 0 0 14px; }
+.choice { display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; background: var(--panel); border: 1.5px solid var(--line); border-radius: var(--r-l); color: var(--ink); text-decoration: none; }
+.choice:hover { border-color: var(--ink-2); }
+.choice.on { border-color: var(--green); background: var(--green-soft); }
+.choice b { font-size: 1.02rem; }
+.choice small { color: var(--ink-2); }
+.choose-h { margin: 18px 0 8px; font-weight: 600; }
+.home-choices { margin-bottom: 0; }
+.own-steps { list-style: none; padding: 0; margin: 12px 0 0; display: grid; gap: 14px; }
+.own-step { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 10px; align-items: start; }
+.own-step .n { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--green); color: #fff; font-weight: 700; }
+.own-step h3 { margin: 2px 0 0; }
+.own-step p { margin: 0; }
+.prompt-preview, .own-log { max-height: 320px; white-space: pre-wrap; word-break: break-word; }
+.table-scroll { overflow-x: auto; }
+.units-table { border-collapse: collapse; width: 100%; font-size: .92rem; }
+.units-table th, .units-table td { text-align: start; padding: 6px 8px; border-bottom: 1px solid var(--line-2); vertical-align: top; }
+.units-table tr.grp td { font-weight: 700; background: var(--panel-2); }
+.units-table code { font-size: .78rem; color: var(--muted); }
+.units-table td.num { font-family: var(--mono); white-space: nowrap; }
+.formulas li { margin-bottom: 8px; }
+.ab-wrap { direction: ltr; max-width: 560px; }
+.ab-wrap svg { width: 100%; height: auto; display: block; }
+.ab-line { fill: none; stroke: var(--ink); stroke-width: 2; }
+.ab-tick { fill: var(--amber); }
+.ab-lab { font: 700 14px var(--font); fill: var(--ink); }
+.ab-note { font: 13px var(--font); fill: var(--ink-2); }
+.toc ol { margin: 0; padding-inline-start: 20px; columns: 2 220px; }
+@media (max-width: 560px) { .units-table { font-size: .84rem; } .units-table th, .units-table td { padding: 5px 4px; } }
+.tool > * { min-width: 0; }
+.tabs { flex-wrap: wrap; }
+@media (max-width: 560px) {
+  .units-table tr:first-child { display: none; }
+  .units-table tr { display: block; padding: 6px 0; border-bottom: 1px solid var(--line-2); }
+  .units-table td { display: inline; border: 0; padding: 0 6px 0 0; }
+  .units-table td:last-child { display: block; }
+}

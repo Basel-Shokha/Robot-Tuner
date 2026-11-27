@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title data-i18n="nav.numbers">Numbers in your own code</title>
+<link rel="stylesheet" href="css/style.css"><link rel="icon" href="img/icon.svg">
+</head>
+<body data-page="numbers">
+<main class="prose-page">
+  <h1 data-i18n="nums.h1"></h1>
+  <p class="muted" data-i18n="nums.intro"></p>
+  <nav class="card toc" id="nums-toc">
+    <ol>
+      <li><a href="#two" data-i18n="nums.two_h"></a></li>
+      <li><a href="#units" data-i18n="nums.units_h"></a></li>
+      <li><a href="#why" data-i18n="nums.why_h"></a></li>
+      <li><a href="#conv" data-i18n="nums.conv_h"></a></li>
+      <li><a href="#ticks" data-i18n="nums.ticks_h"></a></li>
+      <li><a href="#check" data-i18n="nums.check_h"></a></li>
+    </ol>
+  </nav>
+
+  <section class="card" id="two">
+    <h2 data-i18n="nums.two_h"></h2>
+    <p data-i18n-html="nums.two_pid"></p>
+    <ul>
+      <li data-i18n-html="nums.two_steer"></li>
+      <li data-i18n-html="nums.two_wheel"></li>
+    </ul>
+    <p class="muted" data-i18n-html="nums.two_chain"></p>
+  </section>
+
+  <section class="card" id="units">
+    <h2 data-i18n="nums.units_h"></h2>
+    <p class="muted" data-i18n="nums.units_note"></p>
+    <div class="table-scroll"><table class="units-table" id="units-table"></table></div>
+  </section>
+
+  <section class="card" id="why">
+    <h2 data-i18n="nums.why_h"></h2>
+    <h3 data-i18n="nums.why_speed_h"></h3>
+    <p data-i18n-html="nums.why_speed"></p>
+    <ul>
+      <li data-i18n-html="nums.why_speed_ours"></li>
+      <li data-i18n-html="nums.why_speed_pct"></li>
+    </ul>
+    <h3 data-i18n="nums.why_ff_h"></h3>
+    <p data-i18n-html="nums.why_ff"></p>
+    <h3 data-i18n="nums.why_delay_h"></h3>
+    <p data-i18n-html="nums.why_delay"></p>
+  </section>
+
+  <section class="card" id="conv">
+    <h2 data-i18n="nums.conv_h"></h2>
+    <p class="muted" data-i18n="nums.conv_note"></p>
+    <ul class="formulas" id="conv-list"></ul>
+  </section>
+
+  <section class="card" id="ticks">
+    <h2 data-i18n="nums.ticks_h"></h2>
+    <p data-i18n-html="nums.ticks_ab"></p>
+    <div class="ab-wrap" id="ab"></div>
+    <p data-i18n-html="nums.ticks_x"></p>
+    <p data-i18n-html="nums.ticks_hand"></p>
+  </section>
+
+  <section class="card" id="check">
+    <h2 data-i18n="nums.check_h"></h2>
+    <ol>
+      <li data-i18n-html="nums.check_dir"></li>
+      <li data-i18n-html="nums.check_ticks"></li>
+      <li data-i18n-html="nums.check_units"></li>
+      <li data-i18n-html="nums.check_period"></li>
+      <li data-i18n-html="nums.check_smooth"></li>
+    </ol>
+    <p data-i18n-html="nums.back"></p>
+  </section>
+</main>
+<script type="module" src="js/numbers.js"></script>
+</body>
+</html>

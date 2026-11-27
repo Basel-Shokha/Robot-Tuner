@@ -14,6 +14,7 @@ export const STEPS = [
 export const LEARN = [
   { id: 'tutorial', href: 'tutorial.html', key: 'nav.tutorial' },
   { id: 'troubleshoot', href: 'troubleshoot.html', key: 'nav.troubleshoot' },
+  { id: 'numbers', href: 'numbers.html', key: 'nav.numbers' },
 ];
 export const BEYOND = [{ id: 'maze', href: 'maze.html', key: 'nav.maze' }];
 export const PAGES = [{ id: 'index', href: 'index.html', key: 'nav.home' }, ...STEPS, ...LEARN, ...BEYOND];

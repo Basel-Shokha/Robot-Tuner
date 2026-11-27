@@ -4,6 +4,7 @@ import { loadRobot, saveRobot, defaultRobot, makeSensor, migrate, SENSOR_LIBRARY
 import { View, robotShapes, css, PALETTE } from './draw.js';
 import { BOARDS, pinLabel, pinTags, ENCODERS, DRIVERS, generateSketch, validateHardware, hasErrors, suggestPins, computedTicksPerRev, sketchTicks,
   isLowRes, edgesPerPulse, requiredLibraries, sensorWireName, normalizeHardware, defaultHardware, unoHardware } from './firmware-gen.js';
+import { choiceBar, mountOwn, isOwnMode } from './own-code-ui.js';
 
 await page();
 let R = loadRobot();
@@ -66,7 +67,8 @@ function buildForms() {
   const m = $('[data-panel="motor"]'); m.innerHTML = '';
   m.append(el('div', { class: 'card stack' }, el('h3', { text: t('builder.drive_h') }),
     num('wheels', 'ticks_per_rev', 'builder.ticks', t('unit.ticks')), num('motor', 'max_speed_mps', 'builder.max_speed', 'm/s'), num('motor', 'v_min_mps', 'builder.v_min', 'm/s'),
-    num('motor', 'step_tau_s', 'builder.step_tau', 's'), el('small', { class: 'muted', text: t('builder.step_tau_note') })));
+    num('motor', 'step_tau_s', 'builder.step_tau', 's'), el('small', { class: 'muted', text: t('builder.step_tau_note') }),
+    num('motor', 'speed_tau_ms', 'builder.speed_tau', 'ms', { min: 0 }), el('small', { class: 'muted', html: t('builder.speed_tau_note') })));
   m.append(el('div', { class: 'card stack' }, el('h3', { text: t('builder.timing_h') }),
     num('timing', 'loop_ms', 'builder.loop_ms', 'ms'), num('timing', 'age_ms', 'builder.age_ms', 'ms'), num('timing', 'age_jitter_ms', 'builder.age_jitter', 'ms'),
     el('small', { class: 'muted', text: t('builder.timing_note') })));
@@ -237,6 +239,13 @@ function showTab(id) {
 }
 buildForms(); fitRobot(); commit();
 if (location.hash === '#firmware') showTab('firmware');
+// "Generate code for my robot" / "I have my own code" (builder.html?own=1 adds the three own-code steps)
+{
+  const own = isOwnMode(), head = $('.page-head') || $('h1');
+  const bar = choiceBar(own);
+  head.after(bar);
+  if (own) { const box = el('section', { id: 'own' }); bar.after(box); mountOwn(box, () => R, showTab); }
+}
 
 // ---- 5. FIRMWARE: what hardware the robot has -> a ready-to-flash sketch ------------------------------------
 function fwSel(options, value, onChange) {

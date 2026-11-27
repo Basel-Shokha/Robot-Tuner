@@ -13,6 +13,7 @@ export const TOURS = {
   playground: [['.page-head', 'what'], ['#gains', 'gains'], ['#presets', 'presets'], ['#sweep', 'sweep'], ['#run', 'run'], ['#save-gains', 'save'], ['#plots', 'plots']],
   tutorial: [['.page-head', 'what'], ['#toc', 'toc'], ['#demo-d', 'demo'], ['#demo-graph', 'graph'], ['.deeper', 'deeper']],
   troubleshoot: [['.page-head', 'what'], ['#list', 'list']],
+  numbers: [['.page-head', 'what'], ['#units', 'units'], ['#conv', 'conv']],
   maze: [['.page-head', 'what'], ['#maze-set', 'maze'], ['#algo-set', 'algo'], ['#run', 'run'], ['#cv-map', 'map']],
 };
 
