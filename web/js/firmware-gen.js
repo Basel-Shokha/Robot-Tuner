@@ -359,16 +359,77 @@ function sonarCycleMs(robot) {
 }
 export function hasErrors(list) { return list.some((m) => m.level === 'bad'); }
 
+// ---- the serial protocol: ONE source for the sketch header, the student prompt (own-code.js) and the tests ----
+// Every reply line here is printed by CORE below (tests/js/owncode.test.mjs checks each literal piece), and every
+// command CORE handles is listed here. <...> = a number or name filled in at run time.
+export const BAUD = 115200;
+export const PROTOCOL_RULES = [
+  `${BAUD} baud, 8N1. One command per line, ended by "\\n" ("\\r" is ignored). Upper or lower case. At most 63 characters.`,
+  'Numbers after a command are separated by spaces; decimals use a dot ("CAL STEP 0.15").',
+  'Every CAL command also works without the word CAL ("TICKS" = "CAL TICKS", "SPIN 5" = "CAL SPIN 5").',
+  'Replies are plain text lines ending in "\\r\\n" (Serial.println). The Tuner reads them line by line and matches the start of each line.',
+  'At start-up the sketch prints: robot_tuner_min ready (commands: see the top of the sketch)',
+  'Errors start with "ERR ", warnings with "WARN ", acknowledgements with "OK ". Unknown command -> "ERR unknown command".',
+  'Without wheel encoders, every command that needs them answers: ERR <command> needs wheel encoders: this robot has none (time-based mode). Use CAL TIMED or type the value on the Measure page.',
+];
+export const PROTOCOL = [
+  { cmd: 'CAL TICKS', usage: 'CAL TICKS / CAL END', help: 'turn each wheel one revolution by hand -> ticks per revolution', enc: true,
+    replies: ['OK CAL TICKS started: turn each wheel one revolution, then send CAL END'] },
+  { cmd: 'CAL END', help: 'ends CAL TICKS', enc: true,
+    replies: ['CAL TICKS result: left <ticks> right <ticks> per revolution', 'CAL suggestion: SET ticks_rev <ticks, 1 decimal>', 'ERR no CAL TICKS running'] },
+  { cmd: 'CAL MAXSPEED', usage: 'CAL MAXSPEED', help: 'full power 1 s, wheels in the air -> top speed', enc: true,
+    replies: ['CAL MAXSPEED: left <m/s> m/s, right <m/s> m/s at PWM <PWM_MAX>', 'CAL suggestion: SET max_speed <m/s>'] },
+  { cmd: 'CAL FF', usage: 'CAL FF', help: 'PWM sweep, wheels in the air -> deadband (ff_static) and PWM per speed (ff_gain)', enc: true,
+    replies: ['CAL FF: pwm <pwm>  left <ticks per 50 ms>  right <ticks per 50 ms> ticks/50ms   (one line per PWM step 0, 5, 10 ... 255)',
+      'CAL FF: slope <g> PWM per tick/50ms (= <g> per tick/50 ms)', 'CAL suggestion: SET ff_gain <g>', 'CAL suggestion: SET ff_static <pwm>', 'CAL: FF sweep done'] },
+  { cmd: 'CAL STEP', args: '[m/s]', usage: 'CAL STEP [m/s]', help: 'speed step with a simple wheel PI -> time constant', enc: true, def: '0.15 m/s',
+    replies: ['CAL STEP <m/s> m/s (= sketch PI): rise L <s>s R <s>s, overshoot L <%>% R <%>%, tau63 L <s>s R <s>s, steady L <m/s> R <m/s>'] },
+  { cmd: 'CAL DRIVE', args: '<m>', usage: 'CAL DRIVE <m> / CAL DIST <real m>', help: 'straight drive -> wheel scale', enc: true, def: '1.0 m',
+    replies: ['CAL DRIVE done: ticks L <ticks> R <ticks>', 'CAL DRIVE: measure the real distance D (m), then send: CAL DIST <D>'] },
+  { cmd: 'CAL DIST', args: '<real m>', help: 'the distance you measured after CAL DRIVE', enc: true,
+    replies: ['CAL DIST: ticks per metre L <ticks/m> R <ticks/m>; suggestions wscale_l <x> wscale_r <x>', 'ERR run CAL DRIVE first'] },
+  { cmd: 'CAL SPIN', args: '<turns>', usage: 'CAL SPIN <turns> / CAL TURNS <real>', help: 'spin in place -> effective track width', enc: true, def: '5 turns',
+    replies: ['CAL SPIN done: encoders say <turns> turns with track_w <m> m; asymmetry <%> %, at the PWM clamp 0 % of the time -> <OK or UNTRUSTED>',
+      'CAL SPIN: count the REAL turns and send: CAL TURNS <real_turns>'] },
+  { cmd: 'CAL TURNS', args: '<real turns>', help: 'the turns you counted after CAL SPIN', enc: true,
+    replies: ['CAL TURNS: effective track width <m> m (was <m>).', 'ERR run CAL SPIN first'] },
+  { cmd: 'CAL DIR', usage: 'CAL DIR', help: 'each wheel forward 0.4 s at half power, wheels in the air -> motor and encoder signs', enc: true,
+    replies: ['CAL DIR: left wheel, then right wheel, forward 0.4 s: look, both must turn FORWARD',
+      'CAL DIR: left <ticks> right <ticks> ticks at forward PWM <pwm>',
+      'CAL DIR result: left <OK or WRONG> right <OK or WRONG>   (WRONG = the count went down: flip ENC_SIGN if the wheel turned forward, MOTOR_SIGN if it turned backward)'] },
+  { cmd: 'CAL TIMED', args: '[ms]', usage: 'CAL TIMED [ms]', help: 'full power for ms milliseconds without encoders -> measure the distance yourself', def: '2000 ms',
+    replies: ['CAL TIMED done: full power for <ms> ms at PWM <PWM_MAX>. Measure the distance D (m): top speed = D / time'] },
+  { cmd: 'CAL VMIN', usage: 'CAL VMIN', help: 'PWM ramp both ways, wheels in the air -> slowest steady speed (v_min)', enc: true,
+    replies: ['CAL VMIN: <side> <dir> <m/s> m/s at PWM <pwm>, <side> <dir> <m/s> m/s at PWM <pwm><, ...>   (4 entries in this order: left fwd, right fwd, left rev, right rev; "none" instead of "<m/s> m/s at PWM <pwm>" when that wheel never turned steadily)',
+      'CAL suggestion: SET v_min <m/s>', 'ERR CAL VMIN: a wheel never turned steadily'] },
+  { cmd: 'RUN', args: '[s]', usage: 'RUN [s] / STOP', help: 'wall following with the PID below (constant cruise speed), default 10 s', def: '10 s',
+    replies: ['OK RUN started (send STOP to stop)', 'RUN done', 'ERR RUN needs a left- and a right-looking sensor'] },
+  { cmd: 'STOP', help: 'stops RUN', replies: ['RUN done'] },
+  { cmd: 'CAL TOF', args: '[n] [true_mm]', usage: 'CAL TOF [n] [true_mm]', help: 'n readings per sensor -> noise, bias, dropouts', def: 'n = 100',
+    replies: ['CAL TOF <sensor name> n <count> mean <mm> mm std <mm> mm min <mm> max <mm> dropouts <count> (<%>%)   (one line per sensor)',
+      'CAL TOF <sensor name> bias vs <true mm> mm: <+/-mm> mm   (only when true_mm is given)', 'CAL: TOF done'] },
+  { cmd: 'STATUS', usage: 'STATUS', help: 'loop period and reading age',
+    replies: ['tof mm <sensor name> <mm> <sensor name> <mm> ...   (-1 = no valid reading)',
+      'ToF ages at the last tick: data-ready seen <us>/<us>/<us> us ago (R/F/L), + 0 ms half budget',
+      'control loop (ToF data-ready): period <us> us (max <us>), compute 0 us, overruns 0, ticks 0, telemetry dropped 0'] },
+  { cmd: 'LOAD SENSORS', usage: 'LOAD SENSORS / LOAD FINAL', help: 'motors off / on (sensor timing test)', replies: ['OK profile SENSORS (motors off)'] },
+  { cmd: 'LOAD FINAL', help: 'motors back on', replies: ['OK profile FINAL'] },
+];
+/** the "Commands" block at the top of the sketch */
+export function protocolHeaderLines() {
+  return PROTOCOL.filter((p) => p.usage).map((p) => `//   ${p.usage.padEnd(26)} ${p.help}`);
+}
+
 // ---- the sketch --------------------------------------------------------------------------------------------
 const f = (x, n = 4) => { const s = (+x).toFixed(n); return s.includes('.') ? s.replace(/0+$/, '').replace(/\.$/, '.0') : s; };
 const hex = (a) => '0x' + a.toString(16).toUpperCase().padStart(2, '0');
 
-const DRIVER_TEXT = {
+export const DRIVER_TEXT = {
   pwm_dir: 'PWM + DIR per motor (Pololu DRV8838 / DRV8835 in PHASE-ENABLE mode, Cytron MD10C / MDD10A, any "PWM + direction" board)',
   in1_in2: 'two inputs IN1 / IN2 per motor, both PWM (DRV8833, MX1508, L9110S, TB67H450, L298N with the ENA/ENB jumpers on)',
   en_in1_in2: 'EN (PWM) + IN1 + IN2 per motor (L298N with ENA/ENB wired, TB6612FNG: PWMA + AIN1 + AIN2 [+ STBY])',
 };
-function encoderText(hw, ticks) {
+export function encoderText(hw, ticks) {
   const e = hw.encoder;
   if (e.type === 'quadrature') {
     const how = usesPcnt(hw, ticks) ? 'ESP32 PCNT hardware counter (ESP-IDF pulse_cnt driver), both edges of A and B (x4)'
@@ -410,19 +471,8 @@ export function generateSketch(robot, hwIn) {
     `// Libraries (Arduino Library Manager): ${libs.length ? libs.map((l) => `"${l.name}" by ${l.by}`).join(', ') : 'none (only the built-in ones)'}`,
     esp ? '// Board package: "esp32" by Espressif Systems (Boards Manager).' : '// Board package: "Arduino AVR Boards" (built in).',
     '//',
-    '// Commands (115200 baud, one per line; every CAL command also works without the word CAL):',
-    '//   CAL TICKS / CAL END        turn each wheel one revolution by hand -> ticks per revolution',
-    '//   CAL MAXSPEED               full power 1 s, wheels in the air -> top speed',
-    '//   CAL FF                     PWM sweep, wheels in the air -> deadband (ff_static) and PWM per speed (ff_gain)',
-    '//   CAL STEP [m/s]             speed step with a simple wheel PI -> time constant',
-    '//   CAL DRIVE <m> / CAL DIST <real m>      straight drive -> wheel scale',
-    '//   CAL SPIN <turns> / CAL TURNS <real>    spin in place -> effective track width',
-    '//   CAL TIMED [ms]             full power for ms milliseconds without encoders -> measure the distance yourself',
-    '//   CAL VMIN                   PWM ramp both ways, wheels in the air -> slowest steady speed (v_min)',
-    '//   RUN [s] / STOP             wall following with the PID below (constant cruise speed), default 10 s',
-    '//   CAL TOF [n] [true_mm]      n readings per sensor -> noise, bias, dropouts',
-    '//   STATUS                     loop period and reading age',
-    '//   LOAD SENSORS / LOAD FINAL  motors off / on (sensor timing test)',
+    `// Commands (${BAUD} baud, one per line; every CAL command also works without the word CAL):`,
+    ...protocolHeaderLines(),
     '');
   if (e.type === 'single') {
     w('// SINGLE-CHANNEL ENCODERS: a slotted disc gives pulses but no direction. The sketch takes the direction from the',
@@ -879,7 +929,7 @@ void wheelPI(float tl, float tr, float vl, float vr, float dt) { setPwm(piOne(tl
 char line[64]; int lineLen = 0;   // the command being typed
 
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(${BAUD});
   motorsSetup();
   setPwm(0, 0);
   i2cSetup();
@@ -986,6 +1036,14 @@ void calTurns(float real) {
   float tw = track_w * spinEncRot / (real * 2 * 3.14159265f);
   Serial.print(F("CAL TURNS: effective track width ")); Serial.print(tw, 4); Serial.print(F(" m (was ")); Serial.print(track_w, 4); Serial.println(F(")."));
   track_w = tw;
+}
+void calDir() {
+  // motor and encoder signs: forward PWM must turn the wheel forward (look) and count up (checked here)
+  Serial.println(F("CAL DIR: left wheel, then right wheel, forward 0.4 s: look, both must turn FORWARD"));
+  long l0 = cntL(); setPwm(PWM_MAX / 2, 0); waitMs(400); setPwm(0, 0); waitMs(300); long dl = cntL() - l0;
+  long r0 = cntR(); setPwm(0, PWM_MAX / 2); waitMs(400); setPwm(0, 0); waitMs(300); long dr = cntR() - r0;
+  Serial.print(F("CAL DIR: left ")); Serial.print(dl); Serial.print(F(" right ")); Serial.print(dr); Serial.print(F(" ticks at forward PWM ")); Serial.println(PWM_MAX / 2);
+  Serial.print(F("CAL DIR result: left ")); Serial.print(dl > 0 ? F("OK") : F("WRONG")); Serial.print(F(" right ")); Serial.println(dr > 0 ? F("OK") : F("WRONG"));
 }
 void calTimed(unsigned long ms) {
   // open loop: no encoders needed. Measure the distance and divide by the time (minus about one time constant)
@@ -1113,7 +1171,7 @@ float parseNum(const char* p) {   // small decimal parser ("1.75", "-0.2"): no s
 }
 bool needsEncoders(const char* u) {
   return IS("CAL TICKS") || IS("CAL END") || IS("CAL MAXSPEED") || IS("CAL FF") || STARTS("CAL STEP") || STARTS("CAL DRIVE")
-    || STARTS("CAL DIST") || STARTS("CAL SPIN") || STARTS("CAL TURNS") || IS("CAL VMIN");
+    || STARTS("CAL DIST") || STARTS("CAL SPIN") || STARTS("CAL TURNS") || IS("CAL VMIN") || IS("CAL DIR");
 }
 void handle(const char* c) {
   // trimmed, upper case; the calibration commands also work without "CAL": TICKS, SPIN 5, TOF 200 200 ...
@@ -1144,6 +1202,7 @@ void handle(const char* c) {
   else if (STARTS("CAL TURNS")) calTurns(a1);
   else if (STARTS("CAL TIMED")) calTimed(a1 > 0 ? (unsigned long)a1 : 2000UL);
   else if (IS("CAL VMIN")) calVmin();
+  else if (IS("CAL DIR")) calDir();
   else if (STARTS("CAL RUN")) runStart(a1 > 0 ? a1 : 10.0f);
   else if (IS("CAL STOP")) runStop();
   else if (STARTS("CAL TOF")) calTof(a1 > 0 ? (int)a1 : 100, a2);

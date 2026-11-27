@@ -57,6 +57,7 @@ export function defaultRobot() {
       k_l: 0.000613, k_r: 0.000618, static_l: 3.2, static_r: 3.8, breakaway_l: 20, breakaway_r: 20,
       tau_l_s: 0.0362, tau_r_s: 0.04,
       wheel_pid_period_ms: 10, wheel_kp: 2, wheel_ki: 0.001, wheel_kd: 5, ff_static: 4, ff_gain: 2.785,
+      speed_tau_ms: 0,            // speed smoothing of the measured wheel speed (EMA time constant, ms); 0 = off = our firmware
       v_min_mps: 0.013,           // slowest steady wheel speed (Measure -> Slowest speed); upstream cs_v_min_mps (CAL FF: PWM 25)
     },
     sensors: [
@@ -165,6 +166,7 @@ export function robotToConfig(r, sim = {}) {
       wheel_model: 1, sim_substeps: 10, battery_v: m.battery_v, motor_nominal_v: m.nominal_v, motor_mismatch_std: 0.02 * n,
       pwm_limit: m.pwm_limit, pwm_max: m.pwm_max, wheel_pid_period_ms: m.wheel_pid_period_ms,
       wheel_kp: m.wheel_kp, wheel_ki: m.wheel_ki, wheel_kd: m.wheel_kd, wheel_ff_static: m.ff_static, wheel_ff_gain: m.ff_gain,
+      wheel_speed_tau_ms: Math.max(0, +m.speed_tau_ms || 0),
       motor_k_l: m.k_l, motor_k_r: m.k_r, motor_static_l: m.static_l, motor_static_r: m.static_r,
       motor_breakaway_l: m.breakaway_l, motor_breakaway_r: m.breakaway_r, motor_tau_l_s: m.tau_l_s, motor_tau_r_s: m.tau_r_s,
     });

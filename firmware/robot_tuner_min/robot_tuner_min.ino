@@ -13,8 +13,9 @@
 //   CAL MAXSPEED               full power 1 s, wheels in the air -> top speed
 //   CAL FF                     PWM sweep, wheels in the air -> deadband (ff_static) and PWM per speed (ff_gain)
 //   CAL STEP [m/s]             speed step with a simple wheel PI -> time constant
-//   CAL DRIVE <m> / CAL DIST <real m>      straight drive -> wheel scale
-//   CAL SPIN <turns> / CAL TURNS <real>    spin in place -> effective track width
+//   CAL DRIVE <m> / CAL DIST <real m> straight drive -> wheel scale
+//   CAL SPIN <turns> / CAL TURNS <real> spin in place -> effective track width
+//   CAL DIR                    each wheel forward 0.4 s at half power, wheels in the air -> motor and encoder signs
 //   CAL TIMED [ms]             full power for ms milliseconds without encoders -> measure the distance yourself
 //   CAL VMIN                   PWM ramp both ways, wheels in the air -> slowest steady speed (v_min)
 //   RUN [s] / STOP             wall following with the PID below (constant cruise speed), default 10 s
@@ -361,6 +362,14 @@ void calTurns(float real) {
   Serial.print(F("CAL TURNS: effective track width ")); Serial.print(tw, 4); Serial.print(F(" m (was ")); Serial.print(track_w, 4); Serial.println(F(")."));
   track_w = tw;
 }
+void calDir() {
+  // motor and encoder signs: forward PWM must turn the wheel forward (look) and count up (checked here)
+  Serial.println(F("CAL DIR: left wheel, then right wheel, forward 0.4 s: look, both must turn FORWARD"));
+  long l0 = cntL(); setPwm(PWM_MAX / 2, 0); waitMs(400); setPwm(0, 0); waitMs(300); long dl = cntL() - l0;
+  long r0 = cntR(); setPwm(0, PWM_MAX / 2); waitMs(400); setPwm(0, 0); waitMs(300); long dr = cntR() - r0;
+  Serial.print(F("CAL DIR: left ")); Serial.print(dl); Serial.print(F(" right ")); Serial.print(dr); Serial.print(F(" ticks at forward PWM ")); Serial.println(PWM_MAX / 2);
+  Serial.print(F("CAL DIR result: left ")); Serial.print(dl > 0 ? F("OK") : F("WRONG")); Serial.print(F(" right ")); Serial.println(dr > 0 ? F("OK") : F("WRONG"));
+}
 void calTimed(unsigned long ms) {
   // open loop: no encoders needed. Measure the distance and divide by the time (minus about one time constant)
   setPwm(PWM_MAX, PWM_MAX); waitMs(ms); setPwm(0, 0);
@@ -487,7 +496,7 @@ float parseNum(const char* p) {   // small decimal parser ("1.75", "-0.2"): no s
 }
 bool needsEncoders(const char* u) {
   return IS("CAL TICKS") || IS("CAL END") || IS("CAL MAXSPEED") || IS("CAL FF") || STARTS("CAL STEP") || STARTS("CAL DRIVE")
-    || STARTS("CAL DIST") || STARTS("CAL SPIN") || STARTS("CAL TURNS") || IS("CAL VMIN");
+    || STARTS("CAL DIST") || STARTS("CAL SPIN") || STARTS("CAL TURNS") || IS("CAL VMIN") || IS("CAL DIR");
 }
 void handle(const char* c) {
   // trimmed, upper case; the calibration commands also work without "CAL": TICKS, SPIN 5, TOF 200 200 ...
@@ -518,6 +527,7 @@ void handle(const char* c) {
   else if (STARTS("CAL TURNS")) calTurns(a1);
   else if (STARTS("CAL TIMED")) calTimed(a1 > 0 ? (unsigned long)a1 : 2000UL);
   else if (IS("CAL VMIN")) calVmin();
+  else if (IS("CAL DIR")) calDir();
   else if (STARTS("CAL RUN")) runStart(a1 > 0 ? a1 : 10.0f);
   else if (IS("CAL STOP")) runStop();
   else if (STARTS("CAL TOF")) calTof(a1 > 0 ? (int)a1 : 100, a2);

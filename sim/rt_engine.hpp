@@ -102,6 +102,9 @@ struct Config {
     float enc_ticks_per_rev = 1000.0f;
     float pwm_limit = 120.0f, pwm_max = 255.0f, wheel_pid_period_ms = 50.0f;
     float wheel_kp = 0.4f, wheel_ki = 0.001f, wheel_kd = 0.05f, wheel_ff_static = 35.0f, wheel_ff_gain = 2.0f;
+    // Speed smoothing of the measured wheel speed before the wheel PID (EMA, time constant in ms). 0 = off = the
+    // Robot Tuner firmware. > 0 imitates student code that smooths its speed reading (it arrives late).
+    float wheel_speed_tau_ms = 0.0f;
     float motor_k_l = 0.00318f, motor_k_r = 0.00318f, motor_static_l = 35.0f, motor_static_r = 35.0f;
     float motor_tau_l_s = 0.08f, motor_tau_r_s = 0.08f, motor_nominal_v = 7.4f;
     float motor_breakaway_l = 0.0f, motor_breakaway_r = 0.0f;
@@ -286,6 +289,7 @@ struct Drive {
     long long tick_prev_pid[2] = {0, 0}, tick_prev_ctrl[2] = {0, 0};
     fw::WheelPid pid[2];
     int pwm[2] = {0, 0};
+    float meas_f[2] = {0.0f, 0.0f};   // smoothed measured speed (ticks per PID period), used when wheel_speed_tau_ms > 0
     float pid_timer = 0.0f;
 
     void Reset() { *this = Drive(); }
@@ -329,6 +333,11 @@ struct Drive {
                     long long t = Ticks(i, c);
                     float meas = (float)(t - tick_prev_pid[i]);
                     tick_prev_pid[i] = t;
+                    if (c.wheel_speed_tau_ms > 0.0f) {
+                        float a = 1.0f - Exp(-c.wheel_pid_period_ms / c.wheel_speed_tau_ms);
+                        meas_f[i] += a * (meas - meas_f[i]);
+                        meas = meas_f[i];
+                    }
                     pwm[i] = pid[i].Step(g, true, tgt[i], meas);
                 }
                 pid_timer += period;
@@ -917,6 +926,7 @@ inline bool ApplyKey(Config& c, const std::string& key, const float* v, int nv) 
         {"pwm_limit", &Config::pwm_limit}, {"pwm_max", &Config::pwm_max}, {"wheel_pid_period_ms", &Config::wheel_pid_period_ms},
         {"wheel_kp", &Config::wheel_kp}, {"wheel_ki", &Config::wheel_ki}, {"wheel_kd", &Config::wheel_kd},
         {"wheel_ff_static", &Config::wheel_ff_static}, {"wheel_ff_gain", &Config::wheel_ff_gain},
+        {"wheel_speed_tau_ms", &Config::wheel_speed_tau_ms},
         {"motor_k_l", &Config::motor_k_l}, {"motor_k_r", &Config::motor_k_r}, {"motor_static_l", &Config::motor_static_l},
         {"motor_static_r", &Config::motor_static_r}, {"motor_tau_l_s", &Config::motor_tau_l_s}, {"motor_tau_r_s", &Config::motor_tau_r_s},
         {"motor_nominal_v", &Config::motor_nominal_v}, {"motor_breakaway_l", &Config::motor_breakaway_l}, {"motor_breakaway_r", &Config::motor_breakaway_r},
