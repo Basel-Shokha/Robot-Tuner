@@ -30,11 +30,11 @@ for (const [id, k] of [['#t-width', 'width_mm'], ['#t-spread', 'spread_pct'], ['
 }
 setupText();
 // the cruise speed is chosen here, not trained: base = v_min + speed_frac (v_max - v_min)
-let speedFrac = Number.isFinite(TS.speed_frac) ? TS.speed_frac : robot.pid.speed_frac;
+let speedFrac = robot.pid.speed_frac;   // the robot's own value (shared by every page)
 const sfLine = el('small', { class: 'muted' });
 const sfText = () => { sfLine.textContent = t('tr.speed_frac_line', { v: fmt(cruiseSpeed(robot, speedFrac), 3), vmax: fmt(robot.motor.max_speed_mps, 3), vmin: fmt(robot.motor.v_min_mps || 0, 3) }); };
 $('#speed-frac').append(slider({ key: 'pg.speed_frac', min: 0, max: 1, step: 0.01, value: +speedFrac.toFixed(2), hint: t('tr.speed_frac_hint'),
-  onInput: (v) => { speedFrac = Math.min(1, Math.max(0, v)); TS.speed_frac = speedFrac; sfText(); try { localStorage.setItem('rt.train', JSON.stringify(TS)); } catch (e) { /* ignore */ } } }), sfLine);
+  onInput: (v) => { speedFrac = Math.min(1, Math.max(0, v)); sfText(); const R2 = loadRobot(); R2.pid = { ...R2.pid, speed_frac: speedFrac }; robot.pid.speed_frac = speedFrac; saveRobot(R2); } }), sfLine);
 sfText();
 const fit = new TimePlot($('#plots'), { title: t('tr.plot_fit'), series: [{ name: t('tr.best'), color: '#0f6e52' }, { name: t('tr.gen_mean'), color: '#9aa6b0' }], keepAll: true, tUnit: '' });
 const crash = new TimePlot($('#plots'), { title: t('tr.plot_crash'), series: [{ name: t('tr.best'), color: '#c8352e' }], keepAll: true, tUnit: '', min: 0 });
