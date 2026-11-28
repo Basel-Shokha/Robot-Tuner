@@ -51,4 +51,6 @@ test('robots saved before robot files keep every value (and their simulation)', 
 test('robots/basel_nicole.robot.txt is the generator output (node tools/gen_example_robot.mjs)', async () => {
   const { readFileSync } = await import('node:fs');
   assert.equal(readFileSync(new URL('../../robots/basel_nicole.robot.txt', import.meta.url), 'utf8'), robotToFile(exampleRobot()));
+  assert.equal(readFileSync(new URL('../../robots/basel_nicole.robot.json', import.meta.url), 'utf8'), JSON.stringify(exampleRobot(), null, 2) + '\n');
+  assert.deepEqual(missingForSim(migrate(JSON.parse(readFileSync(new URL('../../robots/basel_nicole.robot.json', import.meta.url), 'utf8')))), []);
 });
