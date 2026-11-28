@@ -20,10 +20,31 @@
       </div>
       <div class="tabs" role="tablist">
         <button role="tab" data-tab="file" data-i18n="builder.tab_file"></button>
+        <button role="tab" data-tab="measure" data-i18n="builder.tab_measure"></button>
         <button role="tab" data-tab="geom" aria-selected="true" data-i18n="builder.tab_geom"></button>
         <button role="tab" data-tab="sensors" data-i18n="builder.tab_sensors"></button>
         <button role="tab" data-tab="motor" data-i18n="builder.tab_motor"></button>
         <button role="tab" data-tab="firmware" data-i18n="builder.tab_fw"></button>
+      </div>
+      <div data-panel="measure" class="stack measure-panel" hidden>
+        <p class="muted" data-i18n="ms.intro"></p>
+  <section class="card conn-bar" id="conn-bar">
+    <div id="nosupport" class="notice warn" hidden data-i18n="ms.nosupport"></div>
+    <div class="row conn-row">
+      <button class="primary" id="connect"></button><span id="conn-state" class="pill" data-i18n="ms.disconnected"></span>
+      <span class="spacer"></span>
+      <label class="toggle"><input type="checkbox" id="manual"><span data-i18n="ms.manual"></span></label>
+    </div>
+    <p class="muted small-note"><span data-i18n="ms.nofw_short"></span> <a href="#firmware" class="to-firmware" data-i18n="ms.fw_btn"></a> · <a href="firmware/robot_tuner_min.ino" download data-i18n="ms.dl_sketch"></a> <span id="hw-line"></span></p>
+  </section>
+  <p class="progress-line" id="progress"></p>
+  <div id="steps"></div>
+  <details class="card console-box" id="console">
+    <summary data-i18n="ms.console_all"></summary>
+    <div class="serial-log" id="log"></div>
+    <div class="row"><input id="cmd" style="flex:1" data-i18n-attr="placeholder:ms.cmd_ph"><button id="send" data-i18n="ms.send"></button></div>
+    <div id="cmd-buttons"></div>
+  </details>
       </div>
       <div data-panel="geom" class="stack"></div>
       <div data-panel="sensors" class="stack" hidden></div>
@@ -48,5 +69,6 @@
   </div>
 </main>
 <script type="module" src="js/builder.js"></script>
+<script type="module" src="js/measure.js"></script>
 </body>
 </html>

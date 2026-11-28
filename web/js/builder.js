@@ -45,7 +45,7 @@ function num(group, key, labelKey, unit, opts = {}) {
   const src = el('span', { class: 'pill src ' + (tag === 'MEASURED' ? 'ok' : ''), text: tag, title: t('builder.source_hint'), hidden: tag === 'N/A' ? true : null });   // N/A is already in the box
   const need = REQUIRED.has(full) ? el('span', { class: 'req', text: ' *', title: t('builder.req_hint') }) : null;
   const ms = measureStep(full);
-  const meas = ms ? el('a', { class: 'measure-link', href: `measure.html#${ms}`, title: t('builder.measure_hint'), text: '📏 ' + t('builder.measure') }) : null;
+  const meas = ms ? el('a', { class: 'measure-link', href: `#measure-${ms}`, title: t('builder.measure_hint'), text: '📏 ' + t('builder.measure') }) : null;
   return el('label', { class: 'field' }, el('span', {}, el('span', { text: t(labelKey) }), need, unit ? el('span', { class: 'muted', text: ` (${unit})` }) : null, ' ', src, meas ? ' ' : null, meas), inp);
 }
 
@@ -234,6 +234,7 @@ function checks() {
 
 // ---- tabs / header fields / file buttons -----------------------------------------------------------
 $$('[role="tab"]').forEach((b) => b.addEventListener('click', () => {
+  layoutFor(b.dataset.tab);
   $$('[role="tab"]').forEach((x) => x.setAttribute('aria-selected', x === b));
   $$('[data-panel]').forEach((p) => { p.hidden = p.dataset.panel !== b.dataset.tab; });
   const tabs = $('.tabs'); if (tabs.getBoundingClientRect().top < 80) tabs.scrollIntoView({ block: 'start' });   // the new tab starts at its top
@@ -270,12 +271,21 @@ $('#new-2wd').addEventListener('click', () => { if (confirm(t('builder.confirm_n
 $('#new-4wd').addEventListener('click', () => { if (confirm(t('builder.confirm_new'))) { R = blank('4wd'); commit(true); fitRobot(); draw(); } });
 $('#reset-example').addEventListener('click', () => { if (confirm(t('builder.confirm_new'))) { R = defaultRobot(); commit(true); fitRobot(); draw(); } });
 
+// the Measure tab gets the whole width (no drawing next to it)
+function layoutFor(id) { const tool = document.querySelector('.tool'); if (tool) tool.classList.toggle('measuring', id === 'measure'); }
 function showTab(id) {
+  layoutFor(id);
   $$('[role="tab"]').forEach((x) => x.setAttribute('aria-selected', x.dataset.tab === id));
   $$('[data-panel]').forEach((p) => { p.hidden = p.dataset.panel !== id; });
 }
 buildForms(); fitRobot(); commit();
 if (location.hash === '#firmware') showTab('firmware');
+// #measure / #measure-<step> (the "Measure" links, old measure.html links): open the Measure tab (measure.js opens the step)
+const hashTab = () => { const h = location.hash; if (h.startsWith('#measure')) { showTab('measure'); document.querySelector('.tabs').scrollIntoView({ block: 'start' }); } else if (h === '#firmware') showTab('firmware'); };
+hashTab(); window.addEventListener('hashchange', hashTab);
+document.addEventListener('click', (e) => { const a = e.target.closest && e.target.closest('a.to-firmware'); if (a) { e.preventDefault(); showTab('firmware'); } });
+// values chosen on the Measure tab (measure.js saves its own copy): take them over at once
+window.addEventListener('robot-changed', (e) => { if (e.detail !== R) { R = loadRobot(); buildForms(); draw(); checks(); } });
 // builder.html?set=<path>: a simulator page sent the student here to set a value -> open its tab, highlight it
 {
   const want = new URLSearchParams(location.search).get('set');

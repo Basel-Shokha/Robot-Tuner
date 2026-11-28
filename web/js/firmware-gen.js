@@ -1,7 +1,7 @@
 // firmware-gen.js - generates a ready-to-flash Arduino sketch (robot_tuner_min.ino) for the robot's hardware:
 // board (Uno/Nano, Mega, ESP32), wheel encoders (quadrature, single channel, AS5600, none), motor driver
 // (PWM+DIR, IN1/IN2, EN+IN1+IN2) and distance sensors (VL53L0X, VL53L1X, HC-SR04, Sharp IR).
-// The sketch answers the same serial calibration protocol (CAL ...) as before, so measure.html works unchanged.
+// The sketch answers the same serial calibration protocol (CAL ...) as before, so the Measure tab works unchanged.
 //
 // Pure module (no DOM): the builder page uses it, tests/js/firmware.test.mjs checks it, and
 // tools/gen_firmware_combos.mjs writes every combination for the arduino-cli compile job in CI.

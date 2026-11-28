@@ -54,7 +54,6 @@ async function sendLive(paths) {
 }
 let capturing = null;   // while a result is captured into the step's list: the paths save() would mark
 function save(paths) { if (capturing) { capturing.push(...paths); return; } for (const p of paths) R.source[p] = 'MEASURED'; saveRobot(R); if (!link.connected || !paths.some((p) => LIVE[p])) toast(t('ms.saved'), 'ok'); render(); if (goTo) { const c = document.querySelector(`[data-step="${goTo}"]`); goTo = ''; if (c) setTimeout(() => c.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50); } measurementDone(() => R, paths[0]); sendLive(paths); }
-guardLeave();
 const tofNames = () => R.sensors.map(sensorWireName);  // the names the generated sketch prints
 const hwOf = () => normalizeHardware(R.hardware, R.sensors.length);
 
@@ -255,7 +254,8 @@ const STEPS = [
 ];
 
 const open = new Set(['physical']);
-const wanted = location.hash.slice(1);   // builder.html "Measure" link: open that step
+const stepOf = () => (location.hash.match(/^#measure-(\w+)/) || [])[1] || '';   // #measure-<step>: open that step
+const wanted = stepOf();
 if (wanted) open.add(wanted);
 // target of the speed step: 60 % of the measured top speed (near the top the motor is at full power and the step only
 // shows that limit); 0.15 m/s while there is no top speed yet
@@ -469,4 +469,8 @@ function makeUI(out, s) {
 }
 ready = true;
 render();
-if (wanted) setTimeout(() => { const c = document.querySelector(`[data-step="${CSS.escape(wanted)}"]`); if (c) c.scrollIntoView({ block: 'start' }); }, 200);
+const goStep = (id) => { if (!id) return; open.add(id); render(); setTimeout(() => { const c = document.querySelector(`[data-step="${CSS.escape(id)}"]`); if (c) c.scrollIntoView({ block: 'start' }); }, 150); };
+if (wanted) goStep(wanted);
+window.addEventListener('hashchange', () => goStep(stepOf()));
+// values typed on the other tabs: use them (the steps re-read the robot when they draw)
+window.addEventListener('robot-changed', (e) => { if (e.detail !== R) R = loadRobot(); });

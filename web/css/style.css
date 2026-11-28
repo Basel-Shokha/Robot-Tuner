@@ -439,3 +439,8 @@ input.pwm-val { width: 4.5em; }
 @media (max-width: 560px) { .step header .step-val { display: none; } }
 .progress-line { margin: 4px 0 10px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .rail-foot .save-robot { width: 100%; margin-bottom: 8px; }
+
+/* Measure tab: the whole width */
+.tool.measuring { grid-template-columns: 1fr !important; }
+.tool.measuring > :not(.side) { display: none; }
+.measure-panel > .card, .measure-panel > .progress-line, .measure-panel > #steps { margin-bottom: 0; }
