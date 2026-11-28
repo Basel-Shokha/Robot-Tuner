@@ -1261,5 +1261,9 @@
  "err.openings.cell_mm": "Maze cell size",
  "err.openings.per_m": "How often",
  "err.openings.hint": "Entrances to side cells, like in a real maze: dead-end alcoves (back wall one cell deep), side corridors (2-3 cells, then a wall) and a few open stretches. Left, right or both sides, sometimes several in a row. Cell size = your maze grid (300 mm on the Maze page).",
- "tr.cell": "Maze cell size (mm, for the side openings; Maze page default 300)"
+ "tr.cell": "Maze cell size (mm, for the side openings; Maze page default 300)",
+ "pg.track": "Track",
+ "pg.track_corridor": "As set on the Corridor page",
+ "pg.track_maze": "Maze corridor (side openings)",
+ "pg.start_along": "Start point along the track (mm)"
 }

@@ -29,8 +29,9 @@ export class Scene {
     const st = this.env.start;
     let angle = st.angle_deg, offset = st.offset_mm / 1000;
     let x0, y0, h0, hw;
-    if (this.endless) { x0 = 0.3; y0 = 0; h0 = 0; hw = this.corr.halfWidthAt(0.3); }
-    else { [x0, y0, h0] = this.track.spawn; hw = this.track.center.length ? this.track.center[2] : 0.1; }
+    const along = (st.along_mm || 0) / 1000;   // start further down the corridor
+    if (this.endless) { x0 = 0.3 + along; y0 = 0; h0 = 0; this.corr.ensure(x0 + 4); hw = this.corr.halfWidthAt(x0); }
+    else { [x0, y0, h0] = this.track.spawn; x0 += Math.cos(h0) * along; y0 += Math.sin(h0) * along; hw = this.track.center.length ? this.track.center[2] : 0.1; }
     if (st.random) {
       const r = rng(seed * 2654435761 >>> 0);
       angle = (2 * r() - 1) * st.angle_deg;

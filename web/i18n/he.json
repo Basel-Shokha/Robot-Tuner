@@ -1263,5 +1263,9 @@
  "err.openings.cell_mm": "",
  "err.openings.per_m": "",
  "err.openings.hint": "",
- "tr.cell": ""
+ "tr.cell": "",
+ "pg.track": "",
+ "pg.track_corridor": "",
+ "pg.track_maze": "",
+ "pg.start_along": ""
 }

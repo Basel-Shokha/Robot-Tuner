@@ -3,7 +3,7 @@ import { page, $, el, t, slider, toast } from './common.js';
 import { robotReady } from './simgate.js';
 import { loadRobot, saveRobot, cruiseSpeed } from './store.js';
 import { loadEngine, S } from './engine.js';
-import { loadEnv } from './corridor.js';
+import { loadEnv, TRACK_PRESETS, isLoopPreset } from './corridor.js';
 import { Scene, Runner, drawScene } from './simview.js';
 import { View, css, PALETTE } from './draw.js';
 import { TimePlot } from './plot.js';
@@ -72,6 +72,33 @@ function cruiseLine() {
 function legend() {
   $('#legend').innerHTML = runners.length > 1 ? runners.map((r) => `<span><i style="background:${r.color}"></i>${r.label}</span>`).join('') : '';
 }
+// ---- track and start point, chosen here (this page only; the Corridor page keeps its own)
+let pick = 'corridor';
+function setTrack(v) {
+  pick = v; const e0 = loadEnv();
+  env.errors = JSON.parse(JSON.stringify(e0.errors));
+  if (v === 'corridor') { env.mode = e0.mode; env.track = { ...e0.track }; }
+  else if (v === 'maze') { env.mode = 'endless'; env.errors.openings = { ...env.errors.openings, on: true, per_m: 1.5 }; }
+  else if (v === 'endless') env.mode = 'endless';
+  else { env.mode = 'track'; env.track = { ...env.track, preset: v, points: null, src: null, imported: null, closed: isLoopPreset(v) }; }
+  restart();
+}
+function buildTrackPick() {
+  const box = $('#track-pick'); if (box.dataset.built) { for (const [k, i] of Object.entries(startInputs)) i.value = env.start[k] ?? 0; return; }
+  box.dataset.built = '1';
+  const sel = el('select', { onchange: () => setTrack(sel.value) },
+    el('option', { value: 'corridor', text: t('pg.track_corridor') }),
+    el('option', { value: 'endless', text: t('corr.mode_endless') }),
+    el('option', { value: 'maze', text: t('pg.track_maze') }),
+    ...Object.keys(TRACK_PRESETS).map((k) => el('option', { value: k, text: t('track.' + k) })));
+  sel.value = pick;
+  const num = (k, key, min, max) => { const i = el('input', { type: 'number', min, max, step: 1, value: env.start[k] ?? 0, oninput: () => { const v = parseFloat(i.value); if (Number.isFinite(v)) { env.start[k] = v; env.start.random = false; rnd.checked = false; restart(); } } }); startInputs[k] = i; return el('label', { class: 'field' }, el('span', { text: t(key) }), i); };
+  const rnd = el('input', { type: 'checkbox', checked: !!env.start.random, onchange: () => { env.start.random = rnd.checked; restart(); } });
+  box.append(el('label', { class: 'field' }, el('span', { text: t('pg.track') }), sel),
+    num('along_mm', 'pg.start_along', 0, 3000), num('offset_mm', 'corr.start_offset', -150, 150), num('angle_deg', 'corr.start_angle', -80, 80),
+    el('label', { class: 'toggle' }, rnd, el('span', { text: t('corr.start_random') })));
+}
+const startInputs = {};
 function restart() {
   running = false; $('#run').textContent = t('sim.run');
   for (const r of runners) r.destroy();
@@ -90,6 +117,7 @@ function restart() {
   plots.turn.setSeries(runners.length > 1 ? runners.flatMap((r) => [{ name: `${r.label}: ${t('pg.turn_asked')}`, color: r.color }, { name: `${r.label}: ${t('pg.turn_real')}`, color: r.color, dash: [3, 3] }])
     : [{ name: t('pg.turn_asked'), color: PALETTE[0] }, { name: t('pg.turn_real'), color: PALETTE[1], dash: [3, 3] }]);
   legend(); render(); table();
+  buildTrackPick();
   $('#env-sum').textContent = t('pg.env_sum', { mode: t(env.mode === 'track' ? 'corr.mode_track' : 'corr.mode_endless'), w: env.width_mm, a: env.start.angle_deg, o: env.start.offset_mm, n: env.noise.global });
 }
 function patch(r, k, v) { const c = JSON.parse(JSON.stringify(r)); if (k === 'speed') c.pid.speed_frac = v; else if (k === 'offset') c.pid.offset_mm = v; else c.pid[k] = v; return c; }
