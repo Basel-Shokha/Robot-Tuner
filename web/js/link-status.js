@@ -20,7 +20,7 @@ export function linkStatus(link) {
   const tick = () => {
     const now = Date.now();
     let st;
-    if (!link.connected) st = 'off';
+    if (!link.connected) st = link.lost ? 'lost' : 'off';
     else {
       if (now - (link.lastPingAt || 0) > 3000) { link.lastPingAt = now; link.ping(); }
       if (link.lastPong && now - link.lastPong < 7000) st = 'ok';

@@ -8,7 +8,7 @@ export class RobotLink {
     this.port = await navigator.serial.requestPort();
     await this.port.open({ baudRate: baud });
     this.writer = this.port.writable.getWriter();
-    this.openedAt = Date.now(); this.lastRx = 0; this.lastPong = 0;
+    this.openedAt = Date.now(); this.lastRx = 0; this.lastPong = 0; this.lost = false; this.lostReason = ''; this.errors = 0;
     this._read();
   }
   async _read() {
@@ -29,12 +29,20 @@ export class RobotLink {
             for (const f of this.listeners) f(line);
           }
         }
-      } catch (e) { /* port lost */ break; } finally { this.reader.releaseLock(); }
+      } catch (e) {
+        // Recoverable line errors (common on Bluetooth COM ports): the browser gives a fresh readable stream, keep reading.
+        // Anything else (the device or the Bluetooth link is gone): the port is lost.
+        this.errors = (this.errors || 0) + 1;
+        if (!['BufferOverrunError', 'FramingError', 'BreakError', 'ParityError'].includes(e && e.name)) { this.lostReason = (e && (e.name + ': ' + e.message)) || 'lost'; break; }
+      } finally { try { this.reader.releaseLock(); } catch (e) { /* ignore */ } }
     }
+    // the read loop ended without disconnect(): the robot is gone (unplugged, out of Bluetooth range, powered off)
+    if (this.port && !this.closing) { const p = this.port; this.port = null; this.lost = true; try { await p.close(); } catch (e) { /* ignore */ } for (const f of this.listeners) f('# connection lost' + (this.lostReason ? ' (' + this.lostReason + ')' : '')); }
   }
   async disconnect() {
+    this.closing = true;
     try { if (this.reader) await this.reader.cancel(); if (this.writer) { this.writer.releaseLock(); } if (this.port) await this.port.close(); } catch (e) { /* ignore */ }
-    this.port = null;
+    this.port = null; this.closing = false;
   }
   onLine(f) { this.listeners.add(f); return () => this.listeners.delete(f); }
   /** keep-alive: PING without echo in the log */

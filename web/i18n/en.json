@@ -1179,7 +1179,7 @@
  "fw.bt_name": "Bluetooth name",
  "fw.bt_note": "The robot answers over USB and Bluetooth at the same time, so it can drive on the floor without a cable. Your PC keeps its WiFi and internet. Pair the PC with the robot once in the Bluetooth settings, then press CONNECT and pick the Bluetooth port. Only the classic ESP32 has it: switch it off for ESP32-S3, C3 or C6.",
  "bt.h": "No cable: Bluetooth (ESP32)",
- "bt.steps": "Upload the code once with the USB cable (Bluetooth on in Robot builder → Firmware).|Unplug USB and power the robot from its battery.|On the PC: Bluetooth settings → Add device → pick \"{name}\". Windows then creates a COM port (\"Standard Serial over Bluetooth link\"); on a Mac it appears as /dev/cu.{name}.|Press CONNECT here and pick that port. When the status turns green, the robot answers.",
+ "bt.steps": "Upload the code once with the USB cable (Bluetooth on in Robot builder → Firmware).|Unplug USB and power the robot from its battery.|On the PC: Bluetooth settings → Add device → pick \"{name}\". Windows shows \"Connected\" for a moment and then \"Paired\": that is normal, the link opens when Robot Tuner uses it.|Windows makes two COM ports for the robot. Only the OUTGOING one works: see Bluetooth settings → More Bluetooth settings → COM Ports.|Press CONNECT here and pick that OUTGOING port (\"Standard Serial over Bluetooth link (COM…)\"). When the status turns green, the robot answers.",
  "bt.no_wifi": "Why not WiFi? This site runs over https, and browsers do not let https pages talk to a robot's plain WiFi address. Bluetooth shows up as a normal serial port, and your PC stays on its WiFi.",
  "builder.load_h": "Have a robot file? Load it first.",
  "builder.load_p": "The .robot.txt file you saved before. It fills in everything below.",
@@ -1205,5 +1205,7 @@
  "inst.flashing": "Installing… (about 30 seconds, do not unplug)",
  "inst.flashed": "Firmware installed. Now send your robot's settings.",
  "inst.sending": "Sending your settings…",
- "inst.saved": "Settings saved on the robot. It restarts and uses them."
+ "inst.saved": "Settings saved on the robot. It restarts and uses them.",
+ "link.lost": "✕ Connection lost",
+ "link.lost_h": "The robot stopped answering and the port closed: unplugged, powered off, or out of Bluetooth range. With Bluetooth on Windows, pick the OUTGOING COM port (Bluetooth settings → More Bluetooth settings → COM Ports). Press CONNECT again."
 }

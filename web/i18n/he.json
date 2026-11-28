@@ -1207,5 +1207,7 @@
  "inst.flashing": "",
  "inst.flashed": "",
  "inst.sending": "",
- "inst.saved": ""
+ "inst.saved": "",
+ "link.lost": "",
+ "link.lost_h": ""
 }
