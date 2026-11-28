@@ -2,7 +2,7 @@
 // whether anything came back. Any received line counts; PONG proves the robot understands Robot Tuner's commands.
 import { el, t, toast } from './common.js';
 import { serialSupported, bleSupported } from './serial.js';
-import { usesBt, btName, normalizeHardware } from './firmware-gen.js';
+import { usesBt, btName, normalizeHardware, generateSketch } from './firmware-gen.js';
 
 /** "No cable: Bluetooth" how-to for ESP32 robots with Bluetooth on (null otherwise) */
 export function btHelp(robot) {
@@ -44,8 +44,16 @@ export function connectButtons(link, after = () => {}, usb = null) {
 }
 
 /** returns a pill element that updates itself; state: off | waiting | ok | silent | foreign */
-export function linkStatus(link) {
+/** getRobot (optional): the robot profile; then the status also says when the robot runs older code than these settings */
+export function linkStatus(link, getRobot = null) {
   const pill = el('span', { class: 'link-status off', role: 'status', 'aria-live': 'polite' });
+  const stale = el('span', { class: 'link-status silent', hidden: true, text: t('link.stale'), title: t('link.stale_h') });
+  let wantId = '', wantFor = '';
+  const expected = () => {   // the fingerprint of the sketch for the current profile (recomputed only when the profile changes)
+    const r = getRobot(), key = JSON.stringify(r);
+    if (key !== wantFor) { wantFor = key; try { wantId = generateSketch(r, r.hardware).id; } catch (e) { wantId = ''; } }
+    return wantId;
+  };
   let last = '';
   link.onLink && link.onLink((s) => toast(t('link.bt_' + s), s === 'connected' ? 'ok' : 'warn'));
   const tick = () => {
@@ -61,7 +69,10 @@ export function linkStatus(link) {
     let txt = t('link.' + st, { s: link.lastPong ? Math.round((now - link.lastPong) / 1000) : 0 });
     if (st === 'ok' && link.via) txt = t('link.ok_via', { via: t('link.via_' + (link.via === 'bluetooth' ? 'bt' : 'usb')) });
     if (st + txt !== last) { last = st + txt; pill.className = 'link-status ' + st; pill.textContent = txt; pill.title = t('link.' + st + '_h'); }
+    stale.hidden = !(getRobot && st === 'ok' && link.sketchId && link.sketchId !== expected());
   };
   tick(); setInterval(tick, 1000);
-  return pill;
+  if (!getRobot) return pill;
+  const both = el('span', { class: 'row', style: 'gap:6px' }, pill, stale);
+  return both;
 }

@@ -121,6 +121,7 @@ const int ENC_SIGN_L = -1, ENC_SIGN_R = -1;   // flip to -1 if a wheel counts ba
 const int PIN_SDA = 21, PIN_SCL = 22;
 const float WHEEL_DIAMETER_M = 0.045f;
 float wscale_l = 0.972f, wscale_r = 0.972f;   // replace with the CAL DIST suggestions (Measure: Straight drive)
+const char* SKETCH_ID = "4218a342";   // fingerprint of this sketch: PING answers it, Robot Tuner checks it is up to date
 float ticks_per_rev = 8291.5f;     // computed: 7 pulses x 4 edges x gear 296.125 = 8291.5; replace with the CAL TICKS result
 float track_w = 0.1249f;             // replace with the CAL TURNS result
 const int PWM_MAX = 255;
@@ -658,7 +659,7 @@ void handle(const char* c) {
   else if (STARTS("CAL CREEP L")) creepStart(0, a2 > 0 ? (int)a2 : 20);
   else if (STARTS("CAL CREEP R")) creepStart(1, a2 > 0 ? (int)a2 : 20);
   else if (STARTS("CAL TOF")) calTof(a1 > 0 ? (int)a1 : 100, a2);
-  else if (IS("CAL PING")) { RT_IO.print(F("PONG ")); RT_IO.println(cmdFromBt ? F("bluetooth") : F("usb")); }
+  else if (IS("CAL PING")) { RT_IO.print(F("PONG ")); RT_IO.print(cmdFromBt ? F("bluetooth ") : F("usb ")); RT_IO.println(SKETCH_ID); }
   else if (IS("STATUS")) status();
   else if (IS("LOAD SENSORS")) { motorsEnabled = false; setPwm(0, 0); RT_IO.println(F("OK profile SENSORS (motors off)")); }
   else if (IS("LOAD FINAL")) { motorsEnabled = true; RT_IO.println(F("OK profile FINAL")); }

@@ -1229,5 +1229,7 @@
  "save.later": "",
  "save.done": "",
  "ms.step.target": "",
- "ms.step.never": ""
+ "ms.step.never": "",
+ "link.stale": "",
+ "link.stale_h": ""
 }

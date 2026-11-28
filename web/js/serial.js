@@ -28,8 +28,8 @@ export class RobotLink {
     while ((i = this.buf.search(/\r?\n/)) >= 0) {
       const line = this.buf.slice(0, i); this.buf = this.buf.slice(i + (this.buf[i] === '\r' ? 2 : 1));
       this.lastRx = Date.now();
-      const pong = /^PONG\b\s*(\w*)/.exec(line.trim());
-      if (pong) { this.lastPong = this.lastRx; this.via = pong[1] || ''; continue; }   // keep-alive answers stay out of the log
+      const pong = /^PONG\b\s*(\w*)\s*([0-9a-f]{8})?/.exec(line.trim());
+      if (pong) { this.lastPong = this.lastRx; this.via = pong[1] || ''; this.sketchId = pong[2] || ''; continue; }   // keep-alive answers stay out of the log
       const lk = /^LINK bluetooth (connected|disconnected)/.exec(line.trim());
       if (lk) for (const f of this.linkListeners || []) f(lk[1]);
       this.lines.push(line); if (this.lines.length > 2000) this.lines.shift();

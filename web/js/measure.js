@@ -27,7 +27,7 @@ export function expandCommand(c) {
   const w = c.trim().split(/\s+/)[0].toUpperCase();
   return CAL_WORDS.has(w) ? 'CAL ' + c.trim() : c.trim();
 }
-document.querySelector('#conn-state').after(linkStatus(link));
+document.querySelector('#conn-state').after(linkStatus(link, () => R));
 { const h = btHelp(R); if (h) document.querySelector('#conn-bar .conn-row').after(h); }
 cmdBox = commandButtons((c) => link.connected && link.send(c), () => link.connected);
 $('#cmd-buttons').append(cmdBox);

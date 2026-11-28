@@ -159,6 +159,12 @@ function avrX4(hw) { return BOARDS[hw.board].arch === 'avr' && hw.encoder.type =
 
 /** ESP32 with Bluetooth (Low Energy, Nordic UART Service) switched on */
 export const usesBt = (hw) => hw.board === 'esp32' && hw.bt !== false;
+/** 8 hex digits (FNV-1a) of the sketch text: equal settings = equal fingerprint */
+export function sketchId(text) {
+  let h = 2166136261;
+  for (let i = 0; i < text.length; i++) { h ^= text.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
+  return h.toString(16).padStart(8, '0');
+}
 /** the Bluetooth device name the student pairs with: the typed name, else RobotTuner-<robot name> */
 export function btName(robot, hw) {
   const n = String(hw.bt_name || ('RobotTuner-' + String(robot.name || 'robot'))).replace(/[^A-Za-z0-9_-]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
@@ -434,7 +440,7 @@ export const PROTOCOL = [
   { cmd: 'CAL TOF', motion: 'still', args: '[n] [true_mm]', usage: 'CAL TOF [n] [true_mm]', help: 'n readings per sensor -> noise, bias, dropouts', def: 'n = 100',
     replies: ['CAL TOF <sensor name> n <count> mean <mm> mm std <mm> mm min <mm> max <mm> dropouts <count> (<%>%)   (one line per sensor)',
       'CAL TOF <sensor name> bias vs <true mm> mm: <+/-mm> mm   (only when true_mm is given)', 'CAL: TOF done'] },
-  { cmd: 'PING', motion: 'still', usage: 'PING', help: 'is the robot there, and over which link? Robot Tuner sends it every few seconds', replies: ['PONG <usb or bluetooth>   (the link the PING came over)'] },
+  { cmd: 'PING', motion: 'still', usage: 'PING', help: 'is the robot there, and over which link? Robot Tuner sends it every few seconds', replies: ['PONG <usb or bluetooth> <sketch id>   (the link the PING came over; the generated sketch adds its 8-digit fingerprint, your own code may leave it out)'] },
   { cmd: 'STATUS', motion: 'still', usage: 'STATUS', help: 'loop period and reading age',
     replies: ['tof mm <sensor name> <mm> <sensor name> <mm> ...   (-1 = no valid reading)',
       'ToF ages at the last tick: data-ready seen <us>/<us>/<us> us ago (R/F/L), + 0 ms half budget',
@@ -635,6 +641,7 @@ export function generateSketch(robot, hwIn) {
   const src = robot.source || {}, setTag = (k) => robot.all_set || (src[k] && !['DEFAULT', 'PLACEHOLDER', 'NOT SET'].includes(src[k]));
   const wsl = setTag('wheels.scale_l') ? +robot.wheels.scale_l || 1 : 1, wsr = setTag('wheels.scale_r') ? +robot.wheels.scale_r || 1 : 1;
   w(`float wscale_l = ${f(wsl, 4)}f, wscale_r = ${f(wsr, 4)}f;   // replace with the CAL DIST suggestions (Measure: Straight drive)`);
+  w('const char* SKETCH_ID = "SKETCH_ID_HERE";   // fingerprint of this sketch: PING answers it, Robot Tuner checks it is up to date');
   const tc = computedTicksPerRev(hw);
   const tcNote = e.type === 'none' ? 'no encoders' : e.type === 'as5600'
     ? `computed: 4096 per magnet turn x gear ${f(+e.gear, 3)}`
@@ -988,7 +995,10 @@ export function generateSketch(robot, hwIn) {
   w(CORE);
   const code = C.join('\n').replace(/\bSerial\.(print|println|available|read)\(/g, 'RT_IO.$1(')
     .replace(/USB_SERIAL_\./g, 'Serial.').replace('  BT_BEGIN', bt ? `  SerialBT.begin("${btName(robot, hw)}");   // Bluetooth Low Energy name (Nordic UART Service)` : '').replace(/\n\n(?=void setup)/, '\n\n');
-  return { code: code + '\n', libraries: libs, messages: validateHardware(robot, hw), ticks, lowRes, fileName: 'robot_tuner_min.ino', fqbn: B.fqbn };
+  // fingerprint of this sketch (every pin and number in it): the robot sends it with PONG, the site compares it with a
+  // sketch made from the current robot profile -> "upload the sketch again" when they differ
+  const id = sketchId(code);
+  return { code: code.replace('SKETCH_ID_HERE', id) + '\n', id, libraries: libs, messages: validateHardware(robot, hw), ticks, lowRes, fileName: 'robot_tuner_min.ino', fqbn: B.fqbn };
 }
 
 // The calibration protocol. Every printed result line is parsed by web/js/measure-steps.js: keep them identical.
@@ -1367,7 +1377,7 @@ void handle(const char* c) {
   else if (STARTS("CAL CREEP L")) creepStart(0, a2 > 0 ? (int)a2 : 20);
   else if (STARTS("CAL CREEP R")) creepStart(1, a2 > 0 ? (int)a2 : 20);
   else if (STARTS("CAL TOF")) calTof(a1 > 0 ? (int)a1 : 100, a2);
-  else if (IS("CAL PING")) { Serial.print(F("PONG ")); Serial.println(cmdFromBt ? F("bluetooth") : F("usb")); }
+  else if (IS("CAL PING")) { Serial.print(F("PONG ")); Serial.print(cmdFromBt ? F("bluetooth ") : F("usb ")); Serial.println(SKETCH_ID); }
   else if (IS("STATUS")) status();
   else if (IS("LOAD SENSORS")) { motorsEnabled = false; setPwm(0, 0); Serial.println(F("OK profile SENSORS (motors off)")); }
   else if (IS("LOAD FINAL")) { motorsEnabled = true; Serial.println(F("OK profile FINAL")); }

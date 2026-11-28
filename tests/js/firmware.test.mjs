@@ -189,3 +189,14 @@ test('the sketch uses the measured wheel scale (CAL DRIVE / CAL DIST): 1 until i
   const m = exampleRobot(); m.wheels.scale_l = 0.98; m.wheels.scale_r = 0.99;
   assert.match(generateSketch(m, m.hardware).code, /float wscale_l = 0\.98f, wscale_r = 0\.99f;/);
 });
+
+test('the sketch carries its fingerprint (PONG <link> <id>): same settings = same id, any change = new id', () => {
+  const a = exampleRobot(), g = generateSketch(a, a.hardware);
+  assert.match(g.id, /^[0-9a-f]{8}$/);
+  assert.ok(g.code.includes(`const char* SKETCH_ID = "${g.id}";`) && !g.code.includes('SKETCH_ID_HERE'));
+  assert.equal(generateSketch(exampleRobot(), exampleRobot().hardware).id, g.id);
+  const b = exampleRobot(); b.wheels.scale_l = 0.98;
+  assert.notEqual(generateSketch(b, b.hardware).id, g.id);
+  const c = exampleRobot(); c.pid.kp = 0.5;
+  assert.notEqual(generateSketch(c, c.hardware).id, g.id);
+});
