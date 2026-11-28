@@ -1,0 +1,153 @@
+# robot-tuner robot file v1
+# Written by Robot Tuner. Everything about the robot's hardware, one "key value" per line, then # status, unit, note.
+# N/A = not set yet. Status: TYPED, MEASURED, IMPORTED, DATASHEET (from the sensor type) ... * = needed before simulating.
+# Frame: origin = middle of the drive axle, +x forward, +y LEFT, angles counter-clockwise (deg).
+# Load it again in Robot builder -> File -> Load robot file.
+
+# ---- General ----
+name                       Basel_&_Nicole_robot_(ESP32,_DRV8833,_3x_VL53L1X)   #  TYPED  - robot name
+drive                               2wd   # *TYPED  2wd | 4wd  - 2 driven wheels + caster, or 4-wheel skid steer
+
+# ---- Body (mm, from the middle of the wheel axle) ----
+body_front_mm                       140   # *MEASURED  mm  - front edge ahead of the axle
+body_rear_mm                         40   # *MEASURED  mm  - rear edge behind the axle
+body_width_mm                       140   # *MEASURED  mm
+
+# ---- Wheels ----
+wheel_diameter_mm                    45   # *MEASURED  mm  - with the tyre
+wheel_width_mm                       20   #  MEASURED  mm
+wheel_track_mm                      120   # *MEASURED  mm  - wheel centre to centre
+wheel_x_mm                            0   #  MEASURED  mm  - axle position (0 = origin)
+track_w_effective_mm              124.9   #  MEASURED  mm  - from CAL SPIN (Measure)
+enc_ticks_per_rev                8291.5   # *MEASURED  ticks per wheel turn  - from CAL TICKS (Measure)
+wheel_scale_left                  0.972   #  MEASURED  factor  - from CAL DRIVE (Measure)
+wheel_scale_right                 0.972   #  MEASURED  factor  - from CAL DRIVE (Measure)
+
+# ---- Caster ball ----
+caster                              yes   #  TYPED  yes | no
+caster_x_mm                         105   #  MEASURED  mm  - + = ahead of the axle
+caster_y_mm                           0   #  TYPED  mm  - + = left of centre
+caster_diameter_mm                   15   #  MEASURED  mm
+
+# ---- Motors ----
+max_speed_mps                     0.156   # *MEASURED  m/s  - top wheel speed, from CAL MAXSPEED (Measure)
+v_min_mps                         0.013   #  MEASURED  m/s  - slowest steady speed, from CAL VMIN (Measure)
+step_tau_s                          0.1   # *MEASURED  s  - time to reach 63 % of a new speed, from CAL STEP (Measure)
+motor_model                         pid   #  TYPED  pid | lag  - pid = wheel PID on a DC-motor model (needs the motor_* values below)
+pwm_max                             255   #  TYPED  PWM
+pwm_limit                           255   #  TYPED  PWM
+battery_v                          8.05   #  TYPED  V
+motor_nominal_v                    8.05   #  TYPED  V  - battery voltage during the motor measurements
+motor_k_left                   0.000613   #  MEASURED  (m/s) per PWM
+motor_k_right                  0.000618   #  MEASURED  (m/s) per PWM
+motor_static_left                   3.2   #  MEASURED  PWM
+motor_static_right                  3.8   #  MEASURED  PWM
+motor_breakaway_left                 20   #  MEASURED  PWM  - PWM to start from rest
+motor_breakaway_right                20   #  MEASURED  PWM
+motor_tau_left_s                 0.0362   #  MEASURED  s
+motor_tau_right_s                  0.04   #  MEASURED  s
+
+# ---- Wheel speed loop ----
+wheel_pid_period_ms                  10   #  TYPED  ms
+wheel_kp                              2   #  TYPED  PWM per (tick per period)
+wheel_ki                          0.001   #  TYPED  PWM per (tick per period), summed once per period
+wheel_kd                              5   #  TYPED  PWM per (tick per period) change per period
+wheel_ff_static                       4   #  TYPED  PWM  - from CAL FF (Measure)
+wheel_ff_gain                     2.785   #  MEASURED  PWM per (tick per period)  - from CAL FF (Measure)
+speed_smoothing_ms                    0   #  TYPED  ms  - 0 = off (Robot Tuner firmware)
+
+# ---- Timing ----
+control_period_ms                    25   # *MEASURED  ms  - one steering step per fresh set of sensor readings (STATUS)
+reading_age_ms                     22.2   #  MEASURED  ms
+reading_age_jitter_ms                18   #  TYPED  ms
+
+# ---- Steering PID ----
+pid_kp                         0.457387   #  TYPED  (m/s) per m  - from Train PID
+pid_ki                      0.000166577   #  TYPED  (m/s) per (m*s)
+pid_kd                         0.255282   #  TYPED  (m/s) per (m/s)
+pid_speed_frac                     0.75   #  TYPED  fraction 0..1  - cruise = v_min + speed_frac (v_max - v_min)
+pid_error_clip_mm                    80   #  TYPED  mm
+pid_integral_limit                  0.5   #  TYPED  m*s
+pid_d_filter_alpha                  0.3   #  TYPED  per 50 ms
+
+# ---- Board and pins ----
+board                             esp32   #  TYPED  uno | mega | esp32
+motor_driver                    in1_in2   #  TYPED  in1_in2 | pwm_dir | en_in1_in2
+motor_stop                        brake   #  TYPED  brake | coast
+pin_motor_left_a                     25   #  TYPED  pin  - IN1 or PWM
+pin_motor_left_b                      4   #  TYPED  pin  - IN2 or DIR
+pin_motor_right_a                    13   #  TYPED  pin  - IN1 or PWM
+pin_motor_right_b                    12   #  TYPED  pin  - IN2 or DIR
+motor_left_sign                      -1   #  TYPED  +1 | -1  - check with CAL DIR
+motor_right_sign                     -1   #  TYPED  +1 | -1
+encoder_type                 quadrature   #  TYPED  quadrature | single | as5600 | none
+enc_ppr                               7   #  TYPED  pulses per motor turn
+enc_gear                        296.125   #  TYPED  motor turns per wheel turn
+pin_enc_left_a                       32   #  TYPED  pin
+pin_enc_left_b                       33   #  TYPED  pin
+pin_enc_right_a                      27   #  TYPED  pin
+pin_enc_right_b                      26   #  TYPED  pin
+enc_left_sign                        -1   #  TYPED  +1 | -1  - check with CAL DIR
+enc_right_sign                       -1   #  TYPED  +1 | -1
+pin_i2c_sda                          21   #  TYPED  pin
+pin_i2c_scl                          22   #  TYPED  pin
+
+# ---- Sensors ----
+sensor_count                          3   # *TYPED  1..5
+
+# ---- Sensor 1 ----
+sensor1_type               VL53L1X_short   # *TYPED  VL53L0X | VL53L1X_short | VL53L1X_long | GP2Y0A21 | GP2Y0A41 | HC_SR04
+sensor1_name                      right   #  TYPED
+sensor1_x_mm                     100.76   # *MEASURED  mm
+sensor1_y_mm                     -10.24   # *MEASURED  mm (+ = left)
+sensor1_angle_deg                   -45   # *MEASURED  deg (+ = looking left)
+sensor1_fov_deg                    19.3   #  DATASHEET  deg
+sensor1_min_mm                       40   #  DATASHEET  mm
+sensor1_max_mm                     1300   #  DATASHEET  mm
+sensor1_period_ms                    25   #  DATASHEET  ms
+sensor1_noise_mm                      4   #  DATASHEET  mm
+sensor1_noise_pct                     1   #  DATASHEET  %
+sensor1_dropout_pct                   2   #  DATASHEET  %
+sensor1_rays                          3   #  DATASHEET
+sensor1_max_incidence_deg             0   #  DATASHEET  deg
+sensor1_bias_mm                       0   #  TYPED  mm  - reading - true, from CAL TOF (Measure)
+sensor1_xshut                        18   #  TYPED  pin
+sensor1_addr                       0x32   #  TYPED  I2C address
+
+# ---- Sensor 2 ----
+sensor2_type               VL53L1X_short   # *TYPED  VL53L0X | VL53L1X_short | VL53L1X_long | GP2Y0A21 | GP2Y0A41 | HC_SR04
+sensor2_name                      front   #  TYPED
+sensor2_x_mm                        105   # *MEASURED  mm
+sensor2_y_mm                          0   # *MEASURED  mm (+ = left)
+sensor2_angle_deg                     0   # *MEASURED  deg (+ = looking left)
+sensor2_fov_deg                    19.3   #  DATASHEET  deg
+sensor2_min_mm                       40   #  DATASHEET  mm
+sensor2_max_mm                     1300   #  DATASHEET  mm
+sensor2_period_ms                    25   #  DATASHEET  ms
+sensor2_noise_mm                      4   #  DATASHEET  mm
+sensor2_noise_pct                     1   #  DATASHEET  %
+sensor2_dropout_pct                   2   #  DATASHEET  %
+sensor2_rays                          3   #  DATASHEET
+sensor2_max_incidence_deg             0   #  DATASHEET  deg
+sensor2_bias_mm                       7   #  MEASURED  mm  - reading - true, from CAL TOF (Measure)
+sensor2_xshut                        23   #  TYPED  pin
+sensor2_addr                       0x31   #  TYPED  I2C address
+
+# ---- Sensor 3 ----
+sensor3_type               VL53L1X_short   # *TYPED  VL53L0X | VL53L1X_short | VL53L1X_long | GP2Y0A21 | GP2Y0A41 | HC_SR04
+sensor3_name                       left   #  TYPED
+sensor3_x_mm                      98.64   # *MEASURED  mm
+sensor3_y_mm                       8.12   # *MEASURED  mm (+ = left)
+sensor3_angle_deg                    45   # *MEASURED  deg (+ = looking left)
+sensor3_fov_deg                    19.3   #  DATASHEET  deg
+sensor3_min_mm                       40   #  DATASHEET  mm
+sensor3_max_mm                     1300   #  DATASHEET  mm
+sensor3_period_ms                    25   #  DATASHEET  ms
+sensor3_noise_mm                      4   #  DATASHEET  mm
+sensor3_noise_pct                     1   #  DATASHEET  %
+sensor3_dropout_pct                   2   #  DATASHEET  %
+sensor3_rays                          3   #  DATASHEET
+sensor3_max_incidence_deg             0   #  DATASHEET  deg
+sensor3_bias_mm                       0   #  TYPED  mm  - reading - true, from CAL TOF (Measure)
+sensor3_xshut                         5   #  TYPED  pin
+sensor3_addr                       0x30   #  TYPED  I2C address

@@ -155,7 +155,7 @@ export function robotToFile(r0) {
     if (f.section !== sec) { sec = f.section; L.push('', `# ---- ${sec} ----`); }
     const set = f.path === 'sensors.length' || isSet(r, f.path);
     const v = f.path === 'sensors.length' ? r.sensors.length : getPath(r, f.path);
-    const val = set && v !== undefined && v !== null && v !== '' ? fmt(v) : 'N/A';
+    const val = set && v !== undefined && v !== null && v !== '' ? (f.unit === 'I2C address' ? '0x' + (+v).toString(16) : fmt(v)) : 'N/A';
     const tag = f.path === 'sensors.length' ? 'TYPED' : (set ? sourceTag(r, f.path) : 'NOT SET');
     L.push(`${f.key.padEnd(26)} ${val.padStart(12)}   # ${f.required ? '*' : ' '}${tag}${f.unit ? '  ' + f.unit : ''}${f.note ? '  - ' + f.note : ''}`);
   }
