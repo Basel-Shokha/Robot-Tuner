@@ -1219,5 +1219,7 @@
  "ms.ticks.slower": "",
  "ms.ticks.faster": "",
  "ms.ticks.pwm_note": "",
- "ms.ticks.set": ""
+ "ms.ticks.set": "",
+ "ms.drive.choose": "",
+ "ms.drive.why_long": ""
 }

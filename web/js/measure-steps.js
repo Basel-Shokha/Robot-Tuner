@@ -69,7 +69,11 @@ export function summarizeTiming(periods, ages) {
 }
 
 // ---- repeated measurements: count N times, divide by N --------------------------------------------------
-export const REPS = { ticks: { def: 5, min: 5, max: 10 }, spin: { def: 10, min: 3, max: 20 } };
+// any number the student wants (whole turns, 1 or more); the page says what is usually enough
+export const REPS = { ticks: { def: 5, min: 1, max: 1000 }, spin: { def: 10, min: 1, max: 1000 } };
+/** straight drive distance (m): the student's choice, 3 m recommended (longer = a ruler error matters less) */
+export const DRIVE_M = { def: 3, min: 0.1, max: 100 };
+export function clampDist(x, r = DRIVE_M) { x = +x; return Number.isFinite(x) && x > 0 ? Math.max(r.min, Math.min(r.max, x)) : r.def; }
 /** a whole number of repetitions inside the allowed range (default when not a number) */
 export function clampReps(n, r) { n = Math.round(+n); return Number.isFinite(n) ? Math.max(r.min, Math.min(r.max, n)) : r.def; }
 /** mean and spread of repeated values; spread = (max - min) / mean in % */

@@ -149,8 +149,9 @@ const STEPS = [
     } },
   { id: 'drive', enc: true, fields: [['ms.f.scale_l', () => R.wheels.scale_l, (v) => { R.wheels.scale_l = v; }, '', 'wheels.scale_l'], ['ms.f.scale_r', () => R.wheels.scale_r, (v) => { R.wheels.scale_r = v; }, '', 'wheels.scale_r']],
     async run(ui) {
-      await link.send('CAL DRIVE 1');
-      await link.waitFor(P.parseDriveDone, 60000);
+      const m = driveM;
+      await link.send(`CAL DRIVE ${m}`);
+      await link.waitFor(P.parseDriveDone, Math.max(60000, m / 0.2 * 3000));   // drives at about 0.2 m/s
       const d = await ui.askNumber(t('ms.drive.ask'), 'm');
       await link.send(`CAL DIST ${d}`);
       const v = await link.waitFor(P.parseDist, 5000);
@@ -232,6 +233,7 @@ const STEPS = [
 
 const open = new Set(['physical']);
 const reps = { ticks: P.REPS.ticks.def, spin: P.REPS.spin.def };   // repetitions chosen per step
+let driveM = P.DRIVE_M.def;                                          // straight drive distance (m)
 function render() {
   R = loadRobot();
   const box = $('#steps'); box.innerHTML = '';
@@ -254,11 +256,16 @@ function stepCard(s, n, hw) {
   if (STEP_MOTION[s.id] === 'floor') body.append(el('p', { class: 'usb-note', text: t('cmd.m_floor_h') }));
   const media = stepMedia(s.id, { n: reps[s.id] || 1, label: t(k + '.title'), turnWord: t(s.id === 'spin' ? 'ms.rep.spin_word' : 'ms.rep.turn_word'), videoWord: t('ms.video') });
   if (media) body.append(media);
+  if (s.id === 'drive') {
+    const inp = el('input', { type: 'number', min: P.DRIVE_M.min, step: 0.5, value: driveM, class: 'reps-input' });
+    inp.addEventListener('change', () => { driveM = P.clampDist(inp.value); open.add(s.id); render(); });
+    body.append(el('label', { class: 'field reps' }, el('span', { text: t('ms.drive.choose') }), inp), el('p', { class: 'muted', text: t('ms.drive.why_long') }));
+  }
   if (reps[s.id] !== undefined) {
     const R0 = P.REPS[s.id];
-    const inp = el('input', { type: 'number', min: R0.min, max: R0.max, step: 1, value: reps[s.id], class: 'reps-input' });
+    const inp = el('input', { type: 'number', min: R0.min, step: 1, value: reps[s.id], class: 'reps-input' });
     inp.addEventListener('change', () => { reps[s.id] = P.clampReps(inp.value, R0); open.add(s.id); render(); });
-    body.append(el('label', { class: 'field reps' }, el('span', { text: t('ms.rep.choose_' + s.id, { min: R0.min, max: R0.max }) }), inp),
+    body.append(el('label', { class: 'field reps' }, el('span', { text: t('ms.rep.choose_' + s.id) }), inp),
       el('p', { class: 'muted', text: t('ms.rep.why') }));
   }
   if (s.physical) {

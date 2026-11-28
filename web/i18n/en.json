@@ -394,7 +394,7 @@
  "ms.drive.title": "Straight drive",
  "ms.drive.what": "Whether 1 m on the encoders is really 1 m (wheel diameter error, left/right difference).",
  "ms.drive.why": "Wrong wheel scale = wrong speeds and distances; a left/right difference makes the robot curve.",
- "ms.drive.how": "Put the robot on the floor with 1.5 m free in front. Press Start: it drives 1 m by its encoders. Measure how far it really went.",
+ "ms.drive.how": "Put the robot on the floor with free space in front (the distance below + 0.5 m). Press Start: it drives that distance by its encoders. Measure how far it really went.",
  "ms.drive.ask": "How far did the robot really drive? (metres, e.g. 0.985)",
  "ms.spin.title": "Effective track width",
  "ms.spin.what": "The wheel spacing the robot really turns with.",
@@ -921,8 +921,8 @@
  "tour.maze.map": "Its own map from its sensors and encoders. Compare it with the real maze on the left.",
  "ms.spin.ask_n": "How many turns did the robot really make? It was told {n}. Fractions are fine (e.g. {n} or 9.8).",
  "ms.spin.implausible": "{r} turns counted for {n} commanded is too far off (more than 30 %). Count again: the nose passing the tape = one turn.",
- "ms.rep.choose_ticks": "Number of full turns ({min} to {max})",
- "ms.rep.choose_spin": "Number of spins ({min} to {max})",
+ "ms.rep.choose_ticks": "Number of full turns (usually 5 to 10 is enough)",
+ "ms.rep.choose_spin": "Number of spins (usually 5 to 10 is enough)",
  "ms.rep.why": "More repetitions = a counting mistake of a few degrees matters less (it is divided by N).",
  "ms.rep.turn": "Turn",
  "ms.rep.left": "left ticks",
@@ -1122,7 +1122,7 @@
  "cmd.step_next": "You get how long the wheels need to reach the speed (rise time, tau).",
  "cmd.timed_do": "Connect over Bluetooth, unplug USB, robot on battery.|Put the robot on the floor with 2 m free in front. Mark where it starts.|Press Send: it drives at full power for the time in the box.",
  "cmd.timed_next": "Measure how far it went. Top speed = distance ÷ time.",
- "cmd.drive_do": "Connect over Bluetooth, unplug USB, robot on battery.|Put the robot on the floor with 1.5 m free in front. Mark the front of the robot.|Press Send: it drives the distance in the box by its encoders.",
+ "cmd.drive_do": "Connect over Bluetooth, unplug USB, robot on battery.|Put the robot on the floor with the distance in the box + 0.5 m free in front (3 m recommended). Mark the front of the robot.|Press Send: it drives the distance in the box by its encoders.",
  "cmd.drive_next": "Measure how far it really went, type it in the box of \"I measured the distance\" and press that button.",
  "cmd.dist_do": "Type the distance the robot REALLY drove (metres) in the box.",
  "cmd.dist_next": "The robot prints the wheel scale for each side (wscale).",
@@ -1217,5 +1217,7 @@
  "ms.ticks.slower": "slower (PWM − 2)",
  "ms.ticks.faster": "faster (PWM + 2)",
  "ms.ticks.pwm_note": "Type a PWM from 0 to 255 and press Set (or Enter), or use − / + (2 at a time). Below the lowest PWM where this wheel moved it is raised to that value (lower would only stall the wheel).",
- "ms.ticks.set": "Set"
+ "ms.ticks.set": "Set",
+ "ms.drive.choose": "Distance to drive, metres (3 m recommended)",
+ "ms.drive.why_long": "Longer = a measuring error of a few millimetres matters less. Leave 0.5 m more free floor than this in front of the robot."
 }

@@ -116,7 +116,7 @@ export function stepMedia(id, { n, label, turnWord, videoWord }) {
   const svg = {
     physical: () => rulerAnim(label), ticks: () => ticksAnim(n, label, turnWord), spin: () => spinAnim(n, label, turnWord),
     maxspeed: () => liftedAnim(label), vmin: () => liftedAnim(label), ff: () => liftedAnim(label), step: () => liftedAnim(label),
-    drive: () => driveAnim(label, '1 m by the encoders → measure the real distance'), timed: () => driveAnim(label, '2 s at full power → measure'),
+    drive: () => driveAnim(label, 'drives the distance by the encoders → measure the real distance'), timed: () => driveAnim(label, '2 s at full power → measure'),
     tof: () => tofAnim(label),
   }[id];
   if (!svg) return null;

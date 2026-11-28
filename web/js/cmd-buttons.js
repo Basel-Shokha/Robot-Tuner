@@ -45,7 +45,7 @@ export const BUTTONS = [
   { group: 'wheels', cmd: 'CAL FF', id: 'ff' },
   { group: 'wheels', cmd: 'CAL STEP', id: 'step', args: [['cmd.a.speed', 'm/s', '0.15', false]] },
   { group: 'wheels', cmd: 'CAL TIMED', id: 'timed', args: [['cmd.a.time', 'ms', '2000', false]] },
-  { group: 'floor', cmd: 'CAL DRIVE', id: 'drive', args: [['cmd.a.dist', 'm', '1', false]] },
+  { group: 'floor', cmd: 'CAL DRIVE', id: 'drive', args: [['cmd.a.dist', 'm', '3', false]] },
   { group: 'floor', cmd: 'CAL DIST', id: 'dist', args: [['cmd.a.real_dist', 'm', '', true]] },
   { group: 'floor', cmd: 'CAL SPIN', id: 'spin', args: [['cmd.a.turns', '', '5', false]] },
   { group: 'floor', cmd: 'CAL TURNS', id: 'turns', args: [['cmd.a.real_turns', '', '', true]] },

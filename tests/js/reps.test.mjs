@@ -33,8 +33,10 @@ test('turns that disagree by more than 2 % are flagged', () => {
 });
 
 test('repetition counts are kept inside the allowed range', () => {
-  assert.equal(P.clampReps(3, P.REPS.ticks), 5);
-  assert.equal(P.clampReps(12, P.REPS.ticks), 10);
+  assert.equal(P.clampReps(3, P.REPS.ticks), 3);
+  assert.equal(P.clampReps(12, P.REPS.ticks), 12);
+  assert.equal(P.clampReps(0, P.REPS.ticks), 1);
+  assert.equal(P.clampDist(''), 3); assert.equal(P.clampDist(7.5), 7.5); assert.equal(P.clampDist(0.01), 0.1);
   assert.equal(P.clampReps('7', P.REPS.ticks), 7);
   assert.equal(P.clampReps(6.6, P.REPS.ticks), 7);
   assert.equal(P.clampReps('x', P.REPS.ticks), 5);
