@@ -123,7 +123,14 @@ function sensorCard(sen, i) {
 }
 
 // ---- drawing -------------------------------------------------------------------------------------
+// zoom-out limit from the robot's size: at most zoomed out until the robot fills 1/3 of the drawing
+function zoomLimit() {
+  const b = R.body, len = (b.front_mm + b.rear_mm) / 1000, wid = Math.max(b.width_mm, R.wheels.track_mm + R.wheels.width_mm) / 1000;
+  view.minScale = Math.min(view.w / (3 * Math.max(0.02, len)), view.h / (3 * Math.max(0.02, wid)));
+  if (view.scale < view.minScale) view.scale = view.minScale;
+}
 function draw() {
+  zoomLimit();
   const g = view.begin();
   view.grid(0.01);
   const S = robotShapes(R), m = (p) => [p[0] / 1000, p[1] / 1000];

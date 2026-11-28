@@ -109,7 +109,7 @@ export class View {
       e.preventDefault();
       const r = this.c.getBoundingClientRect(); const px = e.clientX - r.left, py = e.clientY - r.top;
       const wx = this.wx(px), wy = this.wy(py);
-      this.scale = Math.max(20, Math.min(20000, this.scale * Math.exp(-e.deltaY * 0.0015)));
+      this.scale = Math.max(this.minScale || 20, Math.min(20000, this.scale * Math.exp(-e.deltaY * 0.0015)));   // minScale: zoom-out limit (pages may set it)
       this.cx = wx - (px - this.w / 2) / this.scale; this.cy = wy + (py - this.h / 2) / this.scale;
       this.userMoved = true; this.onChange && this.onChange();
     }, { passive: false });
