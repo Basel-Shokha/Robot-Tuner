@@ -139,8 +139,17 @@ const STEPS = [
   { id: 'step', enc: true, fields: [['ms.f.tau', () => R.motor.step_tau_s, (v) => { R.motor.step_tau_s = v; }, 's', 'motor.step_tau_s']],
     async run(ui) {
       const target = stepTarget();
+      const warns = [];
+      const offW = link.onLine((l) => { if (/^WARN CAL STEP/.test(l)) warns.push(l.replace(/^WARN CAL STEP\s*/, '')); });
+      const got = link.waitFor(P.parseStep, 15000);   // listen first
       await link.send(`CAL STEP ${target}`);
-      const v = await link.waitFor(P.parseStep, 15000);
+      const v = await got;
+      await new Promise((r) => setTimeout(r, 300)); offW();
+      if (v.tauL < 0 || v.tauR < 0) {   // a wheel never reached 63 %: nothing to save, say why
+        ui.warn(t('ms.step.never', { w: [v.tauL < 0 ? t('fw.left') : null, v.tauR < 0 ? t('fw.right') : null].filter(Boolean).join(' + ') }));
+        for (const w of warns) ui.warn(w);
+        return;
+      }
       ui.result(v, 'step', [['ms.f.tau', v.tau, 's'], ['ms.f.rise', (v.riseL + v.riseR) / 2, 's'], ['ms.f.over', (v.overL + v.overR) / 2, '%']], () => { R.motor.step_tau_s = +v.tau.toFixed(4); save(['motor.step_tau_s']); });
     } },
   { id: 'drive', enc: true, fields: [['ms.f.scale_l', () => R.wheels.scale_l, (v) => { R.wheels.scale_l = v; }, '', 'wheels.scale_l'], ['ms.f.scale_r', () => R.wheels.scale_r, (v) => { R.wheels.scale_r = v; }, '', 'wheels.scale_r']],

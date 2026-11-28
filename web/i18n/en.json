@@ -1226,5 +1226,6 @@
  "save.btn": "Save robot file",
  "save.later": "Not now",
  "save.done": "Robot file saved (check your Downloads).",
- "ms.step.target": "Target speed: {v} m/s = 60 % of your top speed ({max} m/s; 0.15 m/s if the top speed is not measured yet). Closer to the top speed the motor is already at full power, and the step would only show that limit."
+ "ms.step.target": "Target speed: {v} m/s = 60 % of your top speed ({max} m/s; 0.15 m/s if the top speed is not measured yet). Closer to the top speed the motor is already at full power, and the step would only show that limit.",
+ "ms.step.never": "The {w} wheel never reached 63 % of the target speed, so there is no response time (the robot reports -1). Usually a wheel turns or counts backward: run \"Check wheel directions\" (CAL DIR) and fix the sign in Robot builder → Firmware. Then upload the sketch again and repeat this step."
 }
