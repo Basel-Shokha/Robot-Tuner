@@ -40,11 +40,14 @@ export function makeSensor(type, pose = {}) {
   return s;
 }
 
-// ---- default robot: Basel & Nicole's real robot = Simulation-To-Real-Life robot_hardware.txt (d6de525, identical to the vendored copy) ----
+// ---- the starting robot: NOTHING is set (source = {}). The numbers below are only placeholders (drawing, fallback); the robot
+// file writes them as N/A and the simulator pages ask for the required ones first (robotfile.js). They happen to be the
+// upstream example robot (robotfile.js exampleRobot() = the same values, all set). ----
 export function defaultRobot() {
   return {
     schema: SCHEMA,
-    name: 'Basel & Nicole robot (ESP32, DRV8833, 3x VL53L1X)',
+    name: 'My robot',
+    v2: true,   // robot-file era: unset values are N/A (older saved robots are treated as fully set, see migrate)
     drive: '2wd',
     body: { front_mm: 140, rear_mm: 40, width_mm: 140 },
     wheels: { diameter_mm: 45, width_mm: 20, track_mm: 120, x_mm: 0, wheelbase_mm: 80, track_effective_mm: 124.9,
@@ -74,10 +77,7 @@ export function defaultRobot() {
     smoothing: { on: true, tau_s: 0.10, turn_accel: 1.5, lin_accel: 0.5, max_step: 0.0105 },
     // wiring for the generated Arduino sketch (robot builder -> Firmware; see firmware-gen.js)
     hardware: defaultHardware(),
-    source: {
-      'wheels.ticks_per_rev': 'MEASURED', 'wheels.track_effective_mm': 'MEASURED', 'motor.max_speed_mps': 'MEASURED',
-      'motor.ff_gain': 'MEASURED', 'motor.step_tau_s': 'MEASURED', 'timing.loop_ms': 'MEASURED', 'timing.age_ms': 'MEASURED',
-    },
+    source: {},
   };
 }
 
@@ -97,6 +97,8 @@ export function migrate(r) {
   if (r.schema && r.schema !== SCHEMA) throw new Error('unknown schema ' + r.schema);
   const d = defaultRobot();
   const out = { ...d, ...r, schema: SCHEMA };
+  if (!r.v2) { out.v2 = true; out.all_set = true; }   // saved before robot files: every value counts as set (keeps its simulation)
+  out.source = { ...(r.source || {}) };
   for (const k of ['body', 'wheels', 'caster', 'motor', 'timing', 'pid', 'smoothing']) out[k] = { ...d[k], ...(r[k] || {}) };
   out.sensors = (Array.isArray(r.sensors) && r.sensors.length ? r.sensors : d.sensors).slice(0, 5).map((s) => ({ ...makeSensor(s.type || 'VL53L1X_short'), ...s }));
   out.hardware = normalizeHardware(r.hardware, out.sensors.length);
@@ -106,6 +108,16 @@ export function migrate(r) {
   return out;
 }
 
+const UNSET_TAGS = new Set(['DEFAULT', 'PLACEHOLDER', 'NOT SET']);
+/** Has the student set this value (robot.source has a real tag)? Paths as in robotfile.js. */
+export function isSet(r, path) {
+  if (r.all_set) return true;
+  const s = r.source || {}, ok = (k) => !!s[k] && !UNSET_TAGS.has(s[k]);
+  if (ok(path)) return true;
+  const m = /^sensors\.(\d+)\.(\w+)$/.exec(path);
+  if (m) return ['x_mm', 'y_mm', 'angle_deg', 'name'].includes(m[2]) ? ok(`sensors.${m[1]}`) : m[2] !== 'type' && m[2] !== 'bias_mm' && ok(`sensors.${m[1]}.type`);
+  return false;
+}
 /** The constant cruise speed (m/s): base = v_min + speed_frac (v_max - v_min). */
 export function cruiseSpeed(r, speedFrac = r.pid.speed_frac) {
   const vmax = r.motor.max_speed_mps, vmin = Math.min(Math.max(0, r.motor.v_min_mps || 0), vmax);
@@ -161,7 +173,7 @@ export function robotToConfig(r, sim = {}) {
     pid_mode: r.pid.mode === 'one_side' ? 1 : 0, follow_side: r.pid.follow_side === 'right' ? -1 : 1, follow_dist_m: mm(r.pid.follow_mm), center_offset_m: mm(r.pid.offset_mm || 0),
     wall_noise_std_m: 0.01 * n,
   };
-  if (m.model === 'pid') {
+  if (m.model === 'pid' && isSet(r, 'motor.k_l')) {   // the DC-motor model needs its measured motor values; else the simple lag model
     Object.assign(c, {
       wheel_model: 1, sim_substeps: 10, battery_v: m.battery_v, motor_nominal_v: m.nominal_v, motor_mismatch_std: 0.02 * n,
       pwm_limit: m.pwm_limit, pwm_max: m.pwm_max, wheel_pid_period_ms: m.wheel_pid_period_ms,

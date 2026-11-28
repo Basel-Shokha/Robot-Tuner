@@ -1,13 +1,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { defaultRobot, robotToConfig, robotToHardwareTxt, hardwareTxtToRobot, migrate, makeSensor } from '../../web/js/store.js';
+import { exampleRobot } from '../../web/js/robotfile.js';
 import { loadEngine, configText } from '../../web/js/engine.js';
 import { readFileSync } from 'node:fs';
 
 test('every key the site sends is understood by the engine', async () => {
   const E = await loadEngine();
   const s = E.create();
-  const r = defaultRobot();
+  const r = exampleRobot();
   for (const variant of [r, { ...r, drive: '4wd', motor: { ...r.motor, model: 'lag' }, sensors: [...r.sensors, makeSensor('HC_SR04', { angle_deg: 90 }), makeSensor('GP2Y0A21', { angle_deg: -90 })] }]) {
     assert.equal(s.config(configText(robotToConfig(variant, { noise: 2, mismatch: 0.04, delayMs: 30 }))), 0);
   }
@@ -15,7 +16,7 @@ test('every key the site sends is understood by the engine', async () => {
 });
 
 test('robot JSON and robot_hardware.txt round trip', () => {
-  const r = defaultRobot();
+  const r = exampleRobot();
   assert.deepEqual(migrate(JSON.parse(JSON.stringify(r))), r);
   const back = hardwareTxtToRobot(robotToHardwareTxt(r));
   assert.equal(back.wheels.ticks_per_rev, r.wheels.ticks_per_rev);

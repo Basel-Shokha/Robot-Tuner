@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { defaultRobot, hardwareTxtToRobot, robotToHardwareTxt, migrate, makeSensor } from '../../web/js/store.js';
+import { exampleRobot } from '../../web/js/robotfile.js';
 import { generateSketch, validateHardware, hasErrors, suggestPins, unoHardware, defaultHardware, normalizeHardware, BOARDS, requiredLibraries } from '../../web/js/firmware-gen.js';
 import { allCombos, buildCombo } from '../../tools/gen_firmware_combos.mjs';
 
@@ -17,7 +18,7 @@ test('ESP32 + quadrature + DRV8833 + 3x VL53L1X sketch matches the real robot (v
   const txt = read('vendor/simulation-to-real-life/robot_hardware.txt');
   const k = keys(txt), n = (key) => Number(k[key]);
   // start from a robot wired completely differently, so every pin below must come from the file
-  const base = defaultRobot(); base.hardware = unoHardware();
+  const base = exampleRobot(); base.hardware = unoHardware();
   const r = hardwareTxtToRobot(txt, base);
   // the configuration the student picks in the builder: ESP32, quadrature encoders, DRV8833 (two-input driver)
   r.hardware.board = 'esp32'; r.hardware.encoder.type = 'quadrature'; r.hardware.driver.type = 'in1_in2';
@@ -53,12 +54,12 @@ test('ESP32 + quadrature + DRV8833 + 3x VL53L1X sketch matches the real robot (v
   assert.deepEqual(lvl(v, 'bad'), []);
   assert.ok(lvl(v, 'warn').includes('fw.v.strap12') && lvl(v, 'warn').includes('fw.v.strap'));
   // the site's example robot is this robot: same sketch
-  const d = defaultRobot();
+  const d = exampleRobot();
   assert.equal(generateSketch(d, d.hardware).code, c);
 });
 
 test('the committed example sketches are the generator output (node tools/gen_example_firmware.mjs)', () => {
-  const d = defaultRobot(), code = generateSketch(d, d.hardware).code;
+  const d = exampleRobot(), code = generateSketch(d, d.hardware).code;
   assert.equal(read('firmware/robot_tuner_min/robot_tuner_min.ino'), code);
   assert.equal(read('web/firmware/robot_tuner_min.ino'), code);
 });
@@ -93,7 +94,7 @@ test('every combination gets valid pins from suggestPins and generates', () => {
 });
 
 test('pin checks catch the classic mistakes', () => {
-  const r = defaultRobot();
+  const r = exampleRobot();
   const check = (mod) => { const hw = normalizeHardware(JSON.parse(JSON.stringify(r.hardware)), r.sensors.length); mod(hw); return lvl(validateHardware(r, hw), 'bad').concat(lvl(validateHardware(r, hw), 'warn')); };
   assert.ok(check((h) => { h.driver.left.a = 34; }).includes('fw.v.input_only'), 'ESP32 34-39 cannot drive a motor');
   assert.ok(check((h) => { h.driver.left.a = 6; }).includes('fw.v.no_pin'), 'ESP32 flash pins');
@@ -103,7 +104,7 @@ test('pin checks catch the classic mistakes', () => {
   assert.ok(check((h) => { h.sensors[1].xshut = -1; }).includes('fw.v.xshut_needed'), 'several ToF need XSHUT');
   assert.ok(check((h) => { h.sensors[1].addr = 0x30; }).includes('fw.v.addr_twice'), 'same I2C address');
   // Uno: x1 decoding needs A on D2 / D3; D4 is not an interrupt pin
-  const u = defaultRobot(); u.hardware = unoHardware();
+  const u = exampleRobot(); u.hardware = unoHardware();
   assert.deepEqual(lvl(validateHardware(u, u.hardware), 'bad'), []);
   u.hardware.encoder.left.a = 4; u.hardware.encoder.left.b = 2;
   assert.ok(lvl(validateHardware(u, u.hardware), 'bad').includes('fw.v.no_int'));
@@ -111,18 +112,18 @@ test('pin checks catch the classic mistakes', () => {
   assert.deepEqual(lvl(validateHardware(u, u.hardware), 'bad'), []);
   assert.deepEqual(requiredLibraries(u, u.hardware).map((l) => l.name), ['PinChangeInterrupt', 'VL53L1X']);
   // Uno: PWM pins only for IN1 / IN2, A4 / A5 are I2C
-  const u2 = defaultRobot(); u2.hardware = unoHardware(); u2.hardware.driver.type = 'in1_in2';
+  const u2 = exampleRobot(); u2.hardware = unoHardware(); u2.hardware.driver.type = 'in1_in2';
   u2.hardware.driver.left = { a: 5, b: 8, en: -1 };
   assert.ok(lvl(validateHardware(u2, u2.hardware), 'bad').includes('fw.v.no_pwm'));
   u2.hardware.sensors[0].xshut = 18;
   assert.ok(lvl(validateHardware(u2, u2.hardware), 'bad').includes('fw.v.i2c_taken'));
   // two AS5600 on one bus need the multiplexer on AVR
-  const u3 = defaultRobot(); u3.hardware = unoHardware(); u3.hardware.encoder.type = 'as5600'; u3.hardware.encoder.as5600_bus = 'two_buses';
+  const u3 = exampleRobot(); u3.hardware = unoHardware(); u3.hardware.encoder.type = 'as5600'; u3.hardware.encoder.as5600_bus = 'two_buses';
   assert.ok(lvl(validateHardware(u3, u3.hardware), 'bad').includes('fw.v.as5600_two_buses_avr'));
 });
 
 test('encoder options: single channel, low resolution, AS5600, none', () => {
-  const r = defaultRobot(); r.source = {};
+  const r = exampleRobot(); r.source = {};
   const gen = (enc) => { const hw = suggestPins(r, { ...r.hardware, encoder: { ...r.hardware.encoder, ...enc } }).hw; return { g: generateSketch(r, hw), hw }; };
   let { g } = gen({ type: 'single', ppr: 20, gear: 1 });
   assert.ok(g.lowRes && g.code.includes('#define LOW_RES 1') && g.code.includes('encL += cmdDirL') && g.code.includes('SINGLE-CHANNEL ENCODERS'));
@@ -142,7 +143,7 @@ test('encoder options: single channel, low resolution, AS5600, none', () => {
 });
 
 test('drivers: brake / coast, PWM + DIR, EN + IN1 + IN2 with STBY', () => {
-  const r = defaultRobot();
+  const r = exampleRobot();
   const gen = (drv) => generateSketch(r, suggestPins(r, { ...r.hardware, driver: { ...r.hardware.driver, ...drv } }).hw).code;
   assert.ok(gen({ type: 'in1_in2', stop: 'coast' }).includes('const bool STOP_BRAKE = false;'));
   const pd = gen({ type: 'pwm_dir' });
@@ -152,7 +153,7 @@ test('drivers: brake / coast, PWM + DIR, EN + IN1 + IN2 with STBY', () => {
 });
 
 test('sensors: HC-SR04 fire one at a time, Sharp curve, a single ToF needs no XSHUT', () => {
-  const r = defaultRobot();
+  const r = exampleRobot();
   r.sensors = [makeSensor('HC_SR04', { name: 'right', angle_deg: -90 }), makeSensor('GP2Y0A21', { name: 'front' }), makeSensor('VL53L0X', { name: 'left', angle_deg: 90 })];
   const { hw } = suggestPins(r, { ...r.hardware, sensors: [{}, {}, {}] });
   assert.equal(hw.sensors[2].xshut, -1);
@@ -167,11 +168,11 @@ test('sensors: HC-SR04 fire one at a time, Sharp curve, a single ToF needs no XS
 });
 
 test('hardware survives robot JSON and robot_hardware.txt round trips', () => {
-  const r = defaultRobot(); r.hardware = unoHardware();
+  const r = exampleRobot(); r.hardware = unoHardware();
   assert.deepEqual(migrate(JSON.parse(JSON.stringify(r))).hardware, r.hardware);
   const back = hardwareTxtToRobot(robotToHardwareTxt(r));
   assert.deepEqual(back.hardware, normalizeHardware(r.hardware, 3));
   // a robot file from before the Firmware tab gets the example wiring
-  const old = JSON.parse(JSON.stringify(defaultRobot())); delete old.hardware;
+  const old = JSON.parse(JSON.stringify(exampleRobot())); delete old.hardware;
   assert.deepEqual(migrate(old).hardware, defaultHardware());
 });

@@ -4,14 +4,15 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { defaultRobot, robotToConfig } from '../../web/js/store.js';
+import { exampleRobot } from '../../web/js/robotfile.js';
 import { generateSketch, unoHardware, PROTOCOL, PROTOCOL_RULES, BAUD, protocolHeaderLines } from '../../web/js/firmware-gen.js';
 import * as O from '../../web/js/own-code.js';
 import { loadEngine, configText } from '../../web/js/engine.js';
 
 const robots = () => {
-  const a = defaultRobot();
-  const b = defaultRobot(); b.hardware = unoHardware(); b.sensors.forEach((s) => { s.type = 'VL53L0X'; });
-  const c = defaultRobot(); c.hardware.encoder.type = 'single'; c.hardware.board = 'mega';
+  const a = exampleRobot();
+  const b = exampleRobot(); b.hardware = unoHardware(); b.sensors.forEach((s) => { s.type = 'VL53L0X'; });
+  const c = exampleRobot(); c.hardware.encoder.type = 'single'; c.hardware.board = 'mega';
   return [a, b, c];
 };
 // literal pieces of a reply line: the text between <placeholders>, without the trailing "   (explanation)"
@@ -29,7 +30,7 @@ test('every reply line in PROTOCOL is printed by the generated sketch', () => {
 });
 
 test('every command the sketch handles is in PROTOCOL, and every PROTOCOL command is handled', () => {
-  const code = generateSketch(defaultRobot(), defaultRobot().hardware).code;
+  const code = generateSketch(exampleRobot(), exampleRobot().hardware).code;
   const handled = new Set([...code.matchAll(/(?:IS|STARTS)\("([A-Z ]+)"\)/g)].map((m) => m[1]));
   const wire = (cmd) => (/^(CAL |STATUS|LOAD)/.test(cmd) ? cmd : 'CAL ' + cmd);   // RUN -> CAL RUN (the parser adds "CAL ")
   const listed = new Set(PROTOCOL.map((c) => wire(c.cmd)));
@@ -57,7 +58,7 @@ test('the student prompt holds the full protocol and every number with its unit'
     }
     assert.ok(txt.includes('No smoothing of the measured speed'));
   }
-  const r = defaultRobot(); r.motor.speed_tau_ms = 30;
+  const r = exampleRobot(); r.motor.speed_tau_ms = 30;
   assert.ok(O.studentPrompt(r, r.hardware).includes('time constant 30 ms'));
 });
 
@@ -90,7 +91,7 @@ test('unit conversions round trip', () => {
 
 test('speed smoothing: 0 = the old simulator results exactly, > 0 changes them', async () => {
   const E = await loadEngine();
-  const r = defaultRobot();
+  const r = exampleRobot();
   const run = (extra) => {
     const sim = E.create();
     sim.config(configText(robotToConfig(r)) + extra);

@@ -7,6 +7,7 @@ import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { defaultRobot, migrate, robotToConfig, cruiseSpeed, robotToHardwareTxt, hardwareTxtToRobot } from '../../web/js/store.js';
+import { exampleRobot } from '../../web/js/robotfile.js';
 import { grid, mutate, rngJS, episodeConfig } from '../../web/js/train-core.js';
 import { cFunction, configH, modelTxt, simConfigLines } from '../../web/js/export.js';
 import { generateSketch } from '../../web/js/firmware-gen.js';
@@ -16,14 +17,14 @@ import * as P from '../../web/js/measure-steps.js';
 const root = new URL('../../', import.meta.url).pathname;
 
 test('base = v_min + speed_frac (v_max - v_min); speed_frac defaults to 0.75', () => {
-  const r = defaultRobot();
+  const r = exampleRobot();
   assert.equal(r.pid.speed_frac, 0.75); assert.equal(r.motor.v_min_mps, 0.013);  // upstream cs_speed_frac, cs_v_min_mps
   assert.equal(r.pid.speed_mps, undefined); assert.equal(r.pid.slowdown_frac, undefined);
   r.motor.max_speed_mps = 0.5; r.motor.v_min_mps = 0.1;
   assert.ok(Math.abs(cruiseSpeed(r) - 0.4) < 1e-12);
   assert.ok(Math.abs(cruiseSpeed(r, 1) - 0.5) < 1e-12 && Math.abs(cruiseSpeed(r, 0) - 0.1) < 1e-12);
   // an old robot file (cruise speed in m/s, slowdown rule) gets the default speed_frac
-  const old = JSON.parse(JSON.stringify(defaultRobot())); delete old.pid.speed_frac; old.pid.speed_mps = 0.12; old.pid.slowdown_frac = 0.5;
+  const old = JSON.parse(JSON.stringify(exampleRobot())); delete old.pid.speed_frac; old.pid.speed_mps = 0.12; old.pid.slowdown_frac = 0.5;
   const m = migrate(old);
   assert.equal(m.pid.speed_frac, 0.75); assert.equal(m.pid.speed_mps, undefined); assert.equal(m.pid.slowdown_frac, undefined);
   // the engine runs the constant-speed mode with the robot's speed_frac and v_min
@@ -36,7 +37,7 @@ test('base = v_min + speed_frac (v_max - v_min); speed_frac defaults to 0.75', (
 });
 
 test('training uses the chosen speed_frac and never changes it', () => {
-  const r = defaultRobot(), env = mergeEnv({ width_mm: 200 });
+  const r = exampleRobot(), env = mergeEnv({ width_mm: 200 });
   const g = grid(r, env, 0.6);
   assert.ok(g.length > 10 && g.every((c) => c.speed === 0.6));
   const rng = rngJS(3);
@@ -48,7 +49,7 @@ test('training uses the chosen speed_frac and never changes it', () => {
 
 test('exported pid_gains.h computes exactly what the engine computes (compiled with g++)', (t) => {
   try { execFileSync('g++', ['--version']); } catch (e) { t.skip('no g++'); return; }
-  const r = defaultRobot(); r.motor.v_min_mps = 0.02; r.pid.offset_mm = 0;
+  const r = exampleRobot(); r.motor.v_min_mps = 0.02; r.pid.offset_mm = 0;
   const g = { kp: 1.7, ki: 0.4, kd: 0.25, speed: 0.8 };
   const dir = mkdtempSync(join(tmpdir(), 'rt-pid-'));
   try {
@@ -89,7 +90,7 @@ int main() {
 });
 
 test('the generated sketch runs the same PID with speed_frac and v_min filled in', () => {
-  const r = defaultRobot(); r.motor.v_min_mps = 0.021; r.pid.speed_frac = 0.7;
+  const r = exampleRobot(); r.motor.v_min_mps = 0.021; r.pid.speed_frac = 0.7;
   const c = generateSketch(r, r.hardware).code;
   assert.ok(c.includes('const float PID_SPEED_FRAC = 0.7f;'));
   assert.ok(c.includes(`const float PID_V_MAX = ${r.motor.max_speed_mps}f, PID_V_MIN = 0.021f;`));
@@ -105,7 +106,7 @@ test('CAL VMIN answer: parser and sanity check', () => {
   const v = P.parseVmin(line);
   assert.equal(v.vmin, 0.0225); assert.equal(v.lo, 0.019); assert.equal(v.missing, 0);
   assert.deepEqual(v.wheels.right_fwd, { v: 0.019, pwm: 39 });
-  const r = defaultRobot();
+  const r = exampleRobot();
   assert.equal(P.sanity('vmin', v, r), null);
   assert.equal(P.sanity('vmin', P.parseVmin(line.replace('0.0225 m/s at PWM 42', 'none')), r)[1], 'chk.vmin_missing');
   assert.equal(P.sanity('vmin', { ...v, vmin: 0.2 }, r)[1], 'chk.vmin_range');       // above the top speed (0.156)
