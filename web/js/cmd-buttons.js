@@ -50,6 +50,7 @@ export const BUTTONS = [
   { group: 'floor', cmd: 'RUN', id: 'run', args: [['cmd.a.secs', 's', '10', false]] },
   { group: 'floor', cmd: 'STOP', id: 'stop', cls: 'danger' },
   { group: 'sensors', cmd: 'CAL TOF', id: 'tof', args: [['cmd.a.readings', '', '100', false], ['cmd.a.true_mm', 'mm', '', false]] },
+  { group: 'sensors', cmd: 'PING', id: 'ping' },
   { group: 'sensors', cmd: 'STATUS', id: 'status' },
   { group: 'sensors', cmd: 'LOAD SENSORS', id: 'motors_off' },
   { group: 'sensors', cmd: 'LOAD FINAL', id: 'motors_on' },

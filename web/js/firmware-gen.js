@@ -416,6 +416,7 @@ export const PROTOCOL = [
   { cmd: 'CAL TOF', motion: 'still', args: '[n] [true_mm]', usage: 'CAL TOF [n] [true_mm]', help: 'n readings per sensor -> noise, bias, dropouts', def: 'n = 100',
     replies: ['CAL TOF <sensor name> n <count> mean <mm> mm std <mm> mm min <mm> max <mm> dropouts <count> (<%>%)   (one line per sensor)',
       'CAL TOF <sensor name> bias vs <true mm> mm: <+/-mm> mm   (only when true_mm is given)', 'CAL: TOF done'] },
+  { cmd: 'PING', motion: 'still', usage: 'PING', help: 'is the robot there? Robot Tuner sends it every few seconds', replies: ['PONG'] },
   { cmd: 'STATUS', motion: 'still', usage: 'STATUS', help: 'loop period and reading age',
     replies: ['tof mm <sensor name> <mm> <sensor name> <mm> ...   (-1 = no valid reading)',
       'ToF ages at the last tick: data-ready seen <us>/<us>/<us> us ago (R/F/L), + 0 ms half budget',
@@ -1214,6 +1215,7 @@ void handle(const char* c) {
   else if (STARTS("CAL RUN")) runStart(a1 > 0 ? a1 : 10.0f);
   else if (IS("CAL STOP")) runStop();
   else if (STARTS("CAL TOF")) calTof(a1 > 0 ? (int)a1 : 100, a2);
+  else if (IS("CAL PING")) Serial.println(F("PONG"));
   else if (IS("STATUS")) status();
   else if (IS("LOAD SENSORS")) { motorsEnabled = false; setPwm(0, 0); Serial.println(F("OK profile SENSORS (motors off)")); }
   else if (IS("LOAD FINAL")) { motorsEnabled = true; Serial.println(F("OK profile FINAL")); }

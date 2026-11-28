@@ -20,6 +20,7 @@
 //   CAL VMIN                   PWM ramp both ways, wheels in the air -> slowest steady speed (v_min)
 //   RUN [s] / STOP             wall following with the PID below (constant cruise speed), default 10 s
 //   CAL TOF [n] [true_mm]      n readings per sensor -> noise, bias, dropouts
+//   PING                       is the robot there? Robot Tuner sends it every few seconds
 //   STATUS                     loop period and reading age
 //   LOAD SENSORS / LOAD FINAL  motors off / on (sensor timing test)
 
@@ -531,6 +532,7 @@ void handle(const char* c) {
   else if (STARTS("CAL RUN")) runStart(a1 > 0 ? a1 : 10.0f);
   else if (IS("CAL STOP")) runStop();
   else if (STARTS("CAL TOF")) calTof(a1 > 0 ? (int)a1 : 100, a2);
+  else if (IS("CAL PING")) Serial.println(F("PONG"));
   else if (IS("STATUS")) status();
   else if (IS("LOAD SENSORS")) { motorsEnabled = false; setPwm(0, 0); Serial.println(F("OK profile SENSORS (motors off)")); }
   else if (IS("LOAD FINAL")) { motorsEnabled = true; Serial.println(F("OK profile FINAL")); }

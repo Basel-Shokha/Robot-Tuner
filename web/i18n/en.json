@@ -1168,5 +1168,19 @@
  "cmd.next_h": "Then:",
  "cmd.send": "Send {cmd}",
  "cmd.cancel": "Cancel",
- "cmd.floor_usb": "These make the robot drive while it is still plugged in by USB: hold the cable loosely and walk with it, or use a long cable."
+ "cmd.floor_usb": "These make the robot drive while it is still plugged in by USB: hold the cable loosely and walk with it, or use a long cable.",
+ "cmd.ping": "Is the robot there?",
+ "cmd.ping_h": "Sends PING; the robot answers PONG. The site also does this by itself every 3 seconds.",
+ "cmd.ping_do": "Nothing to do.",
+ "cmd.ping_next": "The status next to CONNECT turns green when the robot answers.",
+ "link.off": "○ Not connected",
+ "link.off_h": "Press CONNECT and pick the robot's port.",
+ "link.waiting": "… Port open, waiting for the robot",
+ "link.waiting_h": "The port is open. Waiting for the first answer (the board may be restarting).",
+ "link.ok": "● Robot answers",
+ "link.ok_h": "The robot answered PING in the last few seconds: commands will reach it.",
+ "link.foreign": "◐ Something answers, but not to PING",
+ "link.foreign_h": "Text arrives, but no PONG. The robot runs an older sketch or code without the Robot Tuner commands: upload the newest code.",
+ "link.silent": "✕ No answer from the robot",
+ "link.silent_h": "The port is open but nothing comes back. Check: right port, robot powered, the Robot Tuner code uploaded, baud 115200, Arduino Serial Monitor closed."
 }

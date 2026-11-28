@@ -1170,5 +1170,19 @@
  "cmd.next_h": "",
  "cmd.send": "",
  "cmd.cancel": "",
- "cmd.floor_usb": ""
+ "cmd.floor_usb": "",
+ "cmd.ping": "",
+ "cmd.ping_h": "",
+ "cmd.ping_do": "",
+ "cmd.ping_next": "",
+ "link.off": "",
+ "link.off_h": "",
+ "link.waiting": "",
+ "link.waiting_h": "",
+ "link.ok": "",
+ "link.ok_h": "",
+ "link.foreign": "",
+ "link.foreign_h": "",
+ "link.silent": "",
+ "link.silent_h": ""
 }
