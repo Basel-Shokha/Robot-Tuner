@@ -90,7 +90,7 @@ function robotFields() {
     ['Steering smoothing', 'steer_max_step', 'smoothing.max_step', NUM, 'm/s per step', null, null, always, ''],
     ['Board and pins', 'board', 'hardware.board', WORD, Object.keys(BOARDS).join(' | '), 'firmware', null, always, ''],
     ['Board and pins', 'bluetooth', 'hardware.bt', WORD, 'yes | no', 'firmware', null, (r) => (r.hardware || {}).board === 'esp32', 'serial over Bluetooth next to USB (classic ESP32)'],
-    ['Board and pins', 'bluetooth_name', 'hardware.bt_name', WORD, 'name', 'firmware', null, (r) => (r.hardware || {}).board === 'esp32' && r.hardware.bt !== false, 'default = RobotTuner (the site gives each robot RobotTuner-<4 digits>)'],
+    ['Board and pins', 'bluetooth_name', 'hardware.bt_name', WORD, 'name', 'firmware', null, (r) => (r.hardware || {}).board === 'esp32' && r.hardware.bt !== false, 'default = RobotTuner-<robot name>'],
     ['Board and pins', 'motor_driver', 'hardware.driver.type', WORD, DRIVERS.join(' | '), 'firmware', null, always, ''],
     ['Board and pins', 'motor_stop', 'hardware.driver.stop', WORD, 'brake | coast', 'firmware', null, (r) => drv(r) !== 'pwm_dir', ''],
     ['Board and pins', 'pin_motor_left_en', 'hardware.driver.left.en', NUM, 'pin', 'firmware', null, (r) => drv(r) === 'en_in1_in2', ''],

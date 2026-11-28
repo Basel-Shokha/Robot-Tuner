@@ -60,8 +60,8 @@ bool configured = false;
 BluetoothSerial SerialBT; bool btOn = false;
 class TeeIO : public Stream {
  public:
-  size_t write(uint8_t c) override { USB_SERIAL_.write(c); if (btOn) SerialBT.write(c); return 1; }
-  size_t write(const uint8_t* b, size_t n) override { USB_SERIAL_.write(b, n); if (btOn) SerialBT.write(b, n); return n; }
+  size_t write(uint8_t c) override { USB_SERIAL_.write(c); if (btOn && SerialBT.hasClient()) SerialBT.write(c); return 1; }   // BT only with a PC connected
+  size_t write(const uint8_t* b, size_t n) override { USB_SERIAL_.write(b, n); if (btOn && SerialBT.hasClient()) SerialBT.write(b, n); return n; }
   int available() override { return USB_SERIAL_.available() + (btOn ? SerialBT.available() : 0); }
   int read() override { return USB_SERIAL_.available() ? USB_SERIAL_.read() : (btOn ? SerialBT.read() : -1); }
   int peek() override { return USB_SERIAL_.available() ? USB_SERIAL_.peek() : (btOn ? SerialBT.peek() : -1); }
@@ -244,7 +244,7 @@ void loadSettings() {
 void motorsSetup() {
   loadSettings();
   String bt = cfgGet("bluetooth", "yes");
-  if (bt != "no") { String nm = cfgGet("bluetooth_name", "default"); if (nm == "default" || !nm.length()) nm = "RobotTuner"; btOn = (bool)SerialBT.begin(nm); }
+  if (bt != "no") { String nm = cfgGet("bluetooth_name", "default"); if (nm == "default" || !nm.length()) nm = "RobotTuner"; SerialBT.enableSSP(); btOn = (bool)SerialBT.begin(nm); }
   for (int s = 0; s < 2; s++) {
     if (pinA[s] >= 0) pinMode(pinA[s], OUTPUT); if (pinB[s] >= 0) pinMode(pinB[s], OUTPUT); if (drvType == 2 && pinEn[s] >= 0) pinMode(pinEn[s], OUTPUT);
   }

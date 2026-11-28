@@ -87,13 +87,10 @@ export function loadRobot() {
   try { const s = localStorage.getItem(KEY); if (s) return ensureBtName(migrate(JSON.parse(s))); } catch (e) { /* ignore */ }
   return ensureBtName(defaultRobot());
 }
-/** ESP32 with Bluetooth: give the robot a neutral name once, RobotTuner-<4 digits> (several robots in one room stay apart) */
+/** robots that got a random RobotTuner-<4 digits> name for a while: back to the default (RobotTuner-<robot name>) */
 export function ensureBtName(r) {
   const h = r.hardware;
-  if (h && h.board === 'esp32' && h.bt !== false && !h.bt_name) {
-    h.bt_name = 'RobotTuner-' + String(1000 + Math.floor(Math.random() * 9000));
-    r.source = r.source || {}; if (!r.source['hardware.bt_name']) r.source['hardware.bt_name'] = 'SUGGESTED';
-  }
+  if (h && /^RobotTuner-\d{4}$/.test(h.bt_name || '') && (r.source || {})['hardware.bt_name'] === 'SUGGESTED') { h.bt_name = ''; delete r.source['hardware.bt_name']; }
   return r;
 }
 export function saveRobot(r) {

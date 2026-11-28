@@ -25,7 +25,7 @@
 //   LOAD SENSORS / LOAD FINAL  motors off / on (sensor timing test)
 
 // BLUETOOTH SERIAL (classic ESP32): the robot answers over USB AND Bluetooth at the same time. Pair the PC once with
-// "RobotTuner" (Windows: Settings -> Bluetooth -> Add device; it gets a COM port "Standard Serial over Bluetooth"),
+// "RobotTuner-Basel-Nicole" (Windows: Settings -> Bluetooth -> Add device; it gets a COM port "Standard Serial over Bluetooth"),
 // then press CONNECT in Robot Tuner and pick that port: the robot can drive on the floor without a cable.
 // ESP32-S3 / C3 / C6 have no classic Bluetooth: switch it off in Robot builder -> Firmware.
 #include "BluetoothSerial.h"
@@ -37,8 +37,9 @@ BluetoothSerial SerialBT;
 // RT_IO: every reply goes to USB and Bluetooth; commands are read from both
 class TeeIO : public Stream {
  public:
-  size_t write(uint8_t c) override { Serial.write(c); SerialBT.write(c); return 1; }
-  size_t write(const uint8_t* b, size_t n) override { Serial.write(b, n); SerialBT.write(b, n); return n; }
+  // Bluetooth only while a PC is connected: with nobody listening its queue fills and every write waits 1 s
+  size_t write(uint8_t c) override { Serial.write(c); if (SerialBT.hasClient()) SerialBT.write(c); return 1; }
+  size_t write(const uint8_t* b, size_t n) override { Serial.write(b, n); if (SerialBT.hasClient()) SerialBT.write(b, n); return n; }
   int available() override { return Serial.available() + SerialBT.available(); }
   int read() override { return Serial.available() ? Serial.read() : SerialBT.read(); }
   int peek() override { return Serial.available() ? Serial.peek() : SerialBT.peek(); }
@@ -277,7 +278,8 @@ char line[64]; int lineLen = 0;   // the command being typed
 
 void setup() {
   Serial.begin(115200);
-  SerialBT.begin("RobotTuner");   // Bluetooth device name
+  SerialBT.enableSSP();   // Secure Simple Pairing, "Just Works" (no PIN): Windows / Mac pair without questions
+  SerialBT.begin("RobotTuner-Basel-Nicole");   // Bluetooth device name
   motorsSetup();
   setPwm(0, 0);
   i2cSetup();

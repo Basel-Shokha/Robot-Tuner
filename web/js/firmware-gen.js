@@ -159,9 +159,9 @@ function avrX4(hw) { return BOARDS[hw.board].arch === 'avr' && hw.encoder.type =
 
 /** ESP32 with Bluetooth serial switched on */
 export const usesBt = (hw) => hw.board === 'esp32' && hw.bt !== false;
-/** the Bluetooth device name the student pairs with (the site gives each robot RobotTuner-<4 digits> once: store.js) */
+/** the Bluetooth device name the student pairs with: the typed name, else RobotTuner-<robot name> */
 export function btName(robot, hw) {
-  const n = String(hw.bt_name || 'RobotTuner').replace(/[^A-Za-z0-9_-]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+  const n = String(hw.bt_name || ('RobotTuner-' + String(robot.name || 'robot'))).replace(/[^A-Za-z0-9_-]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
   return (n || 'RobotTuner').slice(0, 24).replace(/-$/, '');
 }
 export function sensorWireName(s, i) {
@@ -526,8 +526,9 @@ export function generateSketch(robot, hwIn) {
       '// RT_IO: every reply goes to USB and Bluetooth; commands are read from both',
       'class TeeIO : public Stream {',
       ' public:',
-      '  size_t write(uint8_t c) override { USB_SERIAL_.write(c); SerialBT.write(c); return 1; }',
-      '  size_t write(const uint8_t* b, size_t n) override { USB_SERIAL_.write(b, n); SerialBT.write(b, n); return n; }',
+      '  // Bluetooth only while a PC is connected: with nobody listening its queue fills and every write waits 1 s',
+      '  size_t write(uint8_t c) override { USB_SERIAL_.write(c); if (SerialBT.hasClient()) SerialBT.write(c); return 1; }',
+      '  size_t write(const uint8_t* b, size_t n) override { USB_SERIAL_.write(b, n); if (SerialBT.hasClient()) SerialBT.write(b, n); return n; }',
       '  int available() override { return USB_SERIAL_.available() + SerialBT.available(); }',
       '  int read() override { return USB_SERIAL_.available() ? USB_SERIAL_.read() : SerialBT.read(); }',
       '  int peek() override { return USB_SERIAL_.available() ? USB_SERIAL_.peek() : SerialBT.peek(); }',
@@ -914,7 +915,7 @@ export function generateSketch(robot, hwIn) {
   w('// no extra commands in this sketch (the ESP32 install firmware adds SET / GET / SAVE here)', 'bool extraCommand(const char* u, const char* orig) { return false; }', '');
   w(CORE);
   const code = C.join('\n').replace(/\bSerial\.(print|println|available|read)\(/g, 'RT_IO.$1(')
-    .replace(/USB_SERIAL_\./g, 'Serial.').replace('  BT_BEGIN', bt ? `  SerialBT.begin("${btName(robot, hw)}");   // Bluetooth device name` : '').replace(/\n\n(?=void setup)/, '\n\n');
+    .replace(/USB_SERIAL_\./g, 'Serial.').replace('  BT_BEGIN', bt ? `  SerialBT.enableSSP();   // Secure Simple Pairing, "Just Works" (no PIN): Windows / Mac pair without questions\n  SerialBT.begin("${btName(robot, hw)}");   // Bluetooth device name` : '').replace(/\n\n(?=void setup)/, '\n\n');
   return { code: code + '\n', libraries: libs, messages: validateHardware(robot, hw), ticks, lowRes, fileName: 'robot_tuner_min.ino', fqbn: B.fqbn };
 }
 
