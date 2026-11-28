@@ -77,8 +77,9 @@ robot is kept as the object below.
 
 `schema: "robot-tuner/robot@1"`; units mm, deg, ms, m/s; frame = upstream (origin at the drive-axle midpoint,
 +x forward, +y left, angles CCW). `source` records where each value came from (MEASURED / TYPED / IMPORTED ...).
-`migrate()` fills missing fields from the defaults, so hand-written or older files load. Defaults = the upstream
-real robot (`vendor/.../robot_hardware.txt`).
+`migrate()` fills missing fields from the defaults. A new robot has NOTHING set (`source` empty): its numbers are only
+placeholders, the robot file writes them as N/A and the simulator pages ask for the required ones. Our real robot
+(= upstream `robot_hardware.txt`) is `exampleRobot()` in robotfile.js and `robots/basel_nicole.robot.txt`.
 
 ## Maze algorithms
 
