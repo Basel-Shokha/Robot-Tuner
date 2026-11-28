@@ -7,6 +7,10 @@ export class RobotLink {
   async connect(baud = 115200) {
     this.port = await navigator.serial.requestPort();
     await this.port.open({ baudRate: baud });
+    // ESP32 boards wire DTR / RTS to EN (reset) and IO0 (boot): Windows switches both on when a port opens, which can hold
+    // the ESP32 in reset (silent: "no answer"). Switch them off like the Arduino Serial Monitor does: the robot starts normally.
+    // (Uno / Mega already reset on opening; Bluetooth ports have no such lines.)
+    try { await this.port.setSignals({ dataTerminalReady: false, requestToSend: false }); } catch (e) { /* not supported (e.g. Bluetooth) */ }
     this.writer = this.port.writable.getWriter();
     this.openedAt = Date.now(); this.lastRx = 0; this.lastPong = 0; this.lastPingAt = 0; this.lost = false; this.lostReason = ''; this.errors = 0;
     this.closing = false;
