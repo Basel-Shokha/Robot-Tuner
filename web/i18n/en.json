@@ -1213,8 +1213,9 @@
  "ms.ticks.turning": "Turning…",
  "ms.ticks.stopped": "Stopped. Now line the mark up by hand.",
  "ms.ticks.side_ok": "done",
- "ms.ticks.pwm": "PWM",
+ "ms.ticks.pwm": "PWM (0–255)",
  "ms.ticks.slower": "slower (PWM − 2)",
  "ms.ticks.faster": "faster (PWM + 2)",
- "ms.ticks.pwm_note": "− / + change the PWM by 2, up to 255. − stops at the lowest PWM where this wheel moved."
+ "ms.ticks.pwm_note": "Type a PWM from 0 to 255 and press Set (or Enter), or use − / + (2 at a time). Below the lowest PWM where this wheel moved it is raised to that value (lower would only stall the wheel).",
+ "ms.ticks.set": "Set"
 }

@@ -1218,5 +1218,6 @@
  "ms.ticks.pwm": "",
  "ms.ticks.slower": "",
  "ms.ticks.faster": "",
- "ms.ticks.pwm_note": ""
+ "ms.ticks.pwm_note": "",
+ "ms.ticks.set": ""
 }
