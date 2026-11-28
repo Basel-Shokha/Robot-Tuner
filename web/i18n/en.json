@@ -1188,7 +1188,7 @@
  "own.pop_1": "<b>Copy the prompt</b> and paste it into your AI (ChatGPT, Claude, ...). Attach your robot code (all files) and the reference file.",
  "own.pop_2": "<b>Upload the code your AI gives you</b> with the Arduino IDE.",
  "own.pop_3": "Your AI also gives you a file <b>robot.robot.txt</b> with your robot. <b>Load it here</b>: it fills in your robot.",
- "own.pop_4": "<b>Press CONNECT</b> (step 3 on this page). When the status turns green, your robot talks to Robot Tuner.",
+ "own.pop_4": "<b>Connect over Bluetooth</b> (ESP32): unplug USB, robot on battery, pair the PC once with <b>{name}</b> in its Bluetooth settings, then press CONNECT (step 3 on this page) and pick the Bluetooth port. When the status turns green, your robot talks to Robot Tuner. No Bluetooth on your board? Connect with USB, and keep the robot on the table.",
  "own.pop_go": "Got it",
  "own.pop_off": "Don't show this again"
 }

@@ -2,7 +2,7 @@
 // 1. hardware (the builder form below), 2. COPY PROMPT + reference sketch, 3. upload in the Arduino IDE + CONNECT.
 import { $, el, t, download, toast } from './common.js';
 import { studentPrompt } from './own-code.js';
-import { generateSketch } from './firmware-gen.js';
+import { generateSketch, btName, normalizeHardware } from './firmware-gen.js';
 import { RobotLink, serialSupported } from './serial.js';
 import { commandButtons } from './cmd-buttons.js';
 import { linkStatus, btHelp } from './link-status.js';
@@ -92,8 +92,9 @@ export function mountOwn(root, getRobot, openTab, loadFile) {
     const close = () => { dlg.close(); dlg.remove(); };
     const off = el('input', { type: 'checkbox' });
     off.addEventListener('change', () => { try { localStorage.setItem('rt.own.intro', off.checked ? 'off' : 'on'); } catch (e) { /* ignore */ } });
+    const vars = () => { const r = getRobot(), hw = normalizeHardware(r.hardware, r.sensors.length); return { name: btName(r, hw) }; };
     const st = (n, key, ...btns) => el('li', { class: 'own-step' }, el('span', { class: 'n', text: String(n) }),
-      el('div', { class: 'stack' }, el('p', { html: t(key) }), btns.length ? el('div', { class: 'row' }, ...btns) : null));
+      el('div', { class: 'stack' }, el('p', { html: t(key, vars()) }), btns.length ? el('div', { class: 'row' }, ...btns) : null));
     dlg.append(
       el('div', { class: 'row' }, el('h2', { text: t('own.pop_h'), style: 'margin:0' }), el('span', { class: 'spacer' }), el('button', { class: 'small', text: '✕', 'aria-label': t('cmd.cancel'), onclick: close })),
       el('ol', { class: 'own-steps' },
