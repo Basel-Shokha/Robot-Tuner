@@ -1055,5 +1055,6 @@
  "tour.numbers.units.h": "Your numbers with units",
  "tour.numbers.units": "Every number from your robot profile, its unit, and how big one unit is.",
  "tour.numbers.conv.h": "Conversions",
- "tour.numbers.conv": "Formulas with examples from your robot, for when your code uses other units."
+ "tour.numbers.conv": "Formulas with examples from your robot, for when your code uses other units.",
+ "footer.by": "Made by Basel Shokha and Nicole Shaer, Technion."
 }

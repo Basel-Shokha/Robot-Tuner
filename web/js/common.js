@@ -70,7 +70,7 @@ export async function page() {
   pageEl.append(main);
   const footer = document.createElement('footer');
   footer.className = 'site-footer';
-  footer.innerHTML = `<p>${t('footer.scope')}</p><p><a href="https://github.com/Basel-Shokha/Robot-Tuner">GitHub</a></p>`;
+  footer.innerHTML = `<p>${t('footer.scope')}</p><p class="credits">${t('footer.by')}</p><p><a href="https://github.com/Basel-Shokha/Robot-Tuner">GitHub</a></p>`;
   pageEl.append(footer);
 
   // every page: a head row with the Guide button; step pages also get "Step n of 5" above the title and the way on
