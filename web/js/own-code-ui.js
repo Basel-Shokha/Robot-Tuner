@@ -4,6 +4,7 @@ import { $, el, t, download, toast } from './common.js';
 import { studentPrompt } from './own-code.js';
 import { generateSketch } from './firmware-gen.js';
 import { RobotLink, serialSupported } from './serial.js';
+import { commandButtons } from './cmd-buttons.js';
 
 export const REF_NAME = 'robot_tuner_reference.ino';
 export const isOwnMode = () => new URLSearchParams(location.search).get('own') === '1';
@@ -48,7 +49,9 @@ export function mountOwn(root, getRobot, openTab) {
     lines.push(l); if (lines.length > 200) lines.shift();
     log.hidden = false; log.textContent = lines.join('\n'); log.scrollTop = log.scrollHeight;
   });
+  const cmdBox = commandButtons((c) => link.connected && link.send(c), () => link.connected);
   const upd = () => {
+    cmdBox.refresh();
     state.textContent = t(link.connected ? 'ms.connected' : 'ms.disconnected'); state.className = 'pill ' + (link.connected ? 'ok' : '');
     conn.textContent = t(link.connected ? 'own.disconnect' : 'own.connect'); send.disabled = !link.connected;
   };
@@ -77,7 +80,7 @@ export function mountOwn(root, getRobot, openTab) {
         el('p', { class: 'muted small-note', text: t('own.compile_note') }),
         el('div', { class: 'row' }, conn, state),
         serialSupported() ? null : el('p', { class: 'muted', text: t('own.nosupport') }),
-        el('div', { class: 'row' }, cmd, send), log,
+        cmdBox, el('p', { class: 'muted small-note', text: t('cmd.or_type') }), el('div', { class: 'row' }, cmd, send), log,
         el('p', { html: t('own.fail') }),
         el('p', { html: t('own.next') })))));
   refresh();

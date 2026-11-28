@@ -62,6 +62,16 @@ test('the student prompt holds the full protocol and every number with its unit'
   assert.ok(O.studentPrompt(r, r.hardware).includes('time constant 30 ms'));
 });
 
+test('every serial command has a button (cmd-buttons.js) with an i18n label and help', async () => {
+  const { readFileSync } = await import('node:fs');
+  const src = readFileSync(new URL('../../web/js/cmd-buttons.js', import.meta.url), 'utf8');
+  const en = JSON.parse(readFileSync(new URL('../../web/i18n/en.json', import.meta.url), 'utf8'));
+  const btns = [...src.matchAll(/cmd: '([A-Z ]+)', id: '(\w+)'/g)];
+  const cmds = new Set(btns.map((m) => m[1]));
+  for (const c of PROTOCOL) assert.ok(cmds.has(c.cmd), `no button for ${c.cmd}`);
+  for (const [, , k] of btns) { assert.ok(en['cmd.' + k], k); assert.ok(en['cmd.' + k + '_h'], k + '_h'); }
+});
+
 test('unit conversions round trip', () => {
   const close = (a, b, msg) => assert.ok(Math.abs(a - b) <= 1e-9 * Math.max(1, Math.abs(a), Math.abs(b)), `${msg}: ${a} vs ${b}`);
   const mpt = O.metersPerTick(45, 8291.5);

@@ -1,5 +1,6 @@
 // measure.js - 2. GUIDED MEASUREMENT over USB (Web Serial) with manual entry for every value.
 import { page, $, el, t, toast } from './common.js';
+import { commandButtons } from './cmd-buttons.js';
 import { loadRobot, saveRobot } from './store.js';
 import { RobotLink, serialSupported } from './serial.js';
 import * as P from './measure-steps.js';
@@ -20,6 +21,7 @@ $('#connect').addEventListener('click', async () => {
   $('#conn-state').textContent = t(link.connected ? 'ms.connected' : 'ms.disconnected');
   $('#conn-state').className = 'pill ' + (link.connected ? 'ok' : '');
   $('#connect').textContent = t(link.connected ? 'ms.disconnect' : 'ms.connect');
+  cmdBox.refresh();
   render();
 });
 $('#manual').addEventListener('change', render);
@@ -29,6 +31,8 @@ export function expandCommand(c) {
   const w = c.trim().split(/\s+/)[0].toUpperCase();
   return CAL_WORDS.has(w) ? 'CAL ' + c.trim() : c.trim();
 }
+const cmdBox = commandButtons((c) => link.connected && link.send(c), () => link.connected);
+$('#cmd-buttons').append(cmdBox);
 const sendCmd = () => { const c = expandCommand($('#cmd').value); if (c && link.connected) link.send(c); $('#cmd').value = ''; };
 $('#send').addEventListener('click', sendCmd);
 $('#cmd').addEventListener('keydown', (e) => { if (e.key === 'Enter') sendCmd(); });
