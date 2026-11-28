@@ -25,7 +25,7 @@
 //   LOAD SENSORS / LOAD FINAL  motors off / on (sensor timing test)
 
 // BLUETOOTH SERIAL (classic ESP32): the robot answers over USB AND Bluetooth at the same time. Pair the PC once with
-// "RobotTuner-Basel-Nicole" (Windows: Settings -> Bluetooth -> Add device; it gets a COM port "Standard Serial over Bluetooth"),
+// "RobotTuner" (Windows: Settings -> Bluetooth -> Add device; it gets a COM port "Standard Serial over Bluetooth"),
 // then press CONNECT in Robot Tuner and pick that port: the robot can drive on the floor without a cable.
 // ESP32-S3 / C3 / C6 have no classic Bluetooth: switch it off in Robot builder -> Firmware.
 #include "BluetoothSerial.h"
@@ -277,7 +277,7 @@ char line[64]; int lineLen = 0;   // the command being typed
 
 void setup() {
   Serial.begin(115200);
-  SerialBT.begin("RobotTuner-Basel-Nicole");   // Bluetooth device name
+  SerialBT.begin("RobotTuner");   // Bluetooth device name
   motorsSetup();
   setPwm(0, 0);
   i2cSetup();

@@ -82,7 +82,7 @@ steer_max_step                   0.0105   #  TYPED  m/s per step
 # ---- Board and pins ----
 board                             esp32   #  TYPED  uno | mega | esp32
 bluetooth                           yes   #  TYPED  yes | no  - serial over Bluetooth next to USB (classic ESP32)
-bluetooth_name                  default   #  TYPED  name  - empty = RobotTuner-<robot name>
+bluetooth_name                  default   #  TYPED  name  - default = RobotTuner (the site gives each robot RobotTuner-<4 digits>)
 motor_driver                    in1_in2   #  TYPED  in1_in2 | pwm_dir | en_in1_in2
 motor_stop                        brake   #  TYPED  brake | coast
 pin_motor_left_a                     25   #  TYPED  pin  - IN1 or PWM

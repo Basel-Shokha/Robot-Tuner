@@ -159,9 +159,9 @@ function avrX4(hw) { return BOARDS[hw.board].arch === 'avr' && hw.encoder.type =
 
 /** ESP32 with Bluetooth serial switched on */
 export const usesBt = (hw) => hw.board === 'esp32' && hw.bt !== false;
-/** the Bluetooth device name the student pairs with */
+/** the Bluetooth device name the student pairs with (the site gives each robot RobotTuner-<4 digits> once: store.js) */
 export function btName(robot, hw) {
-  const n = String(hw.bt_name || ('RobotTuner-' + String(robot.name || 'robot'))).replace(/[^A-Za-z0-9_-]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+  const n = String(hw.bt_name || 'RobotTuner').replace(/[^A-Za-z0-9_-]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
   return (n || 'RobotTuner').slice(0, 24).replace(/-$/, '');
 }
 export function sensorWireName(s, i) {
