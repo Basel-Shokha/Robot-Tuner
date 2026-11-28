@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { defaultRobot, robotToConfig, robotToHardwareTxt, hardwareTxtToRobot, migrate, makeSensor } from '../../web/js/store.js';
-import { exampleRobot } from '../../web/js/robotfile.js';
+import { defaultRobot, robotToConfig, hardwareTxtToRobot, migrate, makeSensor } from '../../web/js/store.js';
+import { exampleRobot, robotToFile, fileToRobot } from '../../web/js/robotfile.js';
 import { loadEngine, configText } from '../../web/js/engine.js';
 import { readFileSync } from 'node:fs';
 
@@ -15,17 +15,17 @@ test('every key the site sends is understood by the engine', async () => {
   s.destroy();
 });
 
-test('robot JSON and robot_hardware.txt round trip', () => {
+test('saved robot and robot file round trip', () => {
   const r = exampleRobot();
   assert.deepEqual(migrate(JSON.parse(JSON.stringify(r))), r);
-  const back = hardwareTxtToRobot(robotToHardwareTxt(r));
+  const back = fileToRobot(robotToFile(r)).robot;
   assert.equal(back.wheels.ticks_per_rev, r.wheels.ticks_per_rev);
   assert.equal(back.wheels.track_effective_mm, r.wheels.track_effective_mm);
   assert.ok(Math.abs(back.motor.wheel_kd - r.motor.wheel_kd) < 1e-6);
   assert.deepEqual(back.sensors.map((s) => [s.x_mm, s.y_mm, s.angle_deg]), r.sensors.map((s) => [+s.x_mm.toFixed(2), +s.y_mm.toFixed(2), s.angle_deg]));
 });
 
-test('upstream robot_hardware.txt is read (mount description -> sensor poses)', () => {
+test('our example robot = upstream robot_hardware.txt (mount description -> sensor poses)', () => {
   const txt = readFileSync(new URL('../../vendor/simulation-to-real-life/robot_hardware.txt', import.meta.url), 'utf8');
   const r = hardwareTxtToRobot(txt);
   assert.equal(r.wheels.ticks_per_rev, 8291.5);

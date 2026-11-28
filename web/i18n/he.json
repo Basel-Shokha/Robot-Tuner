@@ -88,13 +88,6 @@
  "builder.model_pid": "",
  "builder.model_lag": "",
  "builder.motor_model_note": "",
- "builder.file_h": "",
- "builder.file_p": "",
- "builder.export_json": "",
- "builder.import_json": "",
- "builder.export_hw": "",
- "builder.import_hw": "",
- "builder.hw_p": "",
  "builder.start_h": "",
  "builder.new_2wd": "",
  "builder.new_4wd": "",
@@ -102,7 +95,6 @@
  "builder.new_name": "",
  "builder.confirm_new": "",
  "builder.canvas_hint": "",
- "builder.json_preview": "",
  "builder.checks_h": "",
  "builder.track_short": "",
  "builder.chk_noside": "",
@@ -803,7 +795,6 @@
  "home.get_1": "",
  "home.get_2": "",
  "home.get_3": "",
- "home.cta_start": "",
  "home.cta_learn": "",
  "home.start_note": "",
  "home.more_h": "",
@@ -1193,5 +1184,6 @@
  "bt.steps": "",
  "bt.no_wifi": "",
  "builder.load_h": "",
- "builder.load_p": ""
+ "builder.load_p": "",
+ "builder.not_robot_file": ""
 }

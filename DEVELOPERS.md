@@ -19,11 +19,12 @@ sim/build_wasm.sh     em++ -> web/wasm/rt_sim.{mjs,wasm}
 tests/native/equiv_upstream.cpp   engine vs UNMODIFIED upstream Robot.hpp: bit-identical every tick
 tests/native/golden.cpp           native reference runs through the C API -> tests/golden/
 tests/wasm_equiv.test.mjs         the WASM module must reproduce tests/golden/ bit for bit
-tests/js/*.test.mjs               parsers, maze builder, i18n completeness, robot JSON round trip, config keys
+tests/js/*.test.mjs               parsers, maze builder, i18n completeness, robot file round trip, config keys
 firmware/robot_tuner_min/         minimal Arduino sketch answering the measurement commands
 web/js/engine.js      JS wrapper of the WASM API (layout of rt_state() in `S`)
-web/js/store.js       robot JSON (schema robot-tuner/robot@1), sensor library, robot -> engine config,
-                      robot_hardware.txt export/import
+web/js/store.js       the robot object kept in localStorage (schema robot-tuner/robot@1), sensor library, robot -> engine config,
+                      isSet (which values the student has set)
+web/js/robotfile.js   the robot file (.robot.txt): the ONLY file format; every value, N/A when not set; simulator gate fields
 web/js/corridor.js    endless corridor generator (wall errors), tracks from centre lines, .track import, start pose
 web/js/simview.js     Scene / Runner / drawScene (shared by corridor, playground)
 web/js/train-*.js     training (worker pool, grid + GA), export.js (C function, firmware defines)
@@ -68,7 +69,11 @@ not ported: `fixed_clock`, `reflex`, `slow`, `speed_law`, `exp_*` experiments. A
 fixed wheel mismatch, one-wall PID mode, external controller mode, wall culling (provably result-neutral).
 Training uses the same reward and seeds as upstream `train.cpp` (`Evaluate`), with a grid search before the GA.
 
-## Robot JSON
+## The robot object and the robot file
+
+Students save and load ONE file: the robot file (`robotfile.js`, header `# robot-tuner robot file v1`). Inside the browser the
+robot is kept as the object below.
+
 
 `schema: "robot-tuner/robot@1"`; units mm, deg, ms, m/s; frame = upstream (origin at the drive-axle midpoint,
 +x forward, +y left, angles CCW). `source` records where each value came from (MEASURED / TYPED / IMPORTED ...).

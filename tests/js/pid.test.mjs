@@ -6,8 +6,8 @@ import { execFileSync } from 'node:child_process';
 import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { defaultRobot, migrate, robotToConfig, cruiseSpeed, robotToHardwareTxt, hardwareTxtToRobot } from '../../web/js/store.js';
-import { exampleRobot } from '../../web/js/robotfile.js';
+import { defaultRobot, migrate, robotToConfig, cruiseSpeed } from '../../web/js/store.js';
+import { exampleRobot, robotToFile, fileToRobot } from '../../web/js/robotfile.js';
 import { grid, mutate, rngJS, episodeConfig } from '../../web/js/train-core.js';
 import { cFunction, configH, modelTxt, simConfigLines } from '../../web/js/export.js';
 import { generateSketch } from '../../web/js/firmware-gen.js';
@@ -31,8 +31,8 @@ test('base = v_min + speed_frac (v_max - v_min); speed_frac defaults to 0.75', (
   const c = robotToConfig(r);
   assert.equal(c.pid_speed_mode, 1); assert.equal(c.pid_speed_frac, 0.75); assert.equal(c.pid_v_min, 0.1);
   assert.equal(c.pid_slowdown_frac, undefined);
-  // v_min and speed_frac survive robot_hardware.txt
-  const b = hardwareTxtToRobot(robotToHardwareTxt({ ...r, pid: { ...r.pid, speed_frac: 0.6 } }));
+  // v_min and speed_frac survive the robot file
+  const b = fileToRobot(robotToFile({ ...r, all_set: true, pid: { ...r.pid, speed_frac: 0.6 } })).robot;
   assert.equal(b.motor.v_min_mps, 0.1); assert.equal(b.pid.speed_frac, 0.6);
 });
 

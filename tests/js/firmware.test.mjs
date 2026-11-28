@@ -3,8 +3,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { defaultRobot, hardwareTxtToRobot, robotToHardwareTxt, migrate, makeSensor } from '../../web/js/store.js';
-import { exampleRobot } from '../../web/js/robotfile.js';
+import { defaultRobot, hardwareTxtToRobot, migrate, makeSensor } from '../../web/js/store.js';
+import { exampleRobot, robotToFile, fileToRobot } from '../../web/js/robotfile.js';
 import { generateSketch, validateHardware, hasErrors, suggestPins, unoHardware, defaultHardware, normalizeHardware, BOARDS, requiredLibraries } from '../../web/js/firmware-gen.js';
 import { allCombos, buildCombo } from '../../tools/gen_firmware_combos.mjs';
 
@@ -167,11 +167,11 @@ test('sensors: HC-SR04 fire one at a time, Sharp curve, a single ToF needs no XS
   assert.ok(c.includes('const char* SENSOR_NAME[N_SENSORS] = {"right", "front", "left"};'));
 });
 
-test('hardware survives robot JSON and robot_hardware.txt round trips', () => {
-  const r = exampleRobot(); r.hardware = unoHardware();
+test('hardware survives the saved robot and the robot file', () => {
+  const r = exampleRobot(unoHardware());
   assert.deepEqual(migrate(JSON.parse(JSON.stringify(r))).hardware, r.hardware);
-  const back = hardwareTxtToRobot(robotToHardwareTxt(r));
-  assert.deepEqual(back.hardware, normalizeHardware(r.hardware, 3));
+  // the robot file keeps every pin the sketch uses (Uno: I2C is fixed, so it is not in the file): same sketch
+  for (const x of [r, exampleRobot()]) { const back = fileToRobot(robotToFile(x)).robot; assert.equal(generateSketch(back, back.hardware).code, generateSketch(x, x.hardware).code); }
   // a robot file from before the Firmware tab gets the example wiring
   const old = JSON.parse(JSON.stringify(exampleRobot())); delete old.hardware;
   assert.deepEqual(migrate(old).hardware, defaultHardware());

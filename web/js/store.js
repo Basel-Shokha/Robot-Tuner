@@ -1,5 +1,5 @@
 // store.js - the robot description shared by every page (one JSON object, kept in localStorage), the sensor
-// library, and the conversions robot -> engine config / robot_hardware.txt.
+// library, and the conversion robot -> engine config.
 //
 // Units in the JSON are what students measure: millimetres, degrees, milliseconds, m/s.
 // Frame (same as upstream robot_hardware.txt): origin = midpoint of the drive axle, +x forward, +y LEFT,
@@ -202,109 +202,8 @@ export function robotToConfig(r, sim = {}) {
   return c;
 }
 
-// ---- robot_hardware.txt (upstream format; tools/gen_hardware.py reads it) ----------------------------
-export function robotToHardwareTxt(r) {
-  const L = [];
-  const src = (k, def = 'TYPED') => (r.source && r.source[k]) || def;
-  const line = (k, v, tag, c = '') => L.push(`${k.padEnd(24)} ${String(v).padStart(10)}   # ${tag}${c ? '  ' + c : ''}`);
-  L.push('# robot_hardware.txt - written by Robot Tuner (https://github.com/Basel-Shokha/Robot-Tuner)');
-  L.push(`# robot: ${r.name}`);
-  L.push('# Frame: origin = midpoint of the drive axle, +x forward, +y LEFT, angles CCW (deg), lengths in mm.');
-  L.push('');
-  const hw = r.hardware ? normalizeHardware(r.hardware, r.sensors.length) : null;
-  if (hw) {
-    const pinNames = r.sensors.map((s, i) => (r.sensors.length === 3 ? ['right', 'front', 'left'][i] : (s.name || 's' + i)));
-    L.push('# Board / pins (Robot builder -> Firmware)');
-    L.push(`board                    ${hw.board.padStart(10)}   # TYPED  ${BOARDS[hw.board].label}`);
-    L.push(`motor_driver             ${hw.driver.type.padStart(10)}   # TYPED  in1_in2 | pwm_dir | en_in1_in2`);
-    if (hw.board === 'esp32') { L.push(`bluetooth                ${(hw.bt !== false ? 'yes' : 'no').padStart(10)}   # TYPED  serial over Bluetooth (classic ESP32)`); if (hw.bt_name) L.push(`bluetooth_name           ${hw.bt_name.padStart(10)}   # TYPED`); }
-    L.push(`encoder_type             ${hw.encoder.type.padStart(10)}   # TYPED  quadrature | single | as5600 | none`);
-    // upstream names: *_pwm = PWM / IN1, *_dir = DIR / IN2
-    for (const [side, m] of [['right', hw.driver.right], ['left', hw.driver.left]]) {
-      line(`pin_motor_${side}_pwm`, m.a, 'TYPED', hw.driver.type === 'pwm_dir' ? 'PWM' : 'IN1');
-      line(`pin_motor_${side}_dir`, m.b, 'TYPED', hw.driver.type === 'pwm_dir' ? 'DIR' : 'IN2');
-      if (hw.driver.type === 'en_in1_in2') line(`pin_motor_${side}_en`, m.en, 'TYPED');
-    }
-    line('motor_right_sign', hw.driver.sign_r, 'TYPED'); line('motor_left_sign', hw.driver.sign_l, 'TYPED');
-    L.push(`motor_stop               ${hw.driver.stop.padStart(10)}   # TYPED  brake | coast`);
-    if (hw.driver.stby >= 0) line('pin_motor_stby', hw.driver.stby, 'TYPED');
-    line('enc_ppr', hw.encoder.ppr, 'TYPED', 'pulses (or slots) per motor turn, per channel');
-    line('enc_gear', hw.encoder.gear, 'TYPED', 'motor (or magnet) turns per wheel turn');
-    L.push(`enc_decoding             ${hw.encoder.avr_mode.padStart(10)}   # TYPED  x1 | x4 (Uno / Mega quadrature)`);
-    L.push(`as5600_bus               ${hw.encoder.as5600_bus.padStart(10)}   # TYPED  mux | two_buses`);
-    line('as5600_mux_addr', '0x' + (+hw.encoder.mux_addr).toString(16), 'TYPED'); line('as5600_mux_ch_left', hw.encoder.mux_ch_l, 'TYPED'); line('as5600_mux_ch_right', hw.encoder.mux_ch_r, 'TYPED');
-    line('pin_i2c2_sda', hw.encoder.sda2, 'TYPED'); line('pin_i2c2_scl', hw.encoder.scl2, 'TYPED');
-    for (const [side, c] of [['right', hw.encoder.right], ['left', hw.encoder.left]]) { line(`pin_enc_${side}_a`, c.a, 'TYPED'); line(`pin_enc_${side}_b`, c.b, 'TYPED'); }
-    line('enc_right_sign', hw.encoder.sign_r, 'TYPED'); line('enc_left_sign', hw.encoder.sign_l, 'TYPED');
-    line('pin_i2c_sda', hw.i2c.sda, 'TYPED'); line('pin_i2c_scl', hw.i2c.scl, 'TYPED');
-    hw.sensors.forEach((p, i) => {
-      if (p.xshut >= 0) line(`pin_xshut_${pinNames[i]}`, p.xshut, 'TYPED');
-      if (p.xshut >= 0) line(`tof_addr_${pinNames[i]}`, '0x' + (+p.addr).toString(16), 'TYPED');
-      if (p.trig >= 0) line(`pin_trig_${pinNames[i]}`, p.trig, 'TYPED');
-      if (p.echo >= 0) line(`pin_echo_${pinNames[i]}`, p.echo, 'TYPED');
-      if (p.analog >= 0) line(`pin_analog_${pinNames[i]}`, p.analog, 'TYPED');
-    });
-    L.push('');
-  }
-  L.push('# Geometry (mm)');
-  line('wheel_diameter_mm', r.wheels.diameter_mm, src('wheels.diameter_mm'));
-  line('wheel_width_mm', r.wheels.width_mm, src('wheels.width_mm'));
-  line('wheel_track_mm', r.wheels.track_mm, src('wheels.track_mm'), 'wheel centre to centre');
-  line('wheel_x_mm', r.wheels.x_mm, src('wheels.x_mm'));
-  line('body_front_mm', r.body.front_mm, src('body.front_mm'));
-  line('body_rear_mm', r.body.rear_mm, src('body.rear_mm'));
-  line('body_width_mm', r.body.width_mm, src('body.width_mm'));
-  if (r.caster.enabled) { line('caster_x_mm', r.caster.x_mm, src('caster.x_mm')); line('caster_diameter_mm', r.caster.diameter_mm, src('caster.diameter_mm')); if (r.caster.y_mm) line('caster_y_mm', r.caster.y_mm, src('caster.y_mm'), '+ = left of centre'); }
-  line('track_w_effective_mm', r.wheels.track_effective_mm, src('wheels.track_effective_mm'), 'CAL SPIN');
-  L.push(`# drive ${r.drive}${r.drive === '4wd' ? ` (skid steer), wheelbase ${r.wheels.wheelbase_mm} mm` : ''}`);
-  L.push('');
-  L.push('# Sensors: explicit poses "x_mm y_mm angle_deg" (Robot Tuner writes one line per sensor)');
-  const names = ['right', 'front', 'left'];
-  r.sensors.forEach((s, i) => {
-    const nm = r.sensors.length === 3 ? names[i] : (s.name || 's' + i);
-    L.push(`tof_pose_${nm.padEnd(14)} ${s.x_mm.toFixed(2)} ${s.y_mm.toFixed(2)} ${s.angle_deg}   # ${src('sensors.' + i, 'TYPED')}  ${s.type}`);
-  });
-  r.sensors.forEach((s, i) => {
-    const nm = r.sensors.length === 3 ? names[i] : (s.name || 's' + i);
-    line(`tof_bias_${nm}_mm`, s.bias_mm || 0, src(`sensors.${i}.bias_mm`, 'PLACEHOLDER'));
-  });
-  const s0 = r.sensors[0];
-  line('tof_max_range_mm', s0.max_mm, 'DATASHEET', s0.type);
-  line('tof_min_range_mm', s0.min_mm, 'DATASHEET');
-  line('tof_period_ms', Math.max(...r.sensors.map((s) => s.period_ms)), src('timing.loop_ms', 'DATASHEET'));
-  L.push('');
-  L.push('# Drive train');
-  line('enc_ticks_per_rev', r.wheels.ticks_per_rev, src('wheels.ticks_per_rev'), 'CAL TICKS');
-  line('wheel_scale_left', r.wheels.scale_l, src('wheels.scale_l'), 'CAL DRIVE');
-  line('wheel_scale_right', r.wheels.scale_r, src('wheels.scale_r'), 'CAL DRIVE');
-  line('max_speed_mps', r.motor.max_speed_mps, src('motor.max_speed_mps'), 'CAL MAXSPEED');
-  line('v_min_mps', r.motor.v_min_mps || 0, src('motor.v_min_mps', 'PLACEHOLDER'), 'CAL VMIN: slowest steady wheel speed');
-  line('pid_speed_frac', r.pid.speed_frac, src('pid.speed_frac', 'TYPED'), 'cruise = v_min + speed_frac (v_max - v_min)');
-  line('pwm_limit', r.motor.pwm_limit, src('motor.pwm_limit'));
-  line('wheel_pid_period_ms', r.motor.wheel_pid_period_ms, src('motor.wheel_pid_period_ms', 'ASSUMED'));
-  const r50 = r.motor.wheel_pid_period_ms / 50;  // inverse of wheel_pid.h ConvertGains (50 ms -> period)
-  line('wheel_kp_50ms', +(r.motor.wheel_kp * r50).toPrecision(4), src('motor.wheel_kp'));
-  line('wheel_ki_50ms', r.motor.wheel_ki, src('motor.wheel_ki'));
-  line('wheel_kd_50ms', +(r.motor.wheel_kd * r50 * r50).toPrecision(4), src('motor.wheel_kd'));
-  line('wheel_ff_gain_50ms', +(r.motor.ff_gain * r50).toPrecision(4), src('motor.ff_gain'), 'CAL FF');
-  line('wheel_ff_static', r.motor.ff_static, src('motor.ff_static'), 'CAL FF');
-  line('motor_k_left', r.motor.k_l, src('motor.k_l'));
-  line('motor_k_right', r.motor.k_r, src('motor.k_r'));
-  line('motor_static_left', r.motor.static_l, src('motor.static_l'));
-  line('motor_static_right', r.motor.static_r, src('motor.static_r'));
-  line('motor_breakaway_left', r.motor.breakaway_l, src('motor.breakaway_l'));
-  line('motor_breakaway_right', r.motor.breakaway_r, src('motor.breakaway_r'));
-  line('motor_tau_left_s', r.motor.tau_l_s, src('motor.tau_l_s'));
-  line('motor_tau_right_s', r.motor.tau_r_s, src('motor.tau_r_s'));
-  line('motor_nominal_v', r.motor.nominal_v, src('motor.nominal_v', 'ASSUMED'));
-  L.push('');
-  L.push('# Control timing');
-  line('control_period_ms', loopPeriodMs(r), src('timing.loop_ms', 'DERIVED'), 'measured loop period');
-  line('reading_age_ms', r.timing.age_ms, src('timing.age_ms', 'ASSUMED'), 'Robot Tuner key');
-  line('reading_age_jitter_ms', r.timing.age_jitter_ms, src('timing.age_jitter_ms', 'ASSUMED'), 'Robot Tuner key');
-  return L.join('\n') + '\n';
-}
-
+// ---- reading upstream robot_hardware.txt (Simulation-To-Real-Life). Not used by the site any more (the only file format is
+// the robot file, robotfile.js); the tests use it to check that our example robot equals the upstream file. ----
 /** Read the keys of a robot_hardware.txt (ours or upstream's) into a robot (missing keys keep `base`). */
 export function hardwareTxtToRobot(text, base = defaultRobot()) {
   const r = JSON.parse(JSON.stringify(base));

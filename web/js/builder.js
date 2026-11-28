@@ -1,6 +1,6 @@
-// builder.js - 1. ROBOT BUILDER: draw + edit the robot, sensor library, JSON / robot_hardware.txt.
+// builder.js - 1. ROBOT BUILDER: draw + edit the robot, sensor library, load / save the robot file.
 import { page, $, $$, el, t, download, pickFile, toast } from './common.js';
-import { loadRobot, saveRobot, defaultRobot, makeSensor, migrate, SENSOR_LIBRARY, SENSOR_FIELDS, robotToHardwareTxt, hardwareTxtToRobot, downloadName } from './store.js';
+import { loadRobot, saveRobot, defaultRobot, makeSensor, migrate, SENSOR_LIBRARY, SENSOR_FIELDS, downloadName } from './store.js';
 import { View, robotShapes, css, PALETTE } from './draw.js';
 import { usesBt, btName, BOARDS, pinLabel, pinTags, ENCODERS, DRIVERS, generateSketch, validateHardware, hasErrors, suggestPins, computedTicksPerRev, sketchTicks,
   isLowRes, edgesPerPulse, requiredLibraries, sensorWireName, normalizeHardware, defaultHardware, unoHardware } from './firmware-gen.js';
@@ -17,7 +17,6 @@ function commit(redrawForm = false) {
   saveRobot(R);
   if (redrawForm) buildForms();
   draw(); checks(); fwChecks();
-  $('#json').textContent = JSON.stringify(R, null, 1);
 }
 function mark(path, tag = 'TYPED') { R.source[path] = tag; }
 
@@ -232,11 +231,11 @@ $('#robot-name').addEventListener('input', (e) => { R.name = e.target.value; mar
 $('#drive').addEventListener('change', (e) => { R.drive = e.target.value; mark('drive'); if (R.drive === '4wd') R.caster.enabled = false; commit(true); fitRobot(); draw(); });
 $('#exp-file').addEventListener('click', () => download(downloadName(R, '.robot.txt'), robotToFile(R)));
 async function loadRobotFile() {
-  const f = await pickFile('.txt,text/plain,.json'); if (!f) return;   // older .json / robot_hardware.txt files still load
+  const f = await pickFile('.txt,text/plain'); if (!f) return;
   try {
-    if (/^\s*\{/.test(f.text)) R = migrate(JSON.parse(f.text));
-    else if (isRobotFile(f.text)) { const res = fileToRobot(f.text); R = res.robot; if (res.unknown.length) toast(t('builder.file_unknown', { keys: res.unknown.join(', ') }), 'warn'); }
-    else R = hardwareTxtToRobot(f.text, R);
+    if (!isRobotFile(f.text)) throw new Error(t('builder.not_robot_file'));
+    const res = fileToRobot(f.text); R = res.robot;
+    if (res.unknown.length) toast(t('builder.file_unknown', { keys: res.unknown.join(', ') }), 'warn');
     commit(true); fitRobot(); draw(); toast(t('builder.imported', { name: f.name }), 'ok');
   } catch (e) { toast(t('builder.import_err') + ' ' + e.message, 'bad'); }
 }
