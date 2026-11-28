@@ -395,6 +395,10 @@ export const PROTOCOL = [
     replies: ['OK CAL TICKS started: turn each wheel one revolution, then send CAL END'] },
   { cmd: 'CAL END', motion: 'hand', help: 'ends CAL TICKS', enc: true,
     replies: ['CAL TICKS result: left <ticks> right <ticks> per revolution', 'CAL suggestion: SET ticks_rev <ticks, 1 decimal>', 'ERR no CAL TICKS running'] },
+  { cmd: 'CAL CREEP L', motion: 'air', args: '[start pwm]', usage: 'CAL CREEP L|R [pwm] / STOP', help: 'turn ONE wheel slowly at the lowest PWM that moves it (from 20 up), until STOP (for CAL TICKS)', enc: true, def: 'PWM 20',
+    replies: ['OK CREEP <left> from PWM <pwm>', 'CREEP moving at PWM <pwm>', 'CREEP stopped'] },
+  { cmd: 'CAL CREEP R', motion: 'air', args: '[start pwm]', help: 'the same for the right wheel', enc: true, def: 'PWM 20',
+    replies: ['OK CREEP <right> from PWM <pwm>', 'CREEP moving at PWM <pwm>', 'CREEP stopped'] },
   { cmd: 'CAL MAXSPEED', motion: 'air', usage: 'CAL MAXSPEED', help: 'full power 1 s, wheels in the air -> top speed', enc: true,
     replies: ['CAL MAXSPEED: left <m/s> m/s, right <m/s> m/s at PWM <PWM_MAX>', 'CAL suggestion: SET max_speed <m/s>'] },
   { cmd: 'CAL FF', motion: 'air', usage: 'CAL FF', help: 'PWM sweep, wheels in the air -> deadband (ff_static) and PWM per speed (ff_gain)', enc: true,
@@ -422,7 +426,7 @@ export const PROTOCOL = [
       'CAL suggestion: SET v_min <m/s>', 'ERR CAL VMIN: a wheel never turned steadily'] },
   { cmd: 'RUN', motion: 'floor', args: '[s]', usage: 'RUN [s] / STOP', help: 'wall following with the PID below (constant cruise speed), default 10 s', def: '10 s',
     replies: ['OK RUN started (send STOP to stop)', 'RUN done', 'ERR RUN needs a left- and a right-looking sensor'] },
-  { cmd: 'STOP', motion: 'still', help: 'stops RUN', replies: ['RUN done'] },
+  { cmd: 'STOP', motion: 'still', help: 'stops RUN and CREEP', replies: ['RUN done', 'CREEP stopped'] },
   { cmd: 'CAL TOF', motion: 'still', args: '[n] [true_mm]', usage: 'CAL TOF [n] [true_mm]', help: 'n readings per sensor -> noise, bias, dropouts', def: 'n = 100',
     replies: ['CAL TOF <sensor name> n <count> mean <mm> mm std <mm> mm min <mm> max <mm> dropouts <count> (<%>%)   (one line per sensor)',
       'CAL TOF <sensor name> bias vs <true mm> mm: <+/-mm> mm   (only when true_mm is given)', 'CAL: TOF done'] },
@@ -1105,6 +1109,23 @@ void calDir() {
   Serial.print(F("CAL DIR: left ")); Serial.print(dl); Serial.print(F(" right ")); Serial.print(dr); Serial.print(F(" ticks at forward PWM ")); Serial.println(PWM_MAX / 2);
   Serial.print(F("CAL DIR result: left ")); Serial.print(dl > 0 ? F("OK") : F("WRONG")); Serial.print(F(" right ")); Serial.println(dr > 0 ? F("OK") : F("WRONG"));
 }
+// CREEP: one wheel turns slowly while CAL TICKS counts; the PWM starts at 20 (or the given value) and goes up by 2 every
+// 0.2 s until the wheel moves, then stays there. STOP ends it; the student then lines the mark up by hand (still counted).
+int creepW = -1, creepP = 0; bool creepMoving = false; long creepLast = 0; unsigned long creepT = 0;
+void creepOut() { setPwm(creepW == 0 ? creepP : 0, creepW == 1 ? creepP : 0); }
+void creepStart(int w, int p) {
+  creepW = w; creepP = constrain(p, 1, PWM_MAX); creepMoving = false; creepLast = w ? cntR() : cntL(); creepT = millis(); creepOut();
+  Serial.print(F("OK CREEP ")); Serial.print(w ? F("right") : F("left")); Serial.print(F(" from PWM ")); Serial.println(creepP);
+}
+void creepStop() { if (creepW < 0) return; creepW = -1; setPwm(0, 0); Serial.println(F("CREEP stopped")); }
+void creepTick() {
+  if (creepW < 0 || millis() - creepT < 200) return;
+  creepT = millis();
+  long c = creepW ? cntR() : cntL(), d = labs(c - creepLast); creepLast = c;
+  if (creepMoving) return;
+  if (d >= 2) { creepMoving = true; Serial.print(F("CREEP moving at PWM ")); Serial.println(creepP); }
+  else if (creepP < PWM_MAX) { creepP = min(PWM_MAX, creepP + 2); creepOut(); }
+}
 void calTimed(unsigned long ms) {
   // open loop: no encoders needed. Measure the distance and divide by the time (minus about one time constant)
   setPwm(PWM_MAX, PWM_MAX); waitMs(ms); setPwm(0, 0);
@@ -1231,7 +1252,7 @@ float parseNum(const char* p) {   // small decimal parser ("1.75", "-0.2"): no s
 }
 bool needsEncoders(const char* u) {
   return IS("CAL TICKS") || IS("CAL END") || IS("CAL MAXSPEED") || IS("CAL FF") || STARTS("CAL STEP") || STARTS("CAL DRIVE")
-    || STARTS("CAL DIST") || STARTS("CAL SPIN") || STARTS("CAL TURNS") || IS("CAL VMIN") || IS("CAL DIR");
+    || STARTS("CAL DIST") || STARTS("CAL SPIN") || STARTS("CAL TURNS") || IS("CAL VMIN") || IS("CAL DIR") || STARTS("CAL CREEP L") || STARTS("CAL CREEP R");
 }
 void handle(const char* c) {
   // trimmed, upper case; the calibration commands also work without "CAL": TICKS, SPIN 5, TOF 200 200 ...
@@ -1265,7 +1286,9 @@ void handle(const char* c) {
   else if (IS("CAL VMIN")) calVmin();
   else if (IS("CAL DIR")) calDir();
   else if (STARTS("CAL RUN")) runStart(a1 > 0 ? a1 : 10.0f);
-  else if (IS("CAL STOP")) runStop();
+  else if (IS("CAL STOP")) { runStop(); creepStop(); }
+  else if (STARTS("CAL CREEP L")) creepStart(0, a2 > 0 ? (int)a2 : 20);
+  else if (STARTS("CAL CREEP R")) creepStart(1, a2 > 0 ? (int)a2 : 20);
   else if (STARTS("CAL TOF")) calTof(a1 > 0 ? (int)a1 : 100, a2);
   else if (IS("CAL PING")) { Serial.print(F("PONG ")); Serial.println(cmdFromBt ? F("bluetooth") : F("usb")); }
   else if (IS("STATUS")) status();
@@ -1279,6 +1302,7 @@ void loop() {
   // the "control loop": the sensors deliver readings at their own pace; STATUS reports the period of a full set
   idle(true);
   if (running) runTick();
+  creepTick();
   while (Serial.available()) {
     char ch = Serial.read();
     if (ch == '\n') { line[lineLen] = 0; handle(line); lineLen = 0; }

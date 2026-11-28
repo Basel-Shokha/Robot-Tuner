@@ -6,7 +6,7 @@ import { PROTOCOL } from './firmware-gen.js';
 import { stepMedia } from './measure-media.js';
 
 // the animation each command's popup shows (measure-media.js ids)
-const MEDIA = { dir: 'maxspeed', ticks: 'ticks', maxspeed: 'maxspeed', vmin: 'vmin', ff: 'ff', step: 'step', timed: 'timed', drive: 'drive', dist: 'drive',
+const MEDIA = { dir: 'maxspeed', ticks: 'ticks', creep_l: 'ticks', creep_r: 'ticks', maxspeed: 'maxspeed', vmin: 'vmin', ff: 'ff', step: 'step', timed: 'timed', drive: 'drive', dist: 'drive',
   spin: 'spin', turns: 'spin', run: 'drive', tof: 'tof' };
 export const motionOf = (cmd) => (PROTOCOL.find((p) => p.cmd === cmd) || {}).motion || 'still';
 export function motionBadge(m) { return el('span', { class: 'motion m-' + m, title: t('cmd.m_' + m + '_h'), text: t('cmd.m_' + m) }); }
@@ -38,6 +38,8 @@ export const BUTTONS = [
   { group: 'wheels', cmd: 'CAL DIR', id: 'dir' },
   { group: 'wheels', cmd: 'CAL TICKS', id: 'ticks' },
   { group: 'wheels', cmd: 'CAL END', id: 'end' },
+  { group: 'wheels', cmd: 'CAL CREEP L', id: 'creep_l' },
+  { group: 'wheels', cmd: 'CAL CREEP R', id: 'creep_r' },
   { group: 'wheels', cmd: 'CAL MAXSPEED', id: 'maxspeed' },
   { group: 'wheels', cmd: 'CAL VMIN', id: 'vmin' },
   { group: 'wheels', cmd: 'CAL FF', id: 'ff' },

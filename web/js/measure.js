@@ -50,11 +50,17 @@ const STEPS = [
   { id: 'physical', physical: true },
   { id: 'ticks', enc: true, fields: [['ms.f.ticks', () => R.wheels.ticks_per_rev, (v) => { R.wheels.ticks_per_rev = v; }, '', 'wheels.ticks_per_rev']],
     async run(ui) {
-      // one count over all N turns: CAL TICKS, the student turns each wheel N full turns, CAL END; ticks per turn = total / N
+      // one count over all N turns, one wheel at a time: the robot turns the wheel slowly (CAL CREEP, lowest PWM that moves it),
+      // the student presses Stop near N turns and lines the mark up by hand (back or forth: still counted). Ticks per turn = total / N
       const n = reps.ticks;
       await link.send('CAL TICKS');
-      ui.ask(t('ms.ticks.ask_n', { n }), t('ms.ticks.done_n', { n }));
-      await ui.answered();
+      for (const side of ['L', 'R']) {
+        const name = t(side === 'L' ? 'fw.left' : 'fw.right'), Name = name.charAt(0).toUpperCase() + name.slice(1);
+        ui.ask(t('ms.ticks.side', { side: Name, n }), t('ms.ticks.side_done', { side: Name, n }));
+        ui.controls([[t('ms.ticks.creep', { side: name }), () => link.send('CAL CREEP ' + side), 'primary'], [t('ms.ticks.stop'), () => link.send('STOP'), 'danger']]);
+        await ui.answered();
+        await link.send('STOP');
+      }
       const got = link.waitFor(P.parseTicks, 5000);
       await link.send('CAL END');
       const tot = await got;
@@ -285,6 +291,11 @@ function makeUI(out, s) {
       out.append(el('div', { class: 'ask stack' }, el('p', { class: 'notice', text }), el('button', { class: 'primary', text: btn, onclick: (ev) => { ev.target.disabled = true; if (resolveAns) resolveAns(); } })));
     },
     answered() { return new Promise((r) => { resolveAns = r; }); },
+    /** a row of extra buttons under the current question: [[label, onclick, class], ...] */
+    controls(list) {
+      const q = out.querySelector('.ask');
+      (q || out).append(el('div', { class: 'row' }, ...list.map(([label, fn, cls]) => el('button', { class: cls || '', text: label, onclick: fn }))));
+    },
     askNumber(text, unit) {
       return new Promise((res) => {
         const inp = el('input', { type: 'number', step: 'any' });

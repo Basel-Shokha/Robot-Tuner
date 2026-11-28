@@ -1213,7 +1213,17 @@
  "link.via_usb": "",
  "link.bt_connected": "",
  "link.bt_disconnected": "",
- "ms.ticks.ask_n": "",
- "ms.ticks.done_n": "",
- "ms.rep.total": ""
+ "ms.rep.total": "",
+ "ms.ticks.side": "",
+ "ms.ticks.side_done": "",
+ "ms.ticks.creep": "",
+ "ms.ticks.stop": "",
+ "cmd.creep_l": "",
+ "cmd.creep_l_h": "",
+ "cmd.creep_l_do": "",
+ "cmd.creep_l_next": "",
+ "cmd.creep_r": "",
+ "cmd.creep_r_h": "",
+ "cmd.creep_r_do": "",
+ "cmd.creep_r_next": ""
 }

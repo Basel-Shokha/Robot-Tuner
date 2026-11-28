@@ -10,6 +10,7 @@
 //
 // Commands (115200 baud, one per line; every CAL command also works without the word CAL):
 //   CAL TICKS / CAL END        turn each wheel one revolution by hand -> ticks per revolution
+//   CAL CREEP L|R [pwm] / STOP turn ONE wheel slowly at the lowest PWM that moves it (from 20 up), until STOP (for CAL TICKS)
 //   CAL MAXSPEED               full power 1 s, wheels in the air -> top speed
 //   CAL FF                     PWM sweep, wheels in the air -> deadband (ff_static) and PWM per speed (ff_gain)
 //   CAL STEP [m/s]             speed step with a simple wheel PI -> time constant
@@ -409,6 +410,23 @@ void calDir() {
   RT_IO.print(F("CAL DIR: left ")); RT_IO.print(dl); RT_IO.print(F(" right ")); RT_IO.print(dr); RT_IO.print(F(" ticks at forward PWM ")); RT_IO.println(PWM_MAX / 2);
   RT_IO.print(F("CAL DIR result: left ")); RT_IO.print(dl > 0 ? F("OK") : F("WRONG")); RT_IO.print(F(" right ")); RT_IO.println(dr > 0 ? F("OK") : F("WRONG"));
 }
+// CREEP: one wheel turns slowly while CAL TICKS counts; the PWM starts at 20 (or the given value) and goes up by 2 every
+// 0.2 s until the wheel moves, then stays there. STOP ends it; the student then lines the mark up by hand (still counted).
+int creepW = -1, creepP = 0; bool creepMoving = false; long creepLast = 0; unsigned long creepT = 0;
+void creepOut() { setPwm(creepW == 0 ? creepP : 0, creepW == 1 ? creepP : 0); }
+void creepStart(int w, int p) {
+  creepW = w; creepP = constrain(p, 1, PWM_MAX); creepMoving = false; creepLast = w ? cntR() : cntL(); creepT = millis(); creepOut();
+  RT_IO.print(F("OK CREEP ")); RT_IO.print(w ? F("right") : F("left")); RT_IO.print(F(" from PWM ")); RT_IO.println(creepP);
+}
+void creepStop() { if (creepW < 0) return; creepW = -1; setPwm(0, 0); RT_IO.println(F("CREEP stopped")); }
+void creepTick() {
+  if (creepW < 0 || millis() - creepT < 200) return;
+  creepT = millis();
+  long c = creepW ? cntR() : cntL(), d = labs(c - creepLast); creepLast = c;
+  if (creepMoving) return;
+  if (d >= 2) { creepMoving = true; RT_IO.print(F("CREEP moving at PWM ")); RT_IO.println(creepP); }
+  else if (creepP < PWM_MAX) { creepP = min(PWM_MAX, creepP + 2); creepOut(); }
+}
 void calTimed(unsigned long ms) {
   // open loop: no encoders needed. Measure the distance and divide by the time (minus about one time constant)
   setPwm(PWM_MAX, PWM_MAX); waitMs(ms); setPwm(0, 0);
@@ -535,7 +553,7 @@ float parseNum(const char* p) {   // small decimal parser ("1.75", "-0.2"): no s
 }
 bool needsEncoders(const char* u) {
   return IS("CAL TICKS") || IS("CAL END") || IS("CAL MAXSPEED") || IS("CAL FF") || STARTS("CAL STEP") || STARTS("CAL DRIVE")
-    || STARTS("CAL DIST") || STARTS("CAL SPIN") || STARTS("CAL TURNS") || IS("CAL VMIN") || IS("CAL DIR");
+    || STARTS("CAL DIST") || STARTS("CAL SPIN") || STARTS("CAL TURNS") || IS("CAL VMIN") || IS("CAL DIR") || STARTS("CAL CREEP L") || STARTS("CAL CREEP R");
 }
 void handle(const char* c) {
   // trimmed, upper case; the calibration commands also work without "CAL": TICKS, SPIN 5, TOF 200 200 ...
@@ -569,7 +587,9 @@ void handle(const char* c) {
   else if (IS("CAL VMIN")) calVmin();
   else if (IS("CAL DIR")) calDir();
   else if (STARTS("CAL RUN")) runStart(a1 > 0 ? a1 : 10.0f);
-  else if (IS("CAL STOP")) runStop();
+  else if (IS("CAL STOP")) { runStop(); creepStop(); }
+  else if (STARTS("CAL CREEP L")) creepStart(0, a2 > 0 ? (int)a2 : 20);
+  else if (STARTS("CAL CREEP R")) creepStart(1, a2 > 0 ? (int)a2 : 20);
   else if (STARTS("CAL TOF")) calTof(a1 > 0 ? (int)a1 : 100, a2);
   else if (IS("CAL PING")) { RT_IO.print(F("PONG ")); RT_IO.println(cmdFromBt ? F("bluetooth") : F("usb")); }
   else if (IS("STATUS")) status();
@@ -583,6 +603,7 @@ void loop() {
   // the "control loop": the sensors deliver readings at their own pace; STATUS reports the period of a full set
   idle(true);
   if (running) runTick();
+  creepTick();
   while (RT_IO.available()) {
     char ch = RT_IO.read();
     if (ch == '\n') { line[lineLen] = 0; handle(line); lineLen = 0; }
