@@ -420,3 +420,4 @@ button.danger { background: var(--red); color: #fff; border-color: var(--red); }
 .pwm-row { align-items: center; gap: 8px; }
 .pwm-val { min-width: 2.5em; text-align: center; font-size: 1.1rem; }
 .pwm-row button { min-width: 36px; font-size: 1.1rem; }
+input.pwm-val { width: 4.5em; }

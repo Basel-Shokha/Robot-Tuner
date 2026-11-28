@@ -64,11 +64,13 @@ const STEPS = [
         // PWM of the slow turn, from the robot's replies; - stops at the lowest PWM where this wheel moved
         const word = side === 'L' ? 'left' : 'right';
         let pwm = null, minPwm = null, turning = false;
-        const pwmTxt = el('b', { class: 'num pwm-val', text: '–' });
+        const pwmTxt = el('input', { type: 'number', class: 'num pwm-val', min: 1, max: 255, step: 1, 'aria-label': 'PWM' });
+        const setBtn = el('button', { class: 'small', text: t('ms.ticks.set') });
         const minus = el('button', { class: 'small', text: '−', 'aria-label': t('ms.ticks.slower') });
         const plus = el('button', { class: 'small', text: '+', 'aria-label': t('ms.ticks.faster') });
         const upd = () => {
-          pwmTxt.textContent = pwm === null ? '–' : String(pwm);
+          if (document.activeElement !== pwmTxt) pwmTxt.value = pwm === null ? '' : String(pwm);
+          pwmTxt.disabled = setBtn.disabled = !turning;
           minus.disabled = !turning || pwm === null || minPwm === null || pwm - 2 < minPwm;
           plus.disabled = !turning || pwm === null || pwm >= 255;
         };
@@ -83,13 +85,17 @@ const STEPS = [
         const creep = (p) => { turning = true; link.send('CAL CREEP ' + side + (p ? ' ' + p : '')); state.textContent = t('ms.ticks.turning'); upd(); };
         minus.addEventListener('click', () => creep(Math.max(minPwm || 1, pwm - 2)));
         plus.addEventListener('click', () => creep(Math.min(255, pwm + 2)));
+        // any PWM up to 255 (the student's call); below the lowest PWM where the wheel moved it would only stall
+        const typed = () => { const v = Math.round(+pwmTxt.value); if (!Number.isFinite(v) || v < 1) return; creep(Math.min(255, Math.max(minPwm || 1, v))); };
+        setBtn.addEventListener('click', typed);
+        pwmTxt.addEventListener('keydown', (e) => { if (e.key === 'Enter') { typed(); pwmTxt.blur(); } });
         upd();
         const box = el('section', { class: 'card stack wheel-box' }, el('h4', { text: t('ms.ticks.wheel_h', { side: Name }) }),
           el('p', { text: t('ms.ticks.side', { side: Name, n }) }),
           el('div', { class: 'row' },
             el('button', { text: t('ms.ticks.creep', { side: name }), onclick: () => creep(null) }),
             el('button', { class: 'danger', text: t('ms.ticks.stop'), onclick: () => { link.send('STOP'); turning = false; state.textContent = t('ms.ticks.stopped'); upd(); } })),
-          el('div', { class: 'row pwm-row' }, el('span', { text: t('ms.ticks.pwm') }), minus, pwmTxt, plus,
+          el('div', { class: 'row pwm-row' }, el('span', { text: t('ms.ticks.pwm') }), minus, pwmTxt, plus, setBtn,
             el('small', { class: 'muted', text: t('ms.ticks.pwm_note') })),
           state, ok);
         ok.addEventListener('click', async () => {
