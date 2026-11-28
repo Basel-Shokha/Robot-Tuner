@@ -35,7 +35,7 @@ export const BOARDS = {
     adcMv: 5000, adcMax: 1023,
   },
   esp32: {
-    label: 'ESP32 (ESP32-WROOM-32 DevKit)', fqbn: 'esp32:esp32:esp32', arch: 'esp32', analogBase: -1,
+    label: 'ESP32', fqbn: 'esp32:esp32:esp32', arch: 'esp32', analogBase: -1,
     pins: [0, 1, 2, 3, 4, 5, 12, 13, 14, 15, 16, 17, 18, 19, 21, 22, 23, 25, 26, 27, 32, 33, 34, 35, 36, 39],
     inputOnly: [34, 35, 36, 39],    // no output, no internal pull-up / pull-down
     pwm: [0, 1, 2, 3, 4, 5, 12, 13, 14, 15, 16, 17, 18, 19, 21, 22, 23, 25, 26, 27, 32, 33],
