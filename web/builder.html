@@ -18,11 +18,11 @@
         </div>
       </div>
       <div class="tabs" role="tablist">
+        <button role="tab" data-tab="file" data-i18n="builder.tab_file"></button>
         <button role="tab" data-tab="geom" aria-selected="true" data-i18n="builder.tab_geom"></button>
         <button role="tab" data-tab="sensors" data-i18n="builder.tab_sensors"></button>
         <button role="tab" data-tab="motor" data-i18n="builder.tab_motor"></button>
         <button role="tab" data-tab="firmware" data-i18n="builder.tab_fw"></button>
-        <button role="tab" data-tab="file" data-i18n="builder.tab_file"></button>
       </div>
       <div data-panel="geom" class="stack"></div>
       <div data-panel="sensors" class="stack" hidden></div>
@@ -31,8 +31,8 @@
       <div data-panel="file" class="stack" hidden>
         <div class="card stack">
           <h3 data-i18n="builder.robotfile_h"></h3>
+          <div class="row"><button class="primary big" id="imp-file" data-i18n="builder.import_file"></button><button id="exp-file" data-i18n="builder.export_file"></button></div>
           <p class="muted" data-i18n="builder.robotfile_p"></p>
-          <div class="row"><button class="primary" id="exp-file" data-i18n="builder.export_file"></button><button id="imp-file" data-i18n="builder.import_file"></button></div>
         </div>
         <div class="card stack">
           <h3 data-i18n="builder.file_h"></h3>

@@ -42,7 +42,7 @@
  "builder.tab_sensors": "Sensors",
  "builder.tab_motor": "Motors & timing",
  "builder.tab_fw": "Firmware",
- "builder.tab_file": "File",
+ "builder.tab_file": "📂 Load / Save",
  "builder.body_h": "Body (outline used for collisions)",
  "builder.front": "Front edge ahead of the axle",
  "builder.rear": "Rear edge behind the axle",
