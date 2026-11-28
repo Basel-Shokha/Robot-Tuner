@@ -95,9 +95,16 @@ export function ensureBtName(r) {
 }
 export function saveRobot(r) {
   ensureBtName(r);
-  try { localStorage.setItem(KEY, JSON.stringify(r)); } catch (e) { /* ignore */ }
+  try {
+    const prev = localStorage.getItem(KEY), next = JSON.stringify(r);
+    if (prev !== null && prev !== next) localStorage.setItem(KEY + '.dirty', '1');   // changed since the last saved robot file
+    localStorage.setItem(KEY, next);
+  } catch (e) { /* ignore */ }
   window.dispatchEvent(new CustomEvent('robot-changed', { detail: r }));
 }
+/** changes since the last saved (downloaded) robot file? */
+export function isDirty() { try { return localStorage.getItem(KEY + '.dirty') === '1'; } catch (e) { return false; } }
+export function markSaved() { try { localStorage.removeItem(KEY + '.dirty'); } catch (e) { /* ignore */ } }
 /** Fill any missing field from the defaults (older files, hand-written files). Throws on a foreign file. */
 export function migrate(r) {
   if (!r || typeof r !== 'object') throw new Error('not a robot');

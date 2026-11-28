@@ -6,7 +6,8 @@ import { usesBt, btName, BOARDS, pinLabel, pinTags, ENCODERS, DRIVERS, generateS
   isLowRes, edgesPerPulse, requiredLibraries, sensorWireName, normalizeHardware, defaultHardware, unoHardware } from './firmware-gen.js';
 import { choiceBar, mountOwn, isOwnMode } from './own-code-ui.js';
 import { robotToFile, fileToRobot, isRobotFile, allFields } from './robotfile.js';
-import { isSet } from './store.js';
+import { isSet, markSaved } from './store.js';
+import { saveRobotFile, guardLeave } from './save-reminder.js';
 
 await page();
 let R = loadRobot();
@@ -229,14 +230,15 @@ $$('[role="tab"]').forEach((b) => b.addEventListener('click', () => {
 }));
 $('#robot-name').addEventListener('input', (e) => { R.name = e.target.value; mark('name'); commit(); });
 $('#drive').addEventListener('change', (e) => { R.drive = e.target.value; mark('drive'); if (R.drive === '4wd') R.caster.enabled = false; commit(true); fitRobot(); draw(); });
-$('#exp-file').addEventListener('click', () => download(downloadName(R, '.robot.txt'), robotToFile(R)));
+$('#exp-file').addEventListener('click', () => saveRobotFile(R));
+guardLeave();
 async function loadRobotFile() {
   const f = await pickFile('.txt,text/plain'); if (!f) return;
   try {
     if (!isRobotFile(f.text)) throw new Error(t('builder.not_robot_file'));
     const res = fileToRobot(f.text); R = res.robot;
     if (res.unknown.length) toast(t('builder.file_unknown', { keys: res.unknown.join(', ') }), 'warn');
-    commit(true); fitRobot(); draw(); toast(t('builder.imported', { name: f.name }), 'ok');
+    commit(true); fitRobot(); draw(); markSaved(); toast(t('builder.imported', { name: f.name }), 'ok');
   } catch (e) { toast(t('builder.import_err') + ' ' + e.message, 'bad'); }
 }
 $('#imp-file').addEventListener('click', loadRobotFile);

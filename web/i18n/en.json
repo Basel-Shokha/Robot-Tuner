@@ -1220,5 +1220,10 @@
  "ms.connect_usb": "Connect USB",
  "ms.connect_ble": "Connect Bluetooth",
  "ms.no_ble": "This browser has no Web Bluetooth: use Chrome or Edge.",
- "ms.floor_first": "This step drives the robot: connect over Bluetooth first (robot on battery, no cable)."
+ "ms.floor_first": "This step drives the robot: connect over Bluetooth first (robot on battery, no cable).",
+ "save.h": "Save your work",
+ "save.p": "{n} measurements done. Save your robot file now, so nothing is lost if the browser data is cleared or you switch computers.",
+ "save.btn": "Save robot file",
+ "save.later": "Not now",
+ "save.done": "Robot file saved (check your Downloads)."
 }

@@ -2,6 +2,7 @@
 import { page, $, el, t, toast } from './common.js';
 import { commandButtons, motionBadge } from './cmd-buttons.js';
 import { linkStatus, btHelp, connectButtons } from './link-status.js';
+import { measurementDone, guardLeave, saveRobotFile } from './save-reminder.js';
 const STEP_MOTION = { ticks: 'hand', maxspeed: 'air', vmin: 'air', ff: 'air', step: 'air', drive: 'floor', spin: 'floor', timed: 'floor', tof: 'still', timing: 'still' };
 import { loadRobot, saveRobot } from './store.js';
 import { RobotLink, serialSupported, bleSupported } from './serial.js';
@@ -34,7 +35,8 @@ const sendCmd = () => { const c = expandCommand($('#cmd').value); if (c && link.
 $('#send').addEventListener('click', sendCmd);
 $('#cmd').addEventListener('keydown', (e) => { if (e.key === 'Enter') sendCmd(); });
 
-function save(paths) { for (const p of paths) R.source[p] = 'MEASURED'; saveRobot(R); toast(t('ms.saved'), 'ok'); render(); }
+function save(paths) { for (const p of paths) R.source[p] = 'MEASURED'; saveRobot(R); toast(t('ms.saved'), 'ok'); render(); measurementDone(() => R, paths[0]); }
+guardLeave();
 const tofNames = () => R.sensors.map(sensorWireName);  // the names the generated sketch prints
 const hwOf = () => normalizeHardware(R.hardware, R.sensors.length);
 
@@ -289,7 +291,7 @@ function stepCard(s, n, hw) {
     for (const [lab, get, set, unit, path] of s.fields) {
       const inp = el('input', { type: 'number', step: 'any', value: get() });
       man.append(el('label', { class: 'field' }, el('span', { text: (lab.startsWith('ms.') ? t(lab) : lab) + (unit ? ` (${unit})` : '') }), inp));
-      inp.addEventListener('change', () => { const v = parseFloat(inp.value); if (Number.isFinite(v)) { set(v); R.source[path] = 'MEASURED'; saveRobot(R); } });
+      inp.addEventListener('change', () => { const v = parseFloat(inp.value); if (Number.isFinite(v)) { set(v); R.source[path] = 'MEASURED'; saveRobot(R); measurementDone(() => R, s.id); } });
     }
     if (s.id === 'ticks' || s.id === 'spin') man.append(calcBox(s.id, man));
     man.append(el('small', { class: 'muted', text: t('ms.type_note') }));

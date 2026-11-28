@@ -1222,5 +1222,10 @@
  "ms.connect_usb": "",
  "ms.connect_ble": "",
  "ms.no_ble": "",
- "ms.floor_first": ""
+ "ms.floor_first": "",
+ "save.h": "",
+ "save.p": "",
+ "save.btn": "",
+ "save.later": "",
+ "save.done": ""
 }
