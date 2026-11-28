@@ -1216,6 +1216,5 @@
  "ms.ticks.pwm": "PWM",
  "ms.ticks.slower": "slower (PWM − 2)",
  "ms.ticks.faster": "faster (PWM + 2)",
- "ms.ticks.pwm_note": "Type any PWM up to 255 and press Set (or Enter), or use − / + (2 at a time). Not below the lowest PWM where this wheel moved.",
- "ms.ticks.set": "Set"
+ "ms.ticks.pwm_note": "− / + change the PWM by 2, up to 255. − stops at the lowest PWM where this wheel moved."
 }
