@@ -97,6 +97,7 @@ export function defaultHardware() {
     encoder: { type: 'quadrature', avr_mode: 'x1', ppr: 7, gear: 296.125, left: { a: 32, b: 33 }, right: { a: 27, b: 26 }, sign_l: -1, sign_r: -1,
       as5600_bus: 'mux', mux_addr: 0x70, mux_ch_l: 0, mux_ch_r: 1, sda2: 16, scl2: 17 },
     i2c: { sda: 21, scl: 22 },
+    bt: true, bt_name: '',   // ESP32: Bluetooth serial next to USB (classic ESP32 only; S3 / C3 / C6 have no classic Bluetooth)
     // index-aligned with robot.sensors (right, front, left)
     sensors: [{ xshut: 18, addr: 0x32, trig: -1, echo: -1, analog: -1 }, { xshut: 23, addr: 0x31, trig: -1, echo: -1, analog: -1 },
       { xshut: 5, addr: 0x30, trig: -1, echo: -1, analog: -1 }],
@@ -110,6 +111,7 @@ export function unoHardware() {
     encoder: { type: 'quadrature', avr_mode: 'x1', ppr: 11, gear: 30, left: { a: 2, b: 4 }, right: { a: 3, b: 7 }, sign_l: 1, sign_r: 1,
       as5600_bus: 'mux', mux_addr: 0x70, mux_ch_l: 0, mux_ch_r: 1, sda2: -1, scl2: -1 },
     i2c: { sda: 18, scl: 19 },
+    bt: true, bt_name: '',
     sensors: [{ xshut: 14, addr: 0x30, trig: -1, echo: -1, analog: -1 }, { xshut: 15, addr: 0x31, trig: -1, echo: -1, analog: -1 },
       { xshut: 16, addr: 0x32, trig: -1, echo: -1, analog: -1 }],
   };
@@ -155,6 +157,13 @@ export function isLowRes(hw, ticks) {
 function usesPcnt(hw, ticks) { return hw.board === 'esp32' && hw.encoder.type === 'quadrature' && !isLowRes(hw, ticks); }
 function avrX4(hw) { return BOARDS[hw.board].arch === 'avr' && hw.encoder.type === 'quadrature' && hw.encoder.avr_mode === 'x4'; }
 
+/** ESP32 with Bluetooth serial switched on */
+export const usesBt = (hw) => hw.board === 'esp32' && hw.bt !== false;
+/** the Bluetooth device name the student pairs with */
+export function btName(robot, hw) {
+  const n = String(hw.bt_name || ('RobotTuner-' + String(robot.name || 'robot'))).replace(/[^A-Za-z0-9_-]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+  return (n || 'RobotTuner').slice(0, 24).replace(/-$/, '');
+}
 export function sensorWireName(s, i) {
   const n = String((s && s.name) || ['right', 'front', 'left'][i] || 's' + i).toLowerCase().replace(/\W+/g, '_').replace(/^_+|_+$/g, '');
   return n || 's' + i;
@@ -499,11 +508,33 @@ export function generateSketch(robot, hwIn) {
       '// answer "ERR ... needs wheel encoders". Without encoders the wheels are driven open loop: the two motors never',
       '// run at exactly the same speed, so the robot curves and every turn drifts. Use CAL TIMED to estimate the top speed.', '');
   }
+  const bt = usesBt(hw);
+  if (bt) {
+    w('// BLUETOOTH SERIAL (classic ESP32): the robot answers over USB AND Bluetooth at the same time. Pair the PC once with',
+      `// "${btName(robot, hw)}" (Windows: Settings -> Bluetooth -> Add device; it gets a COM port "Standard Serial over Bluetooth"),`,
+      '// then press CONNECT in Robot Tuner and pick that port: the robot can drive on the floor without a cable.',
+      '// ESP32-S3 / C3 / C6 have no classic Bluetooth: switch it off in Robot builder -> Firmware.',
+      '#include "BluetoothSerial.h"', '');
+  }
   if (i2c) w('#include <Wire.h>');
   if (pcnt) w('#include <driver/pulse_cnt.h>   // ESP-IDF PCNT driver, part of the esp32 board package (core 3.x and 4.x)');
   if (needsPcint(hw)) w('#include <PinChangeInterrupt.h>');
   if (kinds.includes('l0x')) w('#include <VL53L0X.h>');
   if (kinds.includes('l1x')) w('#include <VL53L1X.h>');
+  if (bt) {
+    w('BluetoothSerial SerialBT;',
+      '// RT_IO: every reply goes to USB and Bluetooth; commands are read from both',
+      'class TeeIO : public Stream {',
+      ' public:',
+      '  size_t write(uint8_t c) override { USB_SERIAL_.write(c); SerialBT.write(c); return 1; }',
+      '  size_t write(const uint8_t* b, size_t n) override { USB_SERIAL_.write(b, n); SerialBT.write(b, n); return n; }',
+      '  int available() override { return USB_SERIAL_.available() + SerialBT.available(); }',
+      '  int read() override { return USB_SERIAL_.available() ? USB_SERIAL_.read() : SerialBT.read(); }',
+      '  int peek() override { return USB_SERIAL_.available() ? USB_SERIAL_.peek() : SerialBT.peek(); }',
+      '  void flush() override { USB_SERIAL_.flush(); SerialBT.flush(); }',
+      '};',
+      'TeeIO RT_IO;');
+  } else w('#define RT_IO Serial   // replies and commands: USB serial');
   w('', '#ifndef IRAM_ATTR', '#define IRAM_ATTR', '#endif',
     'struct Meter { long pl, pr; unsigned long us; };   // wheel speed meter (declared first for the Arduino prototype generator)', '');
 
@@ -881,7 +912,9 @@ export function generateSketch(robot, hwIn) {
     `const float SENSOR_MAX_M[N_SENSORS] = {${robot.sensors.map((q) => f(q.max_mm / 1000, 3) + 'f').join(', ')}};   // no reading = nothing within range`,
     `#define CAN_RUN ${robot.sensors.length >= 2 && li !== ri ? 1 : 0}`, '');
   w(CORE);
-  return { code: C.join('\n') + '\n', libraries: libs, messages: validateHardware(robot, hw), ticks, lowRes, fileName: 'robot_tuner_min.ino', fqbn: B.fqbn };
+  const code = C.join('\n').replace(/\bSerial\.(print|println|available|read)\(/g, 'RT_IO.$1(')
+    .replace(/USB_SERIAL_\./g, 'Serial.').replace('  BT_BEGIN', bt ? `  SerialBT.begin("${btName(robot, hw)}");   // Bluetooth device name` : '').replace(/\n\n(?=void setup)/, '\n\n');
+  return { code: code + '\n', libraries: libs, messages: validateHardware(robot, hw), ticks, lowRes, fileName: 'robot_tuner_min.ino', fqbn: B.fqbn };
 }
 
 // The calibration protocol. Every printed result line is parsed by web/js/measure-steps.js: keep them identical.
@@ -939,6 +972,7 @@ char line[64]; int lineLen = 0;   // the command being typed
 
 void setup() {
   Serial.begin(${BAUD});
+  BT_BEGIN
   motorsSetup();
   setPwm(0, 0);
   i2cSetup();

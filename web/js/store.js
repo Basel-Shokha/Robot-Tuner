@@ -217,6 +217,7 @@ export function robotToHardwareTxt(r) {
     L.push('# Board / pins (Robot builder -> Firmware)');
     L.push(`board                    ${hw.board.padStart(10)}   # TYPED  ${BOARDS[hw.board].label}`);
     L.push(`motor_driver             ${hw.driver.type.padStart(10)}   # TYPED  in1_in2 | pwm_dir | en_in1_in2`);
+    if (hw.board === 'esp32') { L.push(`bluetooth                ${(hw.bt !== false ? 'yes' : 'no').padStart(10)}   # TYPED  serial over Bluetooth (classic ESP32)`); if (hw.bt_name) L.push(`bluetooth_name           ${hw.bt_name.padStart(10)}   # TYPED`); }
     L.push(`encoder_type             ${hw.encoder.type.padStart(10)}   # TYPED  quadrature | single | as5600 | none`);
     // upstream names: *_pwm = PWM / IN1, *_dir = DIR / IN2
     for (const [side, m] of [['right', hw.driver.right], ['left', hw.driver.left]]) {
@@ -369,6 +370,8 @@ function readPins(r, kv, words) {
     if (has(`pin_enc_${side}_b`)) c.b = kv[`pin_enc_${side}_b`];
   }
   if (['brake', 'coast'].includes(words.motor_stop)) hw.driver.stop = words.motor_stop;
+  if (words.bluetooth === 'yes' || words.bluetooth === 'no') hw.bt = words.bluetooth === 'yes';
+  if (words.bluetooth_name) hw.bt_name = words.bluetooth_name;
   if (['x1', 'x4'].includes(words.enc_decoding)) hw.encoder.avr_mode = words.enc_decoding;
   if (['mux', 'two_buses'].includes(words.as5600_bus)) hw.encoder.as5600_bus = words.as5600_bus;
   for (const [key, obj, field] of [['pin_motor_stby', hw.driver, 'stby'], ['enc_ppr', hw.encoder, 'ppr'], ['enc_gear', hw.encoder, 'gear'], ['as5600_mux_addr', hw.encoder, 'mux_addr'],

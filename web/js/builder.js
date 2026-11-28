@@ -2,7 +2,7 @@
 import { page, $, $$, el, t, download, pickFile, toast } from './common.js';
 import { loadRobot, saveRobot, defaultRobot, makeSensor, migrate, SENSOR_LIBRARY, SENSOR_FIELDS, robotToHardwareTxt, hardwareTxtToRobot, downloadName } from './store.js';
 import { View, robotShapes, css, PALETTE } from './draw.js';
-import { BOARDS, pinLabel, pinTags, ENCODERS, DRIVERS, generateSketch, validateHardware, hasErrors, suggestPins, computedTicksPerRev, sketchTicks,
+import { usesBt, btName, BOARDS, pinLabel, pinTags, ENCODERS, DRIVERS, generateSketch, validateHardware, hasErrors, suggestPins, computedTicksPerRev, sketchTicks,
   isLowRes, edgesPerPulse, requiredLibraries, sensorWireName, normalizeHardware, defaultHardware, unoHardware } from './firmware-gen.js';
 import { choiceBar, mountOwn, isOwnMode } from './own-code-ui.js';
 import { robotToFile, fileToRobot, isRobotFile, allFields } from './robotfile.js';
@@ -343,6 +343,16 @@ function buildFirmware() {
     }), 'fw.board_note.' + hw.board),
     el('details', {}, el('summary', { text: t('fw.pin_table') }), el('small', { class: 'muted', text: t('fw.pin_table_note.' + hw.board) }),
       el('table', {}, el('tr', {}, el('th', { text: t('fw.pin') }), el('th', { text: t('fw.can') })), ...pinRows))));
+  if (hw.board === 'esp32') {
+    const cb = el('input', { type: 'checkbox' }); cb.checked = hw.bt !== false;
+    cb.addEventListener('change', () => { hw.bt = cb.checked; mark('hardware.bt'); fwChanged(true); });
+    const nm = el('input', { value: hw.bt_name || '', placeholder: btName(R, { ...hw, bt_name: '' }), maxlength: 24 });
+    nm.addEventListener('input', () => { hw.bt_name = nm.value; mark('hardware.bt_name'); fwChanged(false); });
+    box.append(el('div', { class: 'card stack' }, el('h3', { text: t('fw.bt_h') }),
+      el('label', { class: 'toggle' }, cb, el('span', { text: t('fw.bt_on') })),
+      usesBt(hw) ? el('label', { class: 'field' }, el('span', { text: t('fw.bt_name') }), nm) : null,
+      el('small', { class: 'muted', text: t('fw.bt_note') })));
+  }
   // motor driver
   const d = hw.driver;
   const drv = el('div', { class: 'card stack' }, el('h3', { text: t('fw.driver_h') }),

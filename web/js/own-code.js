@@ -8,7 +8,7 @@
 //   wheel PID  = vendor/.../firmware/robot_fw/wheel_pid.h (run by sim/rt_engine.hpp Drive::Step every
 //                motor.wheel_pid_period_ms): speeds in encoder ticks PER PID PERIOD, output in PWM counts.
 //   steering   = sim/rt_engine.hpp Pid::Control = export.js cFunction(): error in metres, output in m/s.
-import { PROTOCOL, PROTOCOL_RULES, MOTION, BOARDS, DRIVER_TEXT, encoderText, edgesPerPulse, computedTicksPerRev, sketchTicks,
+import { PROTOCOL, PROTOCOL_RULES, MOTION, usesBt, btName, BOARDS, DRIVER_TEXT, encoderText, edgesPerPulse, computedTicksPerRev, sketchTicks,
   normalizeHardware, pinRoles, pinLabel, sensorWireName, requiredLibraries } from './firmware-gen.js';
 import { cruiseSpeed } from './store.js';
 
@@ -94,6 +94,8 @@ function hardwareLines(robot, hwIn) {
   robot.sensors.forEach((s, i) => L.push(`  ${i}: "${sensorWireName(s, i)}", ${s.type}, angle ${s.angle_deg} deg, at x ${s.x_mm} mm / y ${s.y_mm} mm from the wheel axle centre, range ${s.min_mm}-${s.max_mm} mm.`));
   L.push('- Pins used by the reference sketch (keep the student\'s own pins if they differ, and tell the student):');
   for (const r of pinRoles(robot, hw)) { const v = r.get(); L.push(`  ${r.role}: ${v >= 0 ? pinLabel(hw.board, v) : 'not set'}`); }
+  if (usesBt(hw)) L.push(`- Bluetooth serial: ON, device name "${btName(robot, hw)}" (classic ESP32, BluetoothSerial library from the esp32 board package). The robot must answer over USB and Bluetooth at the same time: copy the TeeIO / RT_IO bridge of the reference and send every reply through RT_IO.`);
+  else if (hw.board === 'esp32') L.push('- Bluetooth serial: off (USB only).');
   const libs = requiredLibraries(robot, hw);
   L.push(`- Libraries: ${libs.length ? libs.map((l) => `"${l.name}" by ${l.by}`).join(', ') : 'only the built-in ones'}.`);
   return { lines: L, hw, ticks };

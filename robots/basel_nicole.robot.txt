@@ -72,6 +72,8 @@ pid_d_filter_alpha                  0.3   #  TYPED  per 50 ms
 
 # ---- Board and pins ----
 board                             esp32   #  TYPED  uno | mega | esp32
+bluetooth                           yes   #  TYPED  yes | no  - serial over Bluetooth next to USB (classic ESP32)
+bluetooth_name                  default   #  TYPED  name  - empty = RobotTuner-<robot name>
 motor_driver                    in1_in2   #  TYPED  in1_in2 | pwm_dir | en_in1_in2
 motor_stop                        brake   #  TYPED  brake | coast
 pin_motor_left_a                     25   #  TYPED  pin  - IN1 or PWM

@@ -80,6 +80,8 @@ function robotFields() {
     ['Steering PID', 'pid_integral_limit', 'pid.integral_limit', NUM, 'm*s', null, null, always, ''],
     ['Steering PID', 'pid_d_filter_alpha', 'pid.d_filter_alpha', NUM, 'per 50 ms', null, null, always, ''],
     ['Board and pins', 'board', 'hardware.board', WORD, Object.keys(BOARDS).join(' | '), 'firmware', null, always, ''],
+    ['Board and pins', 'bluetooth', 'hardware.bt', WORD, 'yes | no', 'firmware', null, (r) => (r.hardware || {}).board === 'esp32', 'serial over Bluetooth next to USB (classic ESP32)'],
+    ['Board and pins', 'bluetooth_name', 'hardware.bt_name', WORD, 'name', 'firmware', null, (r) => (r.hardware || {}).board === 'esp32' && r.hardware.bt !== false, 'empty = RobotTuner-<robot name>'],
     ['Board and pins', 'motor_driver', 'hardware.driver.type', WORD, DRIVERS.join(' | '), 'firmware', null, always, ''],
     ['Board and pins', 'motor_stop', 'hardware.driver.stop', WORD, 'brake | coast', 'firmware', null, (r) => drv(r) !== 'pwm_dir', ''],
     ['Board and pins', 'pin_motor_left_en', 'hardware.driver.left.en', NUM, 'pin', 'firmware', null, (r) => drv(r) === 'en_in1_in2', ''],
@@ -155,7 +157,7 @@ export function robotToFile(r0) {
     if (f.section !== sec) { sec = f.section; L.push('', `# ---- ${sec} ----`); }
     const set = f.path === 'sensors.length' || isSet(r, f.path);
     const v = f.path === 'sensors.length' ? r.sensors.length : getPath(r, f.path);
-    const val = set && v !== undefined && v !== null && v !== '' ? (f.unit === 'I2C address' ? '0x' + (+v).toString(16) : fmt(v)) : 'N/A';
+    const val = set && f.path === 'hardware.bt_name' && !v ? 'default' : set && v !== undefined && v !== null && v !== '' ? (f.unit === 'I2C address' ? '0x' + (+v).toString(16) : fmt(v)) : 'N/A';
     const tag = f.path === 'sensors.length' ? 'TYPED' : (set ? sourceTag(r, f.path) : 'NOT SET');
     L.push(`${f.key.padEnd(26)} ${val.padStart(12)}   # ${f.required ? '*' : ' '}${tag}${f.unit ? '  ' + f.unit : ''}${f.note ? '  - ' + f.note : ''}`);
   }
@@ -197,7 +199,8 @@ export function fileToRobot(text) {
     if (v === undefined || v === 'N/A' || f.path === 'sensors.length') continue;
     let x;
     if (f.type === NUM) { x = /^0x/i.test(v) ? parseInt(v, 16) : parseFloat(v); if (!Number.isFinite(x)) { unknown.push(f.key); continue; } }
-    else x = f.path === 'caster.enabled' ? v === 'yes' : (f.path === 'name' ? v.replace(/_/g, ' ') : v);
+    else if (f.path === 'hardware.bt_name' && v === 'default') x = '';
+    else x = f.path === 'caster.enabled' || f.path === 'hardware.bt' ? v === 'yes' : (f.path === 'name' ? v.replace(/_/g, ' ') : v);
     setPath(r, f.path, x);
     r.source[srcKey(f.path)] = 'IMPORTED';
   }

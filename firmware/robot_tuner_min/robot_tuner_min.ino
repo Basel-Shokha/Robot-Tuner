@@ -24,9 +24,27 @@
 //   STATUS                     loop period and reading age
 //   LOAD SENSORS / LOAD FINAL  motors off / on (sensor timing test)
 
+// BLUETOOTH SERIAL (classic ESP32): the robot answers over USB AND Bluetooth at the same time. Pair the PC once with
+// "RobotTuner-Basel-Nicole" (Windows: Settings -> Bluetooth -> Add device; it gets a COM port "Standard Serial over Bluetooth"),
+// then press CONNECT in Robot Tuner and pick that port: the robot can drive on the floor without a cable.
+// ESP32-S3 / C3 / C6 have no classic Bluetooth: switch it off in Robot builder -> Firmware.
+#include "BluetoothSerial.h"
+
 #include <Wire.h>
 #include <driver/pulse_cnt.h>   // ESP-IDF PCNT driver, part of the esp32 board package (core 3.x and 4.x)
 #include <VL53L1X.h>
+BluetoothSerial SerialBT;
+// RT_IO: every reply goes to USB and Bluetooth; commands are read from both
+class TeeIO : public Stream {
+ public:
+  size_t write(uint8_t c) override { Serial.write(c); SerialBT.write(c); return 1; }
+  size_t write(const uint8_t* b, size_t n) override { Serial.write(b, n); SerialBT.write(b, n); return n; }
+  int available() override { return Serial.available() + SerialBT.available(); }
+  int read() override { return Serial.available() ? Serial.read() : SerialBT.read(); }
+  int peek() override { return Serial.available() ? Serial.peek() : SerialBT.peek(); }
+  void flush() override { Serial.flush(); SerialBT.flush(); }
+};
+TeeIO RT_IO;
 
 #ifndef IRAM_ATTR
 #define IRAM_ATTR
@@ -128,7 +146,7 @@ unsigned long tofMissingMs[N_SENSORS];
 // one at a time and moved to their own address. The pin is released (INPUT) instead of driven HIGH because the
 // breakout pulls XSHUT up to its own 2.8 V supply.
 const int XSHUT_PIN[] = {18, 23, 5};
-void tofMissing(int i) { Serial.print(F("WARN sensor ")); Serial.print(SENSOR_NAME[i]); Serial.println(F(" not found: check wiring and XSHUT")); }
+void tofMissing(int i) { RT_IO.print(F("WARN sensor ")); RT_IO.print(SENSOR_NAME[i]); RT_IO.println(F(" not found: check wiring and XSHUT")); }
 void tofSetup() {
   for (int k = 0; k < 3; k++) { pinMode(XSHUT_PIN[k], OUTPUT); digitalWrite(XSHUT_PIN[k], LOW); }
   delay(10);
@@ -256,30 +274,31 @@ char line[64]; int lineLen = 0;   // the command being typed
 
 void setup() {
   Serial.begin(115200);
+  SerialBT.begin("RobotTuner-Basel-Nicole");   // Bluetooth device name
   motorsSetup();
   setPwm(0, 0);
   i2cSetup();
   encSetup();
   sensorsSetup();
-  Serial.println(F("robot_tuner_min ready (commands: see the top of the sketch)"));
+  RT_IO.println(F("robot_tuner_min ready (commands: see the top of the sketch)"));
 }
 
 long c0L, c0R; bool ticksRunning = false; long driveTicksL = 0, driveTicksR = 0; float spinEncRot = 0;
 
-void calTicks() { c0L = cntL(); c0R = cntR(); ticksRunning = true; Serial.println(F("OK CAL TICKS started: turn each wheel one revolution, then send CAL END")); }
+void calTicks() { c0L = cntL(); c0R = cntR(); ticksRunning = true; RT_IO.println(F("OK CAL TICKS started: turn each wheel one revolution, then send CAL END")); }
 void calEnd() {
-  if (!ticksRunning) { Serial.println(F("ERR no CAL TICKS running")); return; }
+  if (!ticksRunning) { RT_IO.println(F("ERR no CAL TICKS running")); return; }
   ticksRunning = false;
   long l = labs(cntL() - c0L), r = labs(cntR() - c0R);
-  Serial.print(F("CAL TICKS result: left ")); Serial.print(l); Serial.print(F(" right ")); Serial.print(r); Serial.println(F(" per revolution"));
-  Serial.print(F("CAL suggestion: SET ticks_rev ")); Serial.println((l + r) / 2.0, 1);
+  RT_IO.print(F("CAL TICKS result: left ")); RT_IO.print(l); RT_IO.print(F(" right ")); RT_IO.print(r); RT_IO.println(F(" per revolution"));
+  RT_IO.print(F("CAL suggestion: SET ticks_rev ")); RT_IO.println((l + r) / 2.0, 1);
 }
 void calMaxSpeed() {
   setPwm(PWM_MAX, PWM_MAX); waitMs(500);
   float vl, vr; avgSpeeds(500, vl, vr);
   setPwm(0, 0);
-  Serial.print(F("CAL MAXSPEED: left ")); Serial.print(vl, 3); Serial.print(F(" m/s, right ")); Serial.print(vr, 3); Serial.print(F(" m/s at PWM ")); Serial.println(PWM_MAX);
-  Serial.print(F("CAL suggestion: SET max_speed ")); Serial.println(min(vl, vr), 4);
+  RT_IO.print(F("CAL MAXSPEED: left ")); RT_IO.print(vl, 3); RT_IO.print(F(" m/s, right ")); RT_IO.print(vr, 3); RT_IO.print(F(" m/s at PWM ")); RT_IO.println(PWM_MAX);
+  RT_IO.print(F("CAL suggestion: SET max_speed ")); RT_IO.println(min(vl, vr), 4);
 }
 void calFF() {
   // sweep the PWM; speeds in ticks per 50 ms (the units of the full firmware), slope by least squares
@@ -288,19 +307,19 @@ void calFF() {
     setPwm(pwm, pwm); waitMs(250);
     float vl, vr; avgSpeeds(LOW_RES ? 200 : 50, vl, vr);
     float l50 = vl * 0.05f / mPerTick(), r50 = vr * 0.05f / mPerTick(), t50 = 0.5f * (l50 + r50);
-    Serial.print(F("CAL FF: pwm ")); Serial.print(pwm); Serial.print(F("  left ")); Serial.print(l50, 2); Serial.print(F("  right ")); Serial.print(r50, 2); Serial.println(F(" ticks/50ms"));
+    RT_IO.print(F("CAL FF: pwm ")); RT_IO.print(pwm); RT_IO.print(F("  left ")); RT_IO.print(l50, 2); RT_IO.print(F("  right ")); RT_IO.print(r50, 2); RT_IO.println(F(" ticks/50ms"));
     if (start < 0 && t50 >= (LOW_RES ? 0.1f : 1)) start = pwm;
     if (t50 >= (LOW_RES ? 0.2f : 2)) { sx += t50; sy += pwm; sxx += t50 * t50; sxy += t50 * pwm; n++; }
   }
   setPwm(0, 0);
   if (n >= 3) {
     float g = (n * sxy - sx * sy) / (n * sxx - sx * sx);
-    Serial.print(F("CAL FF: slope ")); Serial.print(g, 4); Serial.print(F(" PWM per tick/50ms (= ")); Serial.print(g, 4); Serial.println(F(" per tick/50 ms)"));
+    RT_IO.print(F("CAL FF: slope ")); RT_IO.print(g, 4); RT_IO.print(F(" PWM per tick/50ms (= ")); RT_IO.print(g, 4); RT_IO.println(F(" per tick/50 ms)"));
     ff_gain = g * 0.05f / mPerTick();  // PWM per (m/s) for this sketch's own PI
-    Serial.print(F("CAL suggestion: SET ff_gain ")); Serial.println(g, 4);
+    RT_IO.print(F("CAL suggestion: SET ff_gain ")); RT_IO.println(g, 4);
   }
-  if (start >= 0) { ff_static = start; Serial.print(F("CAL suggestion: SET ff_static ")); Serial.println(start); }
-  Serial.println(F("CAL: FF sweep done"));
+  if (start >= 0) { ff_static = start; RT_IO.print(F("CAL suggestion: SET ff_static ")); RT_IO.println(start); }
+  RT_IO.println(F("CAL: FF sweep done"));
 }
 void calStep(float v) {
   // 1.5 s step of the wheel PI; rise / overshoot / tau computed on the fly (no sample buffer: fits an Uno)
@@ -316,9 +335,9 @@ void calStep(float v) {
   setPwm(0, 0);
   ss /= max(1, nss);
   float rise = (t10 >= 0 && t90 >= 0) ? t90 - t10 : -1, over = peak > 1 ? (peak - 1) * 100 : 0;
-  Serial.print(F("CAL STEP ")); Serial.print(v, 2); Serial.print(F(" m/s (= sketch PI): rise L ")); Serial.print(rise, 3); Serial.print(F("s R ")); Serial.print(rise, 3);
-  Serial.print(F("s, overshoot L ")); Serial.print(over, 0); Serial.print(F("% R ")); Serial.print(over, 0); Serial.print(F("%, tau63 L ")); Serial.print(t63, 3);
-  Serial.print(F("s R ")); Serial.print(t63, 3); Serial.print(F("s, steady L ")); Serial.print(ss, 3); Serial.print(F(" R ")); Serial.println(ss, 3);
+  RT_IO.print(F("CAL STEP ")); RT_IO.print(v, 2); RT_IO.print(F(" m/s (= sketch PI): rise L ")); RT_IO.print(rise, 3); RT_IO.print(F("s R ")); RT_IO.print(rise, 3);
+  RT_IO.print(F("s, overshoot L ")); RT_IO.print(over, 0); RT_IO.print(F("% R ")); RT_IO.print(over, 0); RT_IO.print(F("%, tau63 L ")); RT_IO.print(t63, 3);
+  RT_IO.print(F("s R ")); RT_IO.print(t63, 3); RT_IO.print(F("s, steady L ")); RT_IO.print(ss, 3); RT_IO.print(F(" R ")); RT_IO.println(ss, 3);
 }
 void calDrive(float dist) {
   long sl = cntL(), sr = cntR(); Meter m; meterStart(m); iL = iR = 0; float v = 0.2f;
@@ -331,14 +350,14 @@ void calDrive(float dist) {
   }
   setPwm(0, 0);
   driveTicksL = cntL() - sl; driveTicksR = cntR() - sr;
-  Serial.print(F("CAL DRIVE done: ticks L ")); Serial.print(driveTicksL); Serial.print(F(" R ")); Serial.println(driveTicksR);
-  Serial.println(F("CAL DRIVE: measure the real distance D (m), then send: CAL DIST <D>"));
+  RT_IO.print(F("CAL DRIVE done: ticks L ")); RT_IO.print(driveTicksL); RT_IO.print(F(" R ")); RT_IO.println(driveTicksR);
+  RT_IO.println(F("CAL DRIVE: measure the real distance D (m), then send: CAL DIST <D>"));
 }
 void calDist(float real) {
-  if (!driveTicksL) { Serial.println(F("ERR run CAL DRIVE first")); return; }
+  if (!driveTicksL) { RT_IO.println(F("ERR run CAL DRIVE first")); return; }
   float tl = driveTicksL / real, tr = driveTicksR / real, nominal = 1.0f / mPerTick();
-  Serial.print(F("CAL DIST: ticks per metre L ")); Serial.print(tl, 1); Serial.print(F(" R ")); Serial.print(tr, 1);
-  Serial.print(F("; suggestions wscale_l ")); Serial.print(nominal / tl, 4); Serial.print(F(" wscale_r ")); Serial.println(nominal / tr, 4);
+  RT_IO.print(F("CAL DIST: ticks per metre L ")); RT_IO.print(tl, 1); RT_IO.print(F(" R ")); RT_IO.print(tr, 1);
+  RT_IO.print(F("; suggestions wscale_l ")); RT_IO.print(nominal / tl, 4); RT_IO.print(F(" wscale_r ")); RT_IO.println(nominal / tr, 4);
 }
 void calSpin(float turns) {
   long sl = cntL(), sr = cntR(); Meter m; meterStart(m); iL = iR = 0; float goal = turns * 2 * 3.14159265f, v = 0.12f;
@@ -353,29 +372,29 @@ void calSpin(float turns) {
   setPwm(0, 0);
   spinEncRot = (dr - dl) / track_w;
   float asym = fabs(dl + dr) / max(1e-6f, fabs(dl) + fabs(dr));
-  Serial.print(F("CAL SPIN done: encoders say ")); Serial.print(spinEncRot / (2 * 3.14159265f), 3); Serial.print(F(" turns with track_w ")); Serial.print(track_w, 4);
-  Serial.print(F(" m; asymmetry ")); Serial.print(100 * asym, 1); Serial.print(F(" %, at the PWM clamp 0 % of the time -> ")); Serial.println(asym < 0.05 ? "OK" : "UNTRUSTED");
-  Serial.println(F("CAL SPIN: count the REAL turns and send: CAL TURNS <real_turns>"));
+  RT_IO.print(F("CAL SPIN done: encoders say ")); RT_IO.print(spinEncRot / (2 * 3.14159265f), 3); RT_IO.print(F(" turns with track_w ")); RT_IO.print(track_w, 4);
+  RT_IO.print(F(" m; asymmetry ")); RT_IO.print(100 * asym, 1); RT_IO.print(F(" %, at the PWM clamp 0 % of the time -> ")); RT_IO.println(asym < 0.05 ? "OK" : "UNTRUSTED");
+  RT_IO.println(F("CAL SPIN: count the REAL turns and send: CAL TURNS <real_turns>"));
 }
 void calTurns(float real) {
-  if (spinEncRot <= 0) { Serial.println(F("ERR run CAL SPIN first")); return; }
+  if (spinEncRot <= 0) { RT_IO.println(F("ERR run CAL SPIN first")); return; }
   float tw = track_w * spinEncRot / (real * 2 * 3.14159265f);
-  Serial.print(F("CAL TURNS: effective track width ")); Serial.print(tw, 4); Serial.print(F(" m (was ")); Serial.print(track_w, 4); Serial.println(F(")."));
+  RT_IO.print(F("CAL TURNS: effective track width ")); RT_IO.print(tw, 4); RT_IO.print(F(" m (was ")); RT_IO.print(track_w, 4); RT_IO.println(F(")."));
   track_w = tw;
 }
 void calDir() {
   // motor and encoder signs: forward PWM must turn the wheel forward (look) and count up (checked here)
-  Serial.println(F("CAL DIR: left wheel, then right wheel, forward 0.4 s: look, both must turn FORWARD"));
+  RT_IO.println(F("CAL DIR: left wheel, then right wheel, forward 0.4 s: look, both must turn FORWARD"));
   long l0 = cntL(); setPwm(PWM_MAX / 2, 0); waitMs(400); setPwm(0, 0); waitMs(300); long dl = cntL() - l0;
   long r0 = cntR(); setPwm(0, PWM_MAX / 2); waitMs(400); setPwm(0, 0); waitMs(300); long dr = cntR() - r0;
-  Serial.print(F("CAL DIR: left ")); Serial.print(dl); Serial.print(F(" right ")); Serial.print(dr); Serial.print(F(" ticks at forward PWM ")); Serial.println(PWM_MAX / 2);
-  Serial.print(F("CAL DIR result: left ")); Serial.print(dl > 0 ? F("OK") : F("WRONG")); Serial.print(F(" right ")); Serial.println(dr > 0 ? F("OK") : F("WRONG"));
+  RT_IO.print(F("CAL DIR: left ")); RT_IO.print(dl); RT_IO.print(F(" right ")); RT_IO.print(dr); RT_IO.print(F(" ticks at forward PWM ")); RT_IO.println(PWM_MAX / 2);
+  RT_IO.print(F("CAL DIR result: left ")); RT_IO.print(dl > 0 ? F("OK") : F("WRONG")); RT_IO.print(F(" right ")); RT_IO.println(dr > 0 ? F("OK") : F("WRONG"));
 }
 void calTimed(unsigned long ms) {
   // open loop: no encoders needed. Measure the distance and divide by the time (minus about one time constant)
   setPwm(PWM_MAX, PWM_MAX); waitMs(ms); setPwm(0, 0);
-  Serial.print(F("CAL TIMED done: full power for ")); Serial.print(ms); Serial.print(F(" ms at PWM ")); Serial.print(PWM_MAX);
-  Serial.println(F(". Measure the distance D (m): top speed = D / time"));
+  RT_IO.print(F("CAL TIMED done: full power for ")); RT_IO.print(ms); RT_IO.print(F(" ms at PWM ")); RT_IO.print(PWM_MAX);
+  RT_IO.println(F(". Measure the distance D (m): top speed = D / time"));
 }
 void calTof(int n, float trueMm) {
   for (int i = 0; i < N_SENSORS; i++) {
@@ -388,23 +407,23 @@ void calTof(int n, float trueMm) {
       s += mm; sq += (double)mm * mm; cnt++; mn = min(mn, mm); mx = max(mx, mm);
     }
     double mean = cnt ? s / cnt : 0, sd = cnt > 1 ? sqrt(max(0.0, (sq - cnt * mean * mean) / (cnt - 1))) : 0;
-    Serial.print(F("CAL TOF ")); Serial.print(SENSOR_NAME[i]); Serial.print(F(" n ")); Serial.print(cnt); Serial.print(F(" mean ")); Serial.print(mean, 1);
-    Serial.print(F(" mm std ")); Serial.print(sd, 2); Serial.print(F(" mm min ")); Serial.print(cnt ? mn : 0); Serial.print(F(" max ")); Serial.print(mx);
-    Serial.print(F(" dropouts ")); Serial.print(drop); Serial.print(F(" (")); Serial.print(100.0 * drop / max(1, cnt + drop), 1); Serial.println(F("%)"));
-    if (trueMm > 0 && cnt) { Serial.print(F("CAL TOF ")); Serial.print(SENSOR_NAME[i]); Serial.print(F(" bias vs ")); Serial.print(trueMm, 0); Serial.print(F(" mm: ")); Serial.print(mean - trueMm >= 0 ? "+" : ""); Serial.print(mean - trueMm, 1); Serial.println(F(" mm")); }
+    RT_IO.print(F("CAL TOF ")); RT_IO.print(SENSOR_NAME[i]); RT_IO.print(F(" n ")); RT_IO.print(cnt); RT_IO.print(F(" mean ")); RT_IO.print(mean, 1);
+    RT_IO.print(F(" mm std ")); RT_IO.print(sd, 2); RT_IO.print(F(" mm min ")); RT_IO.print(cnt ? mn : 0); RT_IO.print(F(" max ")); RT_IO.print(mx);
+    RT_IO.print(F(" dropouts ")); RT_IO.print(drop); RT_IO.print(F(" (")); RT_IO.print(100.0 * drop / max(1, cnt + drop), 1); RT_IO.println(F("%)"));
+    if (trueMm > 0 && cnt) { RT_IO.print(F("CAL TOF ")); RT_IO.print(SENSOR_NAME[i]); RT_IO.print(F(" bias vs ")); RT_IO.print(trueMm, 0); RT_IO.print(F(" mm: ")); RT_IO.print(mean - trueMm >= 0 ? "+" : ""); RT_IO.print(mean - trueMm, 1); RT_IO.println(F(" mm")); }
   }
-  Serial.println(F("CAL: TOF done"));
+  RT_IO.println(F("CAL: TOF done"));
 }
 void status() {
   unsigned long now = micros();
-  Serial.print(F("tof mm"));
-  for (int i = 0; i < N_SENSORS; i++) { Serial.print(F(" ")); Serial.print(SENSOR_NAME[i]); Serial.print(F(" ")); Serial.print(lastMm[i]); }
-  Serial.println();
+  RT_IO.print(F("tof mm"));
+  for (int i = 0; i < N_SENSORS; i++) { RT_IO.print(F(" ")); RT_IO.print(SENSOR_NAME[i]); RT_IO.print(F(" ")); RT_IO.print(lastMm[i]); }
+  RT_IO.println();
   // the full firmware prints three ages (R/F/L); we print the first three sensors
-  Serial.print(F("ToF ages at the last tick: data-ready seen "));
-  for (int i = 0; i < 3; i++) { Serial.print(now - readingTimeUs[min(i, N_SENSORS - 1)]); Serial.print(i < 2 ? "/" : ""); }
-  Serial.print(F(" us ago (R/F/L), + 0 ms half budget\n"));
-  Serial.print(F("control loop (ToF data-ready): period ")); Serial.print(loopPeriodUs); Serial.print(F(" us (max ")); Serial.print(loopPeriodUs); Serial.println(F("), compute 0 us, overruns 0, ticks 0, telemetry dropped 0"));
+  RT_IO.print(F("ToF ages at the last tick: data-ready seen "));
+  for (int i = 0; i < 3; i++) { RT_IO.print(now - readingTimeUs[min(i, N_SENSORS - 1)]); RT_IO.print(i < 2 ? "/" : ""); }
+  RT_IO.print(F(" us ago (R/F/L), + 0 ms half budget\n"));
+  RT_IO.print(F("control loop (ToF data-ready): period ")); RT_IO.print(loopPeriodUs); RT_IO.print(F(" us (max ")); RT_IO.print(loopPeriodUs); RT_IO.println(F("), compute 0 us, overruns 0, ticks 0, telemetry dropped 0"));
 }
 
 // Slowest speed each wheel drives steadily, wheels in the air. One wheel and one direction at a time, the PWM steps
@@ -423,16 +442,16 @@ float vminOne(int w, int dir, int& at) {
 }
 void calVmin() {
   float worst = 0; bool all = true;
-  Serial.print(F("CAL VMIN:"));
+  RT_IO.print(F("CAL VMIN:"));
   for (int k = 0; k < 4; ++k) {   // left fwd, right fwd, left rev, right rev
     int at; float v = vminOne(k & 1, k < 2 ? 1 : -1, at);
-    Serial.print(k ? F(", ") : F(" ")); Serial.print((k & 1) ? F("right") : F("left")); Serial.print(k < 2 ? F(" fwd ") : F(" rev "));
-    if (at < 0) { Serial.print(F("none")); all = false; continue; }
-    Serial.print(v, 4); Serial.print(F(" m/s at PWM ")); Serial.print(at); if (v > worst) worst = v;
+    RT_IO.print(k ? F(", ") : F(" ")); RT_IO.print((k & 1) ? F("right") : F("left")); RT_IO.print(k < 2 ? F(" fwd ") : F(" rev "));
+    if (at < 0) { RT_IO.print(F("none")); all = false; continue; }
+    RT_IO.print(v, 4); RT_IO.print(F(" m/s at PWM ")); RT_IO.print(at); if (v > worst) worst = v;
   }
-  Serial.println();
-  if (!all) { Serial.println(F("ERR CAL VMIN: a wheel never turned steadily")); return; }
-  Serial.print(F("CAL suggestion: SET v_min ")); Serial.println(worst, 4);
+  RT_IO.println();
+  if (!all) { RT_IO.println(F("ERR CAL VMIN: a wheel never turned steadily")); return; }
+  RT_IO.print(F("CAL suggestion: SET v_min ")); RT_IO.println(worst, 4);
 }
 
 // ---- RUN: wall following with the PID above, the wheel PI tracking its wheel speeds ----
@@ -454,13 +473,13 @@ void pidControl(float left, float right, float dt, float& vl, float& vr) {
 }
 float sensorM(int i) { return lastMm[i] < 0 ? SENSOR_MAX_M[i] : lastMm[i] / 1000.0f; }
 void runStart(float seconds) {
-  if (!CAN_RUN) { Serial.println(F("ERR RUN needs a left- and a right-looking sensor")); return; }
+  if (!CAN_RUN) { RT_IO.println(F("ERR RUN needs a left- and a right-looking sensor")); return; }
   pidI = pidPrev = pidD = 0; pidHas = false; iL = iR = 0; targetL = targetR = 0;
   running = true; runEndMs = millis() + (unsigned long)(seconds * 1000); lastRunSetUs = 0; setReady = false;
   meterStart(runMeter); lastWheelMs = millis();
-  Serial.println(F("OK RUN started (send STOP to stop)"));
+  RT_IO.println(F("OK RUN started (send STOP to stop)"));
 }
-void runStop() { if (running) { running = false; setPwm(0, 0); Serial.println(F("RUN done")); } }
+void runStop() { if (running) { running = false; setPwm(0, 0); RT_IO.println(F("RUN done")); } }
 void runTick() {
   if ((long)(millis() - runEndMs) >= 0) { runStop(); return; }
   if (setReady) {   // a fresh reading from every sensor: one PID step
@@ -514,7 +533,7 @@ void handle(const char* c) {
   if (sp1) a1 = parseNum(sp1 + 1);
   if (sp2) a2 = parseNum(sp2 + 1);
   if (!HAS_ENCODERS && needsEncoders(u)) {
-    Serial.print(F("ERR ")); Serial.print(u); Serial.println(F(" needs wheel encoders: this robot has none (time-based mode). Use CAL TIMED or type the value on the Measure page."));
+    RT_IO.print(F("ERR ")); RT_IO.print(u); RT_IO.println(F(" needs wheel encoders: this robot has none (time-based mode). Use CAL TIMED or type the value on the Measure page."));
     return;
   }
   if (IS("CAL TICKS")) calTicks();
@@ -532,19 +551,19 @@ void handle(const char* c) {
   else if (STARTS("CAL RUN")) runStart(a1 > 0 ? a1 : 10.0f);
   else if (IS("CAL STOP")) runStop();
   else if (STARTS("CAL TOF")) calTof(a1 > 0 ? (int)a1 : 100, a2);
-  else if (IS("CAL PING")) Serial.println(F("PONG"));
+  else if (IS("CAL PING")) RT_IO.println(F("PONG"));
   else if (IS("STATUS")) status();
-  else if (IS("LOAD SENSORS")) { motorsEnabled = false; setPwm(0, 0); Serial.println(F("OK profile SENSORS (motors off)")); }
-  else if (IS("LOAD FINAL")) { motorsEnabled = true; Serial.println(F("OK profile FINAL")); }
-  else Serial.println(F("ERR unknown command"));
+  else if (IS("LOAD SENSORS")) { motorsEnabled = false; setPwm(0, 0); RT_IO.println(F("OK profile SENSORS (motors off)")); }
+  else if (IS("LOAD FINAL")) { motorsEnabled = true; RT_IO.println(F("OK profile FINAL")); }
+  else RT_IO.println(F("ERR unknown command"));
 }
 
 void loop() {
   // the "control loop": the sensors deliver readings at their own pace; STATUS reports the period of a full set
   idle(true);
   if (running) runTick();
-  while (Serial.available()) {
-    char ch = Serial.read();
+  while (RT_IO.available()) {
+    char ch = RT_IO.read();
     if (ch == '\n') { line[lineLen] = 0; handle(line); lineLen = 0; }
     else if (ch != '\r' && lineLen < 63) line[lineLen++] = ch;
   }
