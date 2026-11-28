@@ -40,11 +40,11 @@ export function makeSensor(type, pose = {}) {
   return s;
 }
 
-// ---- default robot: Basel's real robot (vendor/simulation-to-real-life/robot_hardware.txt, Nov 2026) ----
+// ---- default robot: Basel & Nicole's real robot = Simulation-To-Real-Life robot_hardware.txt (d6de525, identical to the vendored copy) ----
 export function defaultRobot() {
   return {
     schema: SCHEMA,
-    name: 'Example robot (ESP32, 3x VL53L1X)',
+    name: 'Basel & Nicole robot (ESP32, DRV8833, 3x VL53L1X)',
     drive: '2wd',
     body: { front_mm: 140, rear_mm: 40, width_mm: 140 },
     wheels: { diameter_mm: 45, width_mm: 20, track_mm: 120, x_mm: 0, wheelbase_mm: 80, track_effective_mm: 124.9,
