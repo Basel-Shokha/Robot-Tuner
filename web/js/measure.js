@@ -4,7 +4,7 @@ import { commandButtons, motionBadge } from './cmd-buttons.js';
 import { linkStatus, btHelp, connectButtons } from './link-status.js';
 import { measurementDone, guardLeave, saveRobotFile } from './save-reminder.js';
 const STEP_MOTION = { ticks: 'hand', maxspeed: 'air', vmin: 'air', ff: 'air', step: 'air', drive: 'floor', spin: 'floor', timed: 'floor', tof: 'still', timing: 'still' };
-import { loadRobot, saveRobot } from './store.js';
+import { loadRobot, saveRobot, isSet } from './store.js';
 import { RobotLink, serialSupported, bleSupported } from './serial.js';
 import * as P from './measure-steps.js';
 import { fmt } from './i18n.js';
@@ -138,7 +138,8 @@ const STEPS = [
     } },
   { id: 'step', enc: true, fields: [['ms.f.tau', () => R.motor.step_tau_s, (v) => { R.motor.step_tau_s = v; }, 's', 'motor.step_tau_s']],
     async run(ui) {
-      await link.send('CAL STEP');
+      const target = stepTarget();
+      await link.send(`CAL STEP ${target}`);
       const v = await link.waitFor(P.parseStep, 15000);
       ui.result(v, 'step', [['ms.f.tau', v.tau, 's'], ['ms.f.rise', (v.riseL + v.riseR) / 2, 's'], ['ms.f.over', (v.overL + v.overR) / 2, '%']], () => { R.motor.step_tau_s = +v.tau.toFixed(4); save(['motor.step_tau_s']); });
     } },
@@ -227,6 +228,9 @@ const STEPS = [
 ];
 
 const open = new Set(['physical']);
+// target of the speed step: 60 % of the measured top speed (near the top the motor is at full power and the step only
+// shows that limit); 0.15 m/s while there is no top speed yet
+const stepTarget = () => (isSet(R, 'motor.max_speed_mps') && R.motor.max_speed_mps > 0 ? +(0.6 * R.motor.max_speed_mps).toFixed(3) : 0.15);
 const reps = { ticks: P.REPS.ticks.def, spin: P.REPS.spin.def };   // repetitions chosen per step
 let driveM = P.DRIVE_M.def;                                          // straight drive distance (m)
 function render() {
@@ -257,6 +261,7 @@ function stepCard(s, n, hw) {
   }
   const media = stepMedia(s.id, { n: reps[s.id] || 1, label: t(k + '.title'), turnWord: t(s.id === 'spin' ? 'ms.rep.spin_word' : 'ms.rep.turn_word'), videoWord: t('ms.video') });
   if (media) body.append(media);
+  if (s.id === 'step') body.append(el('p', { class: 'notice', text: t('ms.step.target', { v: stepTarget(), max: R.motor.max_speed_mps }) }));
   if (s.id === 'drive') {
     const inp = el('input', { type: 'number', min: P.DRIVE_M.min, step: 0.5, value: driveM, class: 'reps-input' });
     inp.addEventListener('change', () => { driveM = P.clampDist(inp.value); open.add(s.id); render(); });

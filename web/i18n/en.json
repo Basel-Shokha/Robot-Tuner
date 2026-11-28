@@ -389,7 +389,7 @@
  "ms.step.title": "Wheel response time",
  "ms.step.what": "How long a wheel takes to reach a new speed (63 % of the step = time constant).",
  "ms.step.why": "This lag is part of every steering decision: the robot cannot turn faster than its wheels can change speed.",
- "ms.step.how": "Wheels in the air. Press Start: both wheels jump from 0 to a target speed and the response is recorded.",
+ "ms.step.how": "Wheels in the air. Press Start: both wheels jump from 0 to the target speed below and the response is recorded.",
  "ms.drive.title": "Straight drive",
  "ms.drive.what": "Whether 1 m on the encoders is really 1 m (wheel diameter error, left/right difference).",
  "ms.drive.why": "Wrong wheel scale = wrong speeds and distances; a left/right difference makes the robot curve.",
@@ -1225,5 +1225,6 @@
  "save.p": "{n} measurements done. Save your robot file now, so nothing is lost if the browser data is cleared or you switch computers.",
  "save.btn": "Save robot file",
  "save.later": "Not now",
- "save.done": "Robot file saved (check your Downloads)."
+ "save.done": "Robot file saved (check your Downloads).",
+ "ms.step.target": "Target speed: {v} m/s = 60 % of your top speed ({max} m/s; 0.15 m/s if the top speed is not measured yet). Closer to the top speed the motor is already at full power, and the step would only show that limit."
 }
