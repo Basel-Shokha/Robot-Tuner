@@ -6,7 +6,6 @@ import { startTour, offerTour } from './tour.js';
 // The workflow is a real sequence (each step feeds the next), so it is numbered; the rest is not.
 export const STEPS = [
   { id: 'builder', href: 'builder.html', key: 'nav.builder' },
-  { id: 'measure', href: 'measure.html', key: 'nav.measure' },
   { id: 'corridor', href: 'corridor.html', key: 'nav.corridor' },
   { id: 'train', href: 'train.html', key: 'nav.train' },
   { id: 'playground', href: 'playground.html', key: 'nav.playground' },
@@ -38,7 +37,9 @@ function applyTheme(th) {
   window.dispatchEvent(new Event('resize'));  // canvases redraw with the new colours
 }
 
-export async function page() {
+let pageReady = null;
+export function page() { return pageReady || (pageReady = buildPage()); }   // once per page, whoever asks
+async function buildPage() {
   document.documentElement.dataset.theme = theme();
   await initI18n();
   const id = document.body.dataset.page;

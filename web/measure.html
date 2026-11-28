@@ -1,32 +1,10 @@
 <!doctype html>
-<html lang="en" dir="ltr">
+<html lang="en">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title data-i18n="nav.measure">Measure</title>
-<link rel="stylesheet" href="css/style.css"><link rel="icon" href="img/icon.svg">
+<title>Measure - Robot Tuner</title>
+<meta http-equiv="refresh" content="0; url=builder.html#measure">
+<script>location.replace('builder.html#measure' + (location.hash ? '-' + location.hash.slice(1) : ''));</script>
 </head>
-<body data-page="measure">
-<main>
-  <h1 data-i18n="ms.h1"></h1>
-  <p class="muted" data-i18n="ms.intro"></p>
-  <section class="card conn-bar" id="conn-bar">
-    <div id="nosupport" class="notice warn" hidden data-i18n="ms.nosupport"></div>
-    <div class="row conn-row">
-      <button class="primary" id="connect"></button><span id="conn-state" class="pill" data-i18n="ms.disconnected"></span>
-      <span class="spacer"></span>
-      <label class="toggle"><input type="checkbox" id="manual"><span data-i18n="ms.manual"></span></label>
-    </div>
-    <p class="muted small-note"><span data-i18n="ms.nofw_short"></span> <a href="builder.html#firmware" data-i18n="ms.fw_btn"></a> · <a href="firmware/robot_tuner_min.ino" download data-i18n="ms.dl_sketch"></a> <span id="hw-line"></span></p>
-  </section>
-  <p class="progress-line" id="progress"></p>
-  <div id="steps"></div>
-  <details class="card console-box" id="console">
-    <summary data-i18n="ms.console_all"></summary>
-    <div class="serial-log" id="log"></div>
-    <div class="row"><input id="cmd" style="flex:1" data-i18n-attr="placeholder:ms.cmd_ph"><button id="send" data-i18n="ms.send"></button></div>
-    <div id="cmd-buttons"></div>
-  </details>
-</main>
-<script type="module" src="js/measure.js"></script>
-</body>
+<body><p>Measuring is now a tab of the Robot builder: <a href="builder.html#measure">open it</a>.</p></body>
 </html>
