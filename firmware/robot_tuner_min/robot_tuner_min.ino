@@ -220,6 +220,9 @@ const int PID_LEFT = 2, PID_RIGHT = 0;   // sensors looking most to the left / r
 const float SENSOR_MAX_M[N_SENSORS] = {1.3f, 1.3f, 1.3f};   // no reading = nothing within range
 #define CAN_RUN 1
 
+// no extra commands in this sketch (the ESP32 install firmware adds SET / GET / SAVE here)
+bool extraCommand(const char* u, const char* orig) { return false; }
+
 // ---- waiting: keeps the encoders (AS5600) and, when asked, the sensors running ----
 void idle(bool sensors) { encPoll(); if (sensors) pollSensors(); }
 void waitMs(unsigned long ms, bool sensors = false) { unsigned long t = millis(); while (millis() - t < ms) idle(sensors); }
@@ -521,6 +524,7 @@ bool needsEncoders(const char* u) {
 void handle(const char* c) {
   // trimmed, upper case; the calibration commands also work without "CAL": TICKS, SPIN 5, TOF 200 200 ...
   while (*c == ' ') ++c;
+  const char* orig = c;   // as typed (extraCommand gets it with its case)
   char u[64]; int n = 0;
   bool cal = strncasecmp(c, "CAL ", 4) == 0 || strcasecmp(c, "STATUS") == 0 || strncasecmp(c, "LOAD", 4) == 0;
   if (!cal) { memcpy(u, "CAL ", 4); n = 4; }
@@ -555,7 +559,7 @@ void handle(const char* c) {
   else if (IS("STATUS")) status();
   else if (IS("LOAD SENSORS")) { motorsEnabled = false; setPwm(0, 0); RT_IO.println(F("OK profile SENSORS (motors off)")); }
   else if (IS("LOAD FINAL")) { motorsEnabled = true; RT_IO.println(F("OK profile FINAL")); }
-  else RT_IO.println(F("ERR unknown command"));
+  else if (!extraCommand(u, orig)) RT_IO.println(F("ERR unknown command"));
 }
 
 void loop() {
