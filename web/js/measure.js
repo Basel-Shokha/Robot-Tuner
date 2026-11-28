@@ -255,6 +255,8 @@ const STEPS = [
 ];
 
 const open = new Set(['physical']);
+const wanted = location.hash.slice(1);   // builder.html "Measure" link: open that step
+if (wanted) open.add(wanted);
 // target of the speed step: 60 % of the measured top speed (near the top the motor is at full power and the step only
 // shows that limit); 0.15 m/s while there is no top speed yet
 const stepTarget = () => (isSet(R, 'motor.max_speed_mps') && R.motor.max_speed_mps > 0 ? +(0.6 * R.motor.max_speed_mps).toFixed(3) : 0.15);
@@ -272,7 +274,7 @@ function stepCard(s, n, hw) {
   const blocked = s.enc && hw.encoder.type === 'none';
   const k = 'ms.' + s.id;
   const done = s.fields && s.fields.every((f) => R.source[f[4]] === 'MEASURED');
-  const card = el('section', { class: 'step' + (open.has(s.id) ? ' open' : '') + (done ? ' done' : '') });
+  const card = el('section', { class: 'step' + (open.has(s.id) ? ' open' : '') + (done ? ' done' : ''), 'data-step': s.id });
   const head = el('header', {}, el('span', { class: 'num', text: done ? '✓' : String(n) }), el('b', { text: t(k + '.title') }), STEP_MOTION[s.id] ? motionBadge(STEP_MOTION[s.id]) : null, s.id === 'drive' || s.id === 'spin' ? el('span', { class: 'pill', text: t('ms.repeat_badge') }) : null, el('span', { class: 'spacer' }),
     done ? el('span', { class: 'pill ok', text: t('ms.measured') }) : null);
   head.addEventListener('click', () => { open.has(s.id) ? open.delete(s.id) : open.add(s.id); card.classList.toggle('open'); });
@@ -447,3 +449,4 @@ function makeUI(out, s) {
 }
 ready = true;
 render();
+if (wanted) setTimeout(() => { const c = document.querySelector(`[data-step="${CSS.escape(wanted)}"]`); if (c) c.scrollIntoView({ block: 'start' }); }, 200);

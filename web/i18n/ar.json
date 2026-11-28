@@ -1240,5 +1240,7 @@
  "ms.repeat": "",
  "fw.unset_h": "",
  "fw.unset_p": "",
- "fw.unset_ok": ""
+ "fw.unset_ok": "",
+ "builder.measure": "",
+ "builder.measure_hint": ""
 }

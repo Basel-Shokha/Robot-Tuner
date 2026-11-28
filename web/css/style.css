@@ -430,3 +430,4 @@ input.pwm-val { width: 4.5em; }
 .hist-row.current { border-color: var(--green); background: var(--green-soft); }
 .hist-row.bad { opacity: .7; }
 .hist-cur { color: var(--green); white-space: nowrap; }
+.measure-link { font-size: .8rem; white-space: nowrap; }

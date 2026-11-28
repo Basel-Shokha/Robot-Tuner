@@ -14,7 +14,12 @@ export function saveRobotFile(robot) {
 
 /** refresh / close / leave with unsaved changes: the browser's own "Leave site?" box ("Leave" = go on without saving) */
 export function guardLeave() {
-  window.addEventListener('beforeunload', (e) => { if (isDirty()) { e.preventDefault(); e.returnValue = ''; } });
+  let inside = false;   // a click on a link to another Robot Tuner page: the robot is already saved in this browser
+  document.addEventListener('click', (e) => {
+    const a = e.target.closest && e.target.closest('a[href]');
+    if (a && !a.hasAttribute('download') && new URL(a.href, location.href).origin === location.origin) { inside = true; setTimeout(() => { inside = false; }, 2000); }
+  }, true);
+  window.addEventListener('beforeunload', (e) => { if (!inside && isDirty()) { e.preventDefault(); e.returnValue = ''; } });
 }
 
 const finished = new Set();

@@ -21,6 +21,11 @@ function commit(redrawForm = false) {
 }
 function mark(path, tag = 'TYPED') { R.source[path] = tag; }
 
+// values the Measure page can measure: path -> its step there
+const MEASURE_STEP = { 'wheels.ticks_per_rev': 'ticks', 'motor.max_speed_mps': 'maxspeed', 'motor.v_min_mps': 'vmin', 'motor.ff_static': 'ff', 'motor.ff_gain': 'ff',
+  'motor.step_tau_s': 'step', 'wheels.scale_l': 'drive', 'wheels.scale_r': 'drive', 'wheels.track_effective_mm': 'spin',
+  'timing.loop_ms': 'timing', 'timing.age_ms': 'timing', 'timing.age_jitter_ms': 'timing' };
+const measureStep = (path) => MEASURE_STEP[path] || (/^sensors\.\d+\.(noise_mm|bias_mm)$/.test(path) ? 'tof' : null);
 // ---- numeric field bound to R[group][key] -------------------------------------------------------
 function num(group, key, labelKey, unit, opts = {}) {
   const obj = typeof group === 'string' ? R[group] : group;
@@ -36,7 +41,9 @@ function num(group, key, labelKey, unit, opts = {}) {
   if (!set) inp.classList.add('unset');
   const tag = set ? (R.source[path] || (R.all_set ? 'SET' : 'DATASHEET')) : 'N/A';
   const src = el('span', { class: 'pill src ' + (tag === 'MEASURED' ? 'ok' : tag === 'N/A' ? 'warn' : ''), text: tag, title: t('builder.source_hint') });
-  return el('label', { class: 'field' }, el('span', {}, el('span', { text: t(labelKey) }), unit ? el('span', { class: 'muted', text: ` (${unit})` }) : null, ' ', src), inp);
+  const ms = measureStep(full);
+  const meas = ms ? el('a', { class: 'measure-link', href: `measure.html#${ms}`, title: t('builder.measure_hint'), text: '📏 ' + t('builder.measure') }) : null;
+  return el('label', { class: 'field' }, el('span', {}, el('span', { text: t(labelKey) }), unit ? el('span', { class: 'muted', text: ` (${unit})` }) : null, ' ', src, meas ? ' ' : null, meas), inp);
 }
 
 function buildForms() {
