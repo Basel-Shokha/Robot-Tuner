@@ -99,7 +99,9 @@ CSS logical properties; canvases stay left-to-right. The tutorial text slots are
 
 The Measure page sends the commands of the upstream firmware `firmware/robot_fw_run25_nnmap` (not copied here; `CAL TICKS`/`END`, `CAL MAXSPEED`,
 `CAL FF`, `CAL STEP`, `CAL DRIVE`/`DIST`, `CAL SPIN`/`TURNS`, `CAL TOF n true_mm`, `LOAD SENSORS` + `STATUS` +
-`LOAD FINAL`) and parses the result lines in `measure-steps.js` (unit-tested with real lines). The minimal sketch
+`LOAD FINAL`; added here: `CAL DIR`, `CAL VMIN`, `CAL CREEP L|R [pwm]` (slow turn for CAL TICKS), `PING` -> `PONG usb|bluetooth`,
+`LINK bluetooth connected|disconnected`). The full list with every reply is `PROTOCOL` in web/js/firmware-gen.js: the sketch
+header, the command buttons and the AI prompt are all built from it and parses the result lines in `measure-steps.js` (unit-tested with real lines). The minimal sketch
 prints the same lines. Photos/GIFs for each step go to `web/img/measure/<step>.gif` (placeholders shown now).
 
 ## Firmware generator

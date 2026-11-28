@@ -398,7 +398,7 @@ export const PROTOCOL = [
     replies: ['OK CAL TICKS started: turn each wheel one revolution, then send CAL END'] },
   { cmd: 'CAL END', motion: 'hand', help: 'ends CAL TICKS', enc: true,
     replies: ['CAL TICKS result: left <ticks> right <ticks> per revolution', 'CAL suggestion: SET ticks_rev <ticks, 1 decimal>', 'ERR no CAL TICKS running'] },
-  { cmd: 'CAL CREEP L', motion: 'air', args: '[start pwm]', usage: 'CAL CREEP L|R [pwm] / STOP', help: 'turn ONE wheel slowly at the lowest PWM that moves it (from 20 up), until STOP (for CAL TICKS)', enc: true, def: 'PWM 20',
+  { cmd: 'CAL CREEP L', motion: 'air', args: '[start pwm]', usage: 'CAL CREEP L|R [pwm] / STOP', help: 'turn ONE wheel slowly at the lowest PWM that moves it (from 20, or the given PWM, up by 2 every 0.2 s until it moves), until STOP; send it again with a PWM to change the speed (Robot Tuner reads both replies)', enc: true, def: 'PWM 20',
     replies: ['OK CREEP <left> from PWM <pwm>', 'CREEP moving at PWM <pwm>', 'CREEP stopped'] },
   { cmd: 'CAL CREEP R', motion: 'air', args: '[start pwm]', help: 'the same for the right wheel', enc: true, def: 'PWM 20',
     replies: ['OK CREEP <right> from PWM <pwm>', 'CREEP moving at PWM <pwm>', 'CREEP stopped'] },

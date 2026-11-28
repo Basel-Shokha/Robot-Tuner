@@ -10,7 +10,7 @@
 //
 // Commands (115200 baud, one per line; every CAL command also works without the word CAL):
 //   CAL TICKS / CAL END        turn each wheel one revolution by hand -> ticks per revolution
-//   CAL CREEP L|R [pwm] / STOP turn ONE wheel slowly at the lowest PWM that moves it (from 20 up), until STOP (for CAL TICKS)
+//   CAL CREEP L|R [pwm] / STOP turn ONE wheel slowly at the lowest PWM that moves it (from 20, or the given PWM, up by 2 every 0.2 s until it moves), until STOP; send it again with a PWM to change the speed (Robot Tuner reads both replies)
 //   CAL MAXSPEED               full power 1 s, wheels in the air -> top speed
 //   CAL FF                     PWM sweep, wheels in the air -> deadband (ff_static) and PWM per speed (ff_gain)
 //   CAL STEP [m/s]             speed step with a simple wheel PI -> time constant
