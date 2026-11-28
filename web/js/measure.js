@@ -50,22 +50,16 @@ const STEPS = [
   { id: 'physical', physical: true },
   { id: 'ticks', enc: true, fields: [['ms.f.ticks', () => R.wheels.ticks_per_rev, (v) => { R.wheels.ticks_per_rev = v; }, '', 'wheels.ticks_per_rev']],
     async run(ui) {
-      // one count per full turn (CAL TICKS ... CAL END, restarted at once), so every turn can be checked;
-      // the total over N turns divided by N is the same as one long count
-      const n = reps.ticks, counts = [];
-      const table = ui.repTable(['ms.rep.turn', 'ms.rep.left', 'ms.rep.right']);
+      // one count over all N turns: CAL TICKS, the student turns each wheel N full turns, CAL END; ticks per turn = total / N
+      const n = reps.ticks;
       await link.send('CAL TICKS');
-      for (let k = 1; k <= n; k++) {
-        ui.ask(t('ms.ticks.ask_k', { k, n }), t('ms.ticks.done_k', { k, n }));
-        await ui.answered();
-        const got = link.waitFor(P.parseTicks, 5000);
-        await link.send('CAL END');
-        const v = await got;
-        if (k < n) await link.send('CAL TICKS');
-        counts.push(v); table.add([k, v.left, v.right]);
-      }
-      const v = P.ticksFromReps(counts);
-      ui.result(v, 'ticks', [['ms.rep.n', String(n)], ['ms.rep.spread', `${fmt(v.spread, 2)} %`], ['ms.rep.left_avg', v.left], ['ms.rep.right_avg', v.right], ['ms.f.ticks', v.ticks]],
+      ui.ask(t('ms.ticks.ask_n', { n }), t('ms.ticks.done_n', { n }));
+      await ui.answered();
+      const got = link.waitFor(P.parseTicks, 5000);
+      await link.send('CAL END');
+      const tot = await got;
+      const v = P.ticksFromTotals(tot.left, tot.right, n);
+      ui.result(v, 'ticks', [['ms.rep.n', String(n)], ['ms.rep.total', `${tot.left} / ${tot.right}`], ['ms.rep.left_avg', +v.left.toFixed(1)], ['ms.rep.right_avg', +v.right.toFixed(1)], ['ms.f.ticks', +v.ticks.toFixed(1)]],
         () => { R.wheels.ticks_per_rev = +v.ticks.toFixed(2); save(['wheels.ticks_per_rev']); });
     } },
   { id: 'maxspeed', enc: true, fields: [['ms.f.maxspeed', () => R.motor.max_speed_mps, (v) => { R.motor.max_speed_mps = v; }, 'm/s', 'motor.max_speed_mps']],

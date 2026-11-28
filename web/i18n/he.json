@@ -924,8 +924,6 @@
  "tour.maze.run": "",
  "tour.maze.map.h": "",
  "tour.maze.map": "",
- "ms.ticks.ask_k": "",
- "ms.ticks.done_k": "",
  "ms.spin.ask_n": "",
  "ms.spin.implausible": "",
  "ms.rep.choose_ticks": "",
@@ -1214,5 +1212,8 @@
  "link.via_bt": "",
  "link.via_usb": "",
  "link.bt_connected": "",
- "link.bt_disconnected": ""
+ "link.bt_disconnected": "",
+ "ms.ticks.ask_n": "",
+ "ms.ticks.done_n": "",
+ "ms.rep.total": ""
 }

@@ -381,7 +381,7 @@
  "ms.ticks.title": "Encoder ticks per wheel turn",
  "ms.ticks.what": "How many encoder ticks one full wheel revolution gives.",
  "ms.ticks.why": "Every distance and speed the robot measures comes from this number.",
- "ms.ticks.how": "Motors are off. Put a pen mark on each tyre and line it up with something fixed. Press Start, then turn each wheel forward by hand, slowly, exactly one full turn (mark back at the start) and press the button; repeat for every turn. N turns divided by N is much more accurate than one turn.",
+ "ms.ticks.how": "Motors are off. Put a pen mark on each tyre and line it up with something fixed. Press Start, turn each wheel forward by hand, slowly, exactly N full turns (the mark back at the start after the last one), then press the button once. Ticks per turn = total ÷ N, so a small error at the end matters N times less.",
  "ms.maxspeed.title": "Top speed",
  "ms.maxspeed.what": "The wheel speed at full power.",
  "ms.maxspeed.why": "The PID cannot ask for more than this. Cruising close to it leaves no room to steer (saturation).",
@@ -922,8 +922,6 @@
  "tour.maze.run": "Run the robot in the maze.",
  "tour.maze.map.h": "What the robot believes",
  "tour.maze.map": "Its own map from its sensors and encoders. Compare it with the real maze on the left.",
- "ms.ticks.ask_k": "Turn {k} of {n}: turn each wheel forward exactly one full turn (the pen mark back where it started), then press the button.",
- "ms.ticks.done_k": "Turn {k} of {n} done",
  "ms.spin.ask_n": "How many turns did the robot really make? It was told {n}. Fractions are fine (e.g. {n} or 9.8).",
  "ms.spin.implausible": "{r} turns counted for {n} commanded is too far off (more than 30 %). Count again: the nose passing the tape = one turn.",
  "ms.rep.choose_ticks": "Number of full turns ({min} to {max})",
@@ -1113,8 +1111,8 @@
  "cmd.or_type": "Or type a command yourself:",
  "cmd.dir_do": "Lift the robot so both wheels hang free (a box or a cup under it).|Keep your hands away from the wheels.|Press Send and watch: the left wheel, then the right wheel turns for a moment.",
  "cmd.dir_next": "Both wheels must turn FORWARD and the result says OK. WRONG = flip the encoder sign (wheel turned forward) or the motor sign (wheel turned backward) in Firmware.",
- "cmd.ticks_do": "Put a pen or tape mark on each tyre, next to something fixed.|Press Send.|Turn the LEFT wheel forward by hand, slowly, exactly one full turn (mark back at the start).|Do the same with the RIGHT wheel.",
- "cmd.ticks_next": "Press \"Done turning: show ticks\". The number is your ticks per wheel turn.",
+ "cmd.ticks_do": "Put a pen or tape mark on each tyre, next to something fixed.|Press Send.|Turn the LEFT wheel forward by hand, slowly, exactly N full turns (for example 5; mark back at the start).|Do the same with the RIGHT wheel.",
+ "cmd.ticks_next": "Press \"Done turning: show ticks\". Divide the numbers by N: that is your ticks per wheel turn.",
  "cmd.end_do": "Only after \"Start counting ticks\" and turning each wheel one full turn.",
  "cmd.end_next": "The robot prints the ticks of each wheel and a suggested value.",
  "cmd.maxspeed_do": "Lift the robot so both wheels hang free.|Hold it steady: the wheels run at full power for 1 second.",
@@ -1212,5 +1210,8 @@
  "link.via_bt": "Bluetooth",
  "link.via_usb": "USB",
  "link.bt_connected": "Robot: Bluetooth connected",
- "link.bt_disconnected": "Robot: Bluetooth disconnected"
+ "link.bt_disconnected": "Robot: Bluetooth disconnected",
+ "ms.ticks.ask_n": "Turn each wheel forward exactly {n} full turns, slowly (the pen mark back where it started after the last one). Then press the button.",
+ "ms.ticks.done_n": "Done: {n} turns",
+ "ms.rep.total": "Total ticks (left / right)"
 }
