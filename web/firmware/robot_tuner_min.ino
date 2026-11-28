@@ -390,22 +390,39 @@ void calFF() {
   RT_IO.println(F("CAL: FF sweep done"));
 }
 void calStep(float v) {
-  // 1.5 s step of the wheel PI; rise / overshoot / tau computed on the fly (no sample buffer: fits an Uno)
+  // 1.5 s step of the wheel PI, EACH wheel measured on its own: rise (10 -> 90 %), overshoot, tau63 (time to 63 %), steady
+  // speed (last third). Computed on the fly (no sample buffer: fits an Uno). -1 = never reached.
   const int N = 150; Meter m; meterStart(m); iL = iR = 0;
-  float t10 = -1, t63 = -1, t90 = -1, peak = 0, ss = 0, t = 0; int nss = 0;
+  float t10[2] = {-1, -1}, t63[2] = {-1, -1}, t90[2] = {-1, -1}, peak[2] = {0, 0}, ss[2] = {0, 0}, t = 0; int nss = 0;
   for (int k = 0; k < N; k++) {
-    float vl, vr; waitMs(10); float dt = meterRead(m, vl, vr); wheelPI(v, v, vl, vr, dt); t += dt;
-    float y = 0.5f * (vl + vr), fr = y / v;
-    if (fr > peak) peak = fr;
-    if (t10 < 0 && fr >= 0.1) t10 = t; if (t63 < 0 && fr >= 0.632) t63 = t; if (t90 < 0 && fr >= 0.9) t90 = t;
-    if (k >= N - N / 3) { ss += y; nss++; }
+    float vs[2]; waitMs(10); float dt = meterRead(m, vs[0], vs[1]); wheelPI(v, v, vs[0], vs[1], dt); t += dt;
+    for (int w = 0; w < 2; w++) {
+      float fr = vs[w] / v;
+      if (fr > peak[w]) peak[w] = fr;
+      if (t10[w] < 0 && fr >= 0.1f) t10[w] = t;
+      if (t63[w] < 0 && fr >= 0.632f) t63[w] = t;
+      if (t90[w] < 0 && fr >= 0.9f) t90[w] = t;
+      if (k >= N - N / 3) ss[w] += vs[w];
+    }
+    if (k >= N - N / 3) nss++;
   }
   setPwm(0, 0);
-  ss /= max(1, nss);
-  float rise = (t10 >= 0 && t90 >= 0) ? t90 - t10 : -1, over = peak > 1 ? (peak - 1) * 100 : 0;
-  RT_IO.print(F("CAL STEP ")); RT_IO.print(v, 2); RT_IO.print(F(" m/s (= sketch PI): rise L ")); RT_IO.print(rise, 3); RT_IO.print(F("s R ")); RT_IO.print(rise, 3);
-  RT_IO.print(F("s, overshoot L ")); RT_IO.print(over, 0); RT_IO.print(F("% R ")); RT_IO.print(over, 0); RT_IO.print(F("%, tau63 L ")); RT_IO.print(t63, 3);
-  RT_IO.print(F("s R ")); RT_IO.print(t63, 3); RT_IO.print(F("s, steady L ")); RT_IO.print(ss, 3); RT_IO.print(F(" R ")); RT_IO.println(ss, 3);
+  float rise[2], over[2];
+  for (int w = 0; w < 2; w++) {
+    ss[w] /= max(1, nss);
+    rise[w] = (t10[w] >= 0 && t90[w] >= 0) ? t90[w] - t10[w] : -1;
+    over[w] = peak[w] > 1 ? (peak[w] - 1) * 100 : 0;
+  }
+  RT_IO.print(F("CAL STEP ")); RT_IO.print(v, 3); RT_IO.print(F(" m/s (= sketch PI): rise L ")); RT_IO.print(rise[0], 3); RT_IO.print(F("s R ")); RT_IO.print(rise[1], 3);
+  RT_IO.print(F("s, overshoot L ")); RT_IO.print(over[0], 0); RT_IO.print(F("% R ")); RT_IO.print(over[1], 0); RT_IO.print(F("%, tau63 L ")); RT_IO.print(t63[0], 3);
+  RT_IO.print(F("s R ")); RT_IO.print(t63[1], 3); RT_IO.print(F("s, steady L ")); RT_IO.print(ss[0], 3); RT_IO.print(F(" R ")); RT_IO.println(ss[1], 3);
+  for (int w = 0; w < 2; w++) {   // why a wheel never got there
+    if (t63[w] >= 0) continue;
+    RT_IO.print(F("WARN CAL STEP ")); RT_IO.print(w ? F("right") : F("left"));
+    if (ss[w] < -0.1f * v) RT_IO.println(F(" wheel measured BACKWARD: motor or encoder sign is wrong (run CAL DIR)"));
+    else if (fabs(ss[w]) < 0.1f * v) RT_IO.println(F(" wheel did not move (or its encoder does not count): check wiring, run CAL DIR"));
+    else RT_IO.println(F(" wheel too slow for this target: lower the target speed"));
+  }
 }
 void calDrive(float dist) {
   long sl = cntL(), sr = cntR(); Meter m; meterStart(m); iL = iR = 0; float v = 0.2f;

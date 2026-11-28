@@ -408,7 +408,8 @@ export const PROTOCOL = [
     replies: ['CAL FF: pwm <pwm>  left <ticks per 50 ms>  right <ticks per 50 ms> ticks/50ms   (one line per PWM step 0, 5, 10 ... 255)',
       'CAL FF: slope <g> PWM per tick/50ms (= <g> per tick/50 ms)', 'CAL suggestion: SET ff_gain <g>', 'CAL suggestion: SET ff_static <pwm>', 'CAL: FF sweep done'] },
   { cmd: 'CAL STEP', motion: 'air', args: '[m/s]', usage: 'CAL STEP [m/s]', help: 'speed step with a simple wheel PI -> time constant', enc: true, def: '0.15 m/s',
-    replies: ['CAL STEP <m/s> m/s (= sketch PI): rise L <s>s R <s>s, overshoot L <%>% R <%>%, tau63 L <s>s R <s>s, steady L <m/s> R <m/s>'] },
+    replies: ['CAL STEP <m/s> m/s (= sketch PI): rise L <s>s R <s>s, overshoot L <%>% R <%>%, tau63 L <s>s R <s>s, steady L <m/s> R <m/s>   (each wheel on its own; -1 = never reached)',
+      'WARN CAL STEP <left or right> <wheel measured BACKWARD / did not move / too slow ...>'] },
   { cmd: 'CAL DRIVE', motion: 'floor', args: '<m>', usage: 'CAL DRIVE <m> / CAL DIST <real m>', help: 'straight drive -> wheel scale', enc: true, def: '1.0 m',
     replies: ['CAL DRIVE done: ticks L <ticks> R <ticks>', 'CAL DRIVE: measure the real distance D (m), then send: CAL DIST <D>'] },
   { cmd: 'CAL DIST', motion: 'still', args: '<real m>', help: 'the distance you measured after CAL DRIVE', enc: true,
@@ -1095,22 +1096,39 @@ void calFF() {
   Serial.println(F("CAL: FF sweep done"));
 }
 void calStep(float v) {
-  // 1.5 s step of the wheel PI; rise / overshoot / tau computed on the fly (no sample buffer: fits an Uno)
+  // 1.5 s step of the wheel PI, EACH wheel measured on its own: rise (10 -> 90 %), overshoot, tau63 (time to 63 %), steady
+  // speed (last third). Computed on the fly (no sample buffer: fits an Uno). -1 = never reached.
   const int N = 150; Meter m; meterStart(m); iL = iR = 0;
-  float t10 = -1, t63 = -1, t90 = -1, peak = 0, ss = 0, t = 0; int nss = 0;
+  float t10[2] = {-1, -1}, t63[2] = {-1, -1}, t90[2] = {-1, -1}, peak[2] = {0, 0}, ss[2] = {0, 0}, t = 0; int nss = 0;
   for (int k = 0; k < N; k++) {
-    float vl, vr; waitMs(10); float dt = meterRead(m, vl, vr); wheelPI(v, v, vl, vr, dt); t += dt;
-    float y = 0.5f * (vl + vr), fr = y / v;
-    if (fr > peak) peak = fr;
-    if (t10 < 0 && fr >= 0.1) t10 = t; if (t63 < 0 && fr >= 0.632) t63 = t; if (t90 < 0 && fr >= 0.9) t90 = t;
-    if (k >= N - N / 3) { ss += y; nss++; }
+    float vs[2]; waitMs(10); float dt = meterRead(m, vs[0], vs[1]); wheelPI(v, v, vs[0], vs[1], dt); t += dt;
+    for (int w = 0; w < 2; w++) {
+      float fr = vs[w] / v;
+      if (fr > peak[w]) peak[w] = fr;
+      if (t10[w] < 0 && fr >= 0.1f) t10[w] = t;
+      if (t63[w] < 0 && fr >= 0.632f) t63[w] = t;
+      if (t90[w] < 0 && fr >= 0.9f) t90[w] = t;
+      if (k >= N - N / 3) ss[w] += vs[w];
+    }
+    if (k >= N - N / 3) nss++;
   }
   setPwm(0, 0);
-  ss /= max(1, nss);
-  float rise = (t10 >= 0 && t90 >= 0) ? t90 - t10 : -1, over = peak > 1 ? (peak - 1) * 100 : 0;
-  Serial.print(F("CAL STEP ")); Serial.print(v, 2); Serial.print(F(" m/s (= sketch PI): rise L ")); Serial.print(rise, 3); Serial.print(F("s R ")); Serial.print(rise, 3);
-  Serial.print(F("s, overshoot L ")); Serial.print(over, 0); Serial.print(F("% R ")); Serial.print(over, 0); Serial.print(F("%, tau63 L ")); Serial.print(t63, 3);
-  Serial.print(F("s R ")); Serial.print(t63, 3); Serial.print(F("s, steady L ")); Serial.print(ss, 3); Serial.print(F(" R ")); Serial.println(ss, 3);
+  float rise[2], over[2];
+  for (int w = 0; w < 2; w++) {
+    ss[w] /= max(1, nss);
+    rise[w] = (t10[w] >= 0 && t90[w] >= 0) ? t90[w] - t10[w] : -1;
+    over[w] = peak[w] > 1 ? (peak[w] - 1) * 100 : 0;
+  }
+  Serial.print(F("CAL STEP ")); Serial.print(v, 3); Serial.print(F(" m/s (= sketch PI): rise L ")); Serial.print(rise[0], 3); Serial.print(F("s R ")); Serial.print(rise[1], 3);
+  Serial.print(F("s, overshoot L ")); Serial.print(over[0], 0); Serial.print(F("% R ")); Serial.print(over[1], 0); Serial.print(F("%, tau63 L ")); Serial.print(t63[0], 3);
+  Serial.print(F("s R ")); Serial.print(t63[1], 3); Serial.print(F("s, steady L ")); Serial.print(ss[0], 3); Serial.print(F(" R ")); Serial.println(ss[1], 3);
+  for (int w = 0; w < 2; w++) {   // why a wheel never got there
+    if (t63[w] >= 0) continue;
+    Serial.print(F("WARN CAL STEP ")); Serial.print(w ? F("right") : F("left"));
+    if (ss[w] < -0.1f * v) Serial.println(F(" wheel measured BACKWARD: motor or encoder sign is wrong (run CAL DIR)"));
+    else if (fabs(ss[w]) < 0.1f * v) Serial.println(F(" wheel did not move (or its encoder does not count): check wiring, run CAL DIR"));
+    else Serial.println(F(" wheel too slow for this target: lower the target speed"));
+  }
 }
 void calDrive(float dist) {
   long sl = cntL(), sr = cntR(); Meter m; meterStart(m); iL = iR = 0; float v = 0.2f;
