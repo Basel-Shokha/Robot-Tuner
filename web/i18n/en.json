@@ -1060,9 +1060,9 @@
  "builder.caster_y": "Caster position y (+ = left of centre)",
  "builder.caster_note": "Measure from the middle of the wheel axle to the centre of the ball. Or drag the grey ball in the drawing (hold Alt if a sensor sits on top of it). It is drawn and saved in your robot file; the simulator does not need it to drive.",
  "builder.robotfile_h": "Robot file (everything about your robot)",
- "builder.robotfile_p": "One text file with every hardware value: body, wheels, caster ball, motors, encoders, sensors, timing, board and pins, and your PID gains. Values you have not set are written as N/A. Load it on any computer to get your robot back.",
+ "builder.robotfile_p": "One text file with everything about your robot: body, wheels, caster ball, motors, encoders, sensors, timing, board and pins, PID gains and settings. Values you have not set are written as N/A. Load it on any computer to get your robot back.",
  "builder.export_file": "Save robot file",
- "builder.import_file": "Load robot file (.txt or .json)",
+ "builder.import_file": "Load robot file",
  "builder.file_unknown": "These lines were not understood and were skipped: {keys}",
  "builder.set_this": "Set this value first: {name}",
  "gate.h": "Set up your robot first",
@@ -1191,5 +1191,5 @@
  "bt.steps": "Upload the code once with the USB cable (Bluetooth on in Robot builder → Firmware).|Unplug USB and power the robot from its battery.|On the PC: Bluetooth settings → Add device → pick \"{name}\". Windows then creates a COM port (\"Standard Serial over Bluetooth link\"); on a Mac it appears as /dev/cu.{name}.|Press CONNECT here and pick that port. When the status turns green, the robot answers.",
  "bt.no_wifi": "Why not WiFi? This site runs over https, and browsers do not let https pages talk to a robot's plain WiFi address. Bluetooth shows up as a normal serial port, and your PC stays on its WiFi.",
  "builder.load_h": "Have a robot file? Load it first.",
- "builder.load_p": "A .robot.txt or .robot.json file you saved before. It fills in everything below."
+ "builder.load_p": "The .robot.txt file you saved before. It fills in everything below."
 }

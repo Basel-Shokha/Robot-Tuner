@@ -225,7 +225,7 @@ $('#robot-name').addEventListener('input', (e) => { R.name = e.target.value; mar
 $('#drive').addEventListener('change', (e) => { R.drive = e.target.value; mark('drive'); if (R.drive === '4wd') R.caster.enabled = false; commit(true); fitRobot(); draw(); });
 $('#exp-file').addEventListener('click', () => download(downloadName(R, '.robot.txt'), robotToFile(R)));
 async function loadRobotFile() {
-  const f = await pickFile('.txt,.json,text/plain,application/json'); if (!f) return;
+  const f = await pickFile('.txt,text/plain,.json'); if (!f) return;   // older .json / robot_hardware.txt files still load
   try {
     if (/^\s*\{/.test(f.text)) R = migrate(JSON.parse(f.text));
     else if (isRobotFile(f.text)) { const res = fileToRobot(f.text); R = res.robot; if (res.unknown.length) toast(t('builder.file_unknown', { keys: res.unknown.join(', ') }), 'warn'); }
@@ -234,16 +234,6 @@ async function loadRobotFile() {
   } catch (e) { toast(t('builder.import_err') + ' ' + e.message, 'bad'); }
 }
 $('#imp-file').addEventListener('click', loadRobotFile);
-$('#exp-json').addEventListener('click', () => download(downloadName(R, '.robot.json'), JSON.stringify(R, null, 2), 'application/json'));
-$('#imp-json').addEventListener('click', async () => {
-  const f = await pickFile('.json,application/json'); if (!f) return;
-  try { R = migrate(JSON.parse(f.text)); commit(true); fitRobot(); draw(); toast(t('builder.imported', { name: f.name }), 'ok'); } catch (e) { toast(t('builder.import_err') + ' ' + e.message, 'bad'); }
-});
-$('#exp-hw').addEventListener('click', () => download('robot_hardware.txt', robotToHardwareTxt(R)));
-$('#imp-hw').addEventListener('click', async () => {
-  const f = await pickFile('.txt,text/plain'); if (!f) return;
-  try { R = hardwareTxtToRobot(f.text, R); commit(true); fitRobot(); draw(); toast(t('builder.imported', { name: f.name }), 'ok'); } catch (e) { toast(t('builder.import_err') + ' ' + e.message, 'bad'); }
-});
 function blank(drive) {
   const r = defaultRobot();
   r.name = t('builder.new_name'); r.drive = drive; r.source = {};
