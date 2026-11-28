@@ -2,7 +2,7 @@
 # Written by Robot Tuner. Everything about the robot's hardware, one "key value" per line, then # status, unit, note.
 # N/A = not set yet. Status: TYPED, MEASURED, IMPORTED, DATASHEET (from the sensor type) ... * = needed before simulating.
 # Frame: origin = middle of the drive axle, +x forward, +y LEFT, angles counter-clockwise (deg).
-# Load it again in Robot builder -> File -> Load robot file.
+# Load it again in Robot builder -> Load / Save -> Load robot file.
 
 # ---- General ----
 name                       Basel_&_Nicole_robot_(ESP32,_DRV8833,_3x_VL53L1X)   #  TYPED  - robot name
@@ -69,6 +69,15 @@ pid_speed_frac                     0.75   #  TYPED  fraction 0..1  - cruise = v_
 pid_error_clip_mm                    80   #  TYPED  mm
 pid_integral_limit                  0.5   #  TYPED  m*s
 pid_d_filter_alpha                  0.3   #  TYPED  per 50 ms
+pid_mode                      two_sides   #  TYPED  two_sides | one_side  - centre between both walls, or follow one wall
+pid_offset_mm                         0   #  TYPED  mm  - drive this far left of the centre (- = right)
+
+# ---- Steering smoothing ----
+steer_smoothing                     yes   #  TYPED  yes | no  - smooths the wheel speed targets of the steering PID
+steer_tau_s                         0.1   #  TYPED  s
+steer_turn_accel                    1.5   #  TYPED  m/s^2
+steer_lin_accel                     0.5   #  TYPED  m/s^2
+steer_max_step                   0.0105   #  TYPED  m/s per step
 
 # ---- Board and pins ----
 board                             esp32   #  TYPED  uno | mega | esp32

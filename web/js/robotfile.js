@@ -79,6 +79,15 @@ function robotFields() {
     ['Steering PID', 'pid_error_clip_mm', 'pid.error_clip_mm', NUM, 'mm', null, null, always, ''],
     ['Steering PID', 'pid_integral_limit', 'pid.integral_limit', NUM, 'm*s', null, null, always, ''],
     ['Steering PID', 'pid_d_filter_alpha', 'pid.d_filter_alpha', NUM, 'per 50 ms', null, null, always, ''],
+    ['Steering PID', 'pid_mode', 'pid.mode', WORD, 'two_sides | one_side', null, null, always, 'centre between both walls, or follow one wall'],
+    ['Steering PID', 'pid_follow_side', 'pid.follow_side', WORD, 'left | right', null, null, (r) => r.pid.mode === 'one_side', 'the wall to follow'],
+    ['Steering PID', 'pid_follow_mm', 'pid.follow_mm', NUM, 'mm', null, null, (r) => r.pid.mode === 'one_side', 'distance to that wall'],
+    ['Steering PID', 'pid_offset_mm', 'pid.offset_mm', NUM, 'mm', null, null, (r) => r.pid.mode !== 'one_side', 'drive this far left of the centre (- = right)'],
+    ['Steering smoothing', 'steer_smoothing', 'smoothing.on', WORD, 'yes | no', null, null, always, 'smooths the wheel speed targets of the steering PID'],
+    ['Steering smoothing', 'steer_tau_s', 'smoothing.tau_s', NUM, 's', null, null, always, ''],
+    ['Steering smoothing', 'steer_turn_accel', 'smoothing.turn_accel', NUM, 'm/s^2', null, null, always, ''],
+    ['Steering smoothing', 'steer_lin_accel', 'smoothing.lin_accel', NUM, 'm/s^2', null, null, always, ''],
+    ['Steering smoothing', 'steer_max_step', 'smoothing.max_step', NUM, 'm/s per step', null, null, always, ''],
     ['Board and pins', 'board', 'hardware.board', WORD, Object.keys(BOARDS).join(' | '), 'firmware', null, always, ''],
     ['Board and pins', 'bluetooth', 'hardware.bt', WORD, 'yes | no', 'firmware', null, (r) => (r.hardware || {}).board === 'esp32', 'serial over Bluetooth next to USB (classic ESP32)'],
     ['Board and pins', 'bluetooth_name', 'hardware.bt_name', WORD, 'name', 'firmware', null, (r) => (r.hardware || {}).board === 'esp32' && r.hardware.bt !== false, 'empty = RobotTuner-<robot name>'],
@@ -151,7 +160,7 @@ export function robotToFile(r0) {
     '# Written by Robot Tuner. Everything about the robot\'s hardware, one "key value" per line, then # status, unit, note.',
     '# N/A = not set yet. Status: TYPED, MEASURED, IMPORTED, DATASHEET (from the sensor type) ... * = needed before simulating.',
     '# Frame: origin = middle of the drive axle, +x forward, +y LEFT, angles counter-clockwise (deg).',
-    '# Load it again in Robot builder -> File -> Load robot file.'];
+    '# Load it again in Robot builder -> Load / Save -> Load robot file.'];
   let sec = '';
   for (const f of allFields(r)) {
     if (f.section !== sec) { sec = f.section; L.push('', `# ---- ${sec} ----`); }
@@ -188,6 +197,7 @@ export function fileToRobot(text) {
   for (let i = 0; i < n; i++) { const ty = kv[`sensor${i + 1}_type`]; if (ty && SENSOR_LIBRARY[ty]) r.sensors[i] = { ...makeSensor(ty), name: r.sensors[i].name }; }
   if (kv.drive === '2wd' || kv.drive === '4wd') r.drive = kv.drive;
   if (kv.caster === 'yes' || kv.caster === 'no') r.caster.enabled = kv.caster === 'yes';
+  if (kv.pid_mode === 'one_side' || kv.pid_mode === 'two_sides') r.pid.mode = kv.pid_mode;
   if (ENCODERS.includes(kv.encoder_type)) r.hardware.encoder.type = kv.encoder_type;
   if (DRIVERS.includes(kv.motor_driver)) r.hardware.driver.type = kv.motor_driver;
   if (kv.board && BOARDS[kv.board]) r.hardware.board = kv.board;
@@ -200,7 +210,7 @@ export function fileToRobot(text) {
     let x;
     if (f.type === NUM) { x = /^0x/i.test(v) ? parseInt(v, 16) : parseFloat(v); if (!Number.isFinite(x)) { unknown.push(f.key); continue; } }
     else if (f.path === 'hardware.bt_name' && v === 'default') x = '';
-    else x = f.path === 'caster.enabled' || f.path === 'hardware.bt' ? v === 'yes' : (f.path === 'name' ? v.replace(/_/g, ' ') : v);
+    else x = ['caster.enabled', 'hardware.bt', 'smoothing.on'].includes(f.path) ? v === 'yes' : (f.path === 'name' ? v.replace(/_/g, ' ') : v);
     setPath(r, f.path, x);
     r.source[srcKey(f.path)] = 'IMPORTED';
   }

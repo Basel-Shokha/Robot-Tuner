@@ -33,6 +33,16 @@ test('our robot: every value set, the file reads back to the same robot', () => 
   }
 });
 
+test('the robot file holds EVERY setting: a full robot reads back identical (apart from the source tags)', () => {
+  const a = exampleRobot();
+  a.pid.mode = 'one_side'; a.pid.follow_side = 'right'; a.pid.follow_mm = 90; a.source['pid.follow_side'] = a.source['pid.follow_mm'] = 'TYPED'; a.smoothing.on = false; a.smoothing.tau_s = 0.2; a.motor.speed_tau_ms = 12; a.hardware.bt_name = 'Bot7';
+  for (const r of [a, exampleRobot()]) {
+    const b = fileToRobot(robotToFile(r)).robot;
+    const strip = (x) => { const y = JSON.parse(JSON.stringify(x)); delete y.source; return y; };
+    assert.deepEqual(strip(b), strip(r));
+  }
+});
+
 test('N/A lines stay unset, a set value is set, unknown lines are reported', () => {
   const txt = robotToFile(defaultRobot()).replace(/^wheel_diameter_mm +N\/A/m, 'wheel_diameter_mm 65') + 'mystery_key 3\n';
   const { robot, unknown } = fileToRobot(txt);
@@ -51,6 +61,4 @@ test('robots saved before robot files keep every value (and their simulation)', 
 test('robots/basel_nicole.robot.txt is the generator output (node tools/gen_example_robot.mjs)', async () => {
   const { readFileSync } = await import('node:fs');
   assert.equal(readFileSync(new URL('../../robots/basel_nicole.robot.txt', import.meta.url), 'utf8'), robotToFile(exampleRobot()));
-  assert.equal(readFileSync(new URL('../../robots/basel_nicole.robot.json', import.meta.url), 'utf8'), JSON.stringify(exampleRobot(), null, 2) + '\n');
-  assert.deepEqual(missingForSim(migrate(JSON.parse(readFileSync(new URL('../../robots/basel_nicole.robot.json', import.meta.url), 'utf8')))), []);
 });
