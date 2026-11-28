@@ -34,6 +34,7 @@
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 html { -webkit-text-size-adjust: 100%; }
 body { margin: 0; background: var(--floor); color: var(--ink); font: 400 15.5px/1.55 var(--font); font-feature-settings: "tnum" 1; }
 h1, h2, h3, h4 { font-stretch: 87%; letter-spacing: -0.01em; line-height: 1.15; color: var(--ink); }
@@ -431,3 +432,9 @@ input.pwm-val { width: 4.5em; }
 .hist-row.bad { opacity: .7; }
 .hist-cur { color: var(--green); white-space: nowrap; }
 .measure-link { font-size: .8rem; white-space: nowrap; }
+
+.step-val { font-family: var(--mono); font-size: .82rem; color: var(--green); white-space: nowrap; }
+.step-val.unset { color: var(--muted); }
+.req { color: var(--amber-ink); font-weight: 700; }
+@media (max-width: 560px) { .step header .step-val { display: none; } }
+.progress-line { margin: 4px 0 10px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }

@@ -21,6 +21,8 @@ function commit(redrawForm = false) {
 }
 function mark(path, tag = 'TYPED') { R.source[path] = tag; }
 
+// values the simulator needs (robotfile.js required fields): marked * in the forms
+const REQUIRED = new Set(allFields(R).filter((f) => f.required).map((f) => f.path));
 // values the Measure page can measure: path -> its step there
 const MEASURE_STEP = { 'wheels.ticks_per_rev': 'ticks', 'motor.max_speed_mps': 'maxspeed', 'motor.v_min_mps': 'vmin', 'motor.ff_static': 'ff', 'motor.ff_gain': 'ff',
   'motor.step_tau_s': 'step', 'wheels.scale_l': 'drive', 'wheels.scale_r': 'drive', 'wheels.track_effective_mm': 'spin',
@@ -36,14 +38,15 @@ function num(group, key, labelKey, unit, opts = {}) {
   inp.addEventListener('input', () => {
     const v = parseFloat(inp.value);
     if (!Number.isFinite(v)) return;
-    obj[key] = v; mark(path); src.textContent = 'TYPED'; src.className = 'pill src'; inp.classList.remove('unset'); commit();
+    obj[key] = v; mark(path); src.textContent = 'TYPED'; src.className = 'pill src'; src.hidden = false; inp.classList.remove('unset'); commit();
   });
   if (!set) inp.classList.add('unset');
   const tag = set ? (R.source[path] || (R.all_set ? 'SET' : 'DATASHEET')) : 'N/A';
-  const src = el('span', { class: 'pill src ' + (tag === 'MEASURED' ? 'ok' : tag === 'N/A' ? 'warn' : ''), text: tag, title: t('builder.source_hint') });
+  const src = el('span', { class: 'pill src ' + (tag === 'MEASURED' ? 'ok' : ''), text: tag, title: t('builder.source_hint'), hidden: tag === 'N/A' ? true : null });   // N/A is already in the box
+  const need = REQUIRED.has(full) ? el('span', { class: 'req', text: ' *', title: t('builder.req_hint') }) : null;
   const ms = measureStep(full);
   const meas = ms ? el('a', { class: 'measure-link', href: `measure.html#${ms}`, title: t('builder.measure_hint'), text: '📏 ' + t('builder.measure') }) : null;
-  return el('label', { class: 'field' }, el('span', {}, el('span', { text: t(labelKey) }), unit ? el('span', { class: 'muted', text: ` (${unit})` }) : null, ' ', src, meas ? ' ' : null, meas), inp);
+  return el('label', { class: 'field' }, el('span', {}, el('span', { text: t(labelKey) }), need, unit ? el('span', { class: 'muted', text: ` (${unit})` }) : null, ' ', src, meas ? ' ' : null, meas), inp);
 }
 
 function buildForms() {
