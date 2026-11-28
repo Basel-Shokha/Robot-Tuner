@@ -1214,5 +1214,9 @@
  "ms.ticks.wheel_h": "",
  "ms.ticks.turning": "",
  "ms.ticks.stopped": "",
- "ms.ticks.side_ok": ""
+ "ms.ticks.side_ok": "",
+ "ms.ticks.pwm": "",
+ "ms.ticks.slower": "",
+ "ms.ticks.faster": "",
+ "ms.ticks.pwm_note": ""
 }

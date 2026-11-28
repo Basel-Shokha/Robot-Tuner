@@ -417,3 +417,6 @@ button.danger { background: var(--red); color: #fff; border-color: var(--red); }
 .wheel-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; margin: 10px 0; }
 .wheel-box h4 { margin: 0; }
 .wheel-box.done { border-color: var(--green); background: var(--green-soft); }
+.pwm-row { align-items: center; gap: 8px; }
+.pwm-val { min-width: 2.5em; text-align: center; font-size: 1.1rem; }
+.pwm-row button { min-width: 36px; font-size: 1.1rem; }

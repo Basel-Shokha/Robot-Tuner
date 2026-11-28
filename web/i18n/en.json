@@ -1212,5 +1212,9 @@
  "ms.ticks.wheel_h": "{side} wheel",
  "ms.ticks.turning": "Turning…",
  "ms.ticks.stopped": "Stopped. Now line the mark up by hand.",
- "ms.ticks.side_ok": "done"
+ "ms.ticks.side_ok": "done",
+ "ms.ticks.pwm": "PWM",
+ "ms.ticks.slower": "slower (PWM − 2)",
+ "ms.ticks.faster": "faster (PWM + 2)",
+ "ms.ticks.pwm_note": "− stops at the lowest PWM where this wheel moved."
 }
