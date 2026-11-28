@@ -29,6 +29,7 @@ const PRELUDE = () => String.raw`// robot_tuner_esp32.ino - Robot Tuner install 
 #include "BluetoothSerial.h"
 
 struct Meter { long pl, pr; unsigned long us; };
+bool cmdFromBt = false;
 #define HAS_ENCODERS 1
 #define LOW_RES 0
 #define MAXS 5
@@ -63,11 +64,15 @@ class TeeIO : public Stream {
   size_t write(uint8_t c) override { USB_SERIAL_.write(c); if (btOn && SerialBT.hasClient()) SerialBT.write(c); return 1; }   // BT only with a PC connected
   size_t write(const uint8_t* b, size_t n) override { USB_SERIAL_.write(b, n); if (btOn && SerialBT.hasClient()) SerialBT.write(b, n); return n; }
   int available() override { return USB_SERIAL_.available() + (btOn ? SerialBT.available() : 0); }
-  int read() override { return USB_SERIAL_.available() ? USB_SERIAL_.read() : (btOn ? SerialBT.read() : -1); }
+  int read() override { if (USB_SERIAL_.available()) { cmdFromBt = false; return USB_SERIAL_.read(); } if (!btOn) return -1; cmdFromBt = true; return SerialBT.read(); }
   int peek() override { return USB_SERIAL_.available() ? USB_SERIAL_.peek() : (btOn ? SerialBT.peek() : -1); }
   void flush() override { USB_SERIAL_.flush(); if (btOn) SerialBT.flush(); }
 };
 TeeIO RT_IO;
+void linkWatch() {
+  static bool was = false; bool now = btOn && SerialBT.hasClient();
+  if (now != was) { was = now; RT_IO.println(now ? F("LINK bluetooth connected") : F("LINK bluetooth disconnected")); }
+}
 
 // ---------------- robot numbers (from the settings) ----------------
 float WHEEL_DIAMETER_M = 0.045f, ticks_per_rev = 1000, track_w = 0.12f;

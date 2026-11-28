@@ -1,6 +1,6 @@
 // link-status.js - "is the robot really there?": while the port is open, PING every 3 s (hidden from the log) and show
 // whether anything came back. Any received line counts; PONG proves the robot understands Robot Tuner's commands.
-import { el, t } from './common.js';
+import { el, t, toast } from './common.js';
 import { usesBt, btName, normalizeHardware } from './firmware-gen.js';
 
 /** "No cable: Bluetooth" how-to for ESP32 robots with Bluetooth on (null otherwise) */
@@ -17,6 +17,7 @@ export function btHelp(robot) {
 export function linkStatus(link) {
   const pill = el('span', { class: 'link-status off', role: 'status', 'aria-live': 'polite' });
   let last = '';
+  link.onLink && link.onLink((s) => toast(t('link.bt_' + s), s === 'connected' ? 'ok' : 'warn'));
   const tick = () => {
     const now = Date.now();
     let st;
@@ -27,7 +28,8 @@ export function linkStatus(link) {
       else if (link.lastRx && now - link.lastRx < 7000) st = 'foreign';   // talks, but no PONG: old sketch or other code
       else st = now - link.openedAt < 7000 ? 'waiting' : 'silent';
     }
-    const txt = t('link.' + st, { s: link.lastPong ? Math.round((now - link.lastPong) / 1000) : 0 });
+    let txt = t('link.' + st, { s: link.lastPong ? Math.round((now - link.lastPong) / 1000) : 0 });
+    if (st === 'ok' && link.via) txt = t('link.ok_via', { via: t('link.via_' + (link.via === 'bluetooth' ? 'bt' : 'usb')) });
     if (st + txt !== last) { last = st + txt; pill.className = 'link-status ' + st; pill.textContent = txt; pill.title = t('link.' + st + '_h'); }
   };
   tick(); setInterval(tick, 1000);

@@ -20,7 +20,7 @@
 //   CAL VMIN                   PWM ramp both ways, wheels in the air -> slowest steady speed (v_min)
 //   RUN [s] / STOP             wall following with the PID below (constant cruise speed), default 10 s
 //   CAL TOF [n] [true_mm]      n readings per sensor -> noise, bias, dropouts
-//   PING                       is the robot there? Robot Tuner sends it every few seconds
+//   PING                       is the robot there, and over which link? Robot Tuner sends it every few seconds
 //   STATUS                     loop period and reading age
 //   LOAD SENSORS / LOAD FINAL  motors off / on (sensor timing test)
 
@@ -34,6 +34,7 @@
 #include <driver/pulse_cnt.h>   // ESP-IDF PCNT driver, part of the esp32 board package (core 3.x and 4.x)
 #include <VL53L1X.h>
 BluetoothSerial SerialBT;
+bool cmdFromBt = false;   // the last command came over Bluetooth (PING answers which link)
 // RT_IO: every reply goes to USB and Bluetooth; commands are read from both
 class TeeIO : public Stream {
  public:
@@ -41,7 +42,7 @@ class TeeIO : public Stream {
   size_t write(uint8_t c) override { Serial.write(c); if (SerialBT.hasClient()) SerialBT.write(c); return 1; }
   size_t write(const uint8_t* b, size_t n) override { Serial.write(b, n); if (SerialBT.hasClient()) SerialBT.write(b, n); return n; }
   int available() override { return Serial.available() + SerialBT.available(); }
-  int read() override { return Serial.available() ? Serial.read() : SerialBT.read(); }
+  int read() override { if (Serial.available()) { cmdFromBt = false; return Serial.read(); } cmdFromBt = true; return SerialBT.read(); }
   int peek() override { return Serial.available() ? Serial.peek() : SerialBT.peek(); }
   void flush() override { Serial.flush(); SerialBT.flush(); }
 };
@@ -51,6 +52,11 @@ TeeIO RT_IO;
 #define IRAM_ATTR
 #endif
 struct Meter { long pl, pr; unsigned long us; };   // wheel speed meter (declared first for the Arduino prototype generator)
+
+void linkWatch() {   // tell USB and Bluetooth when a PC opens or closes the Bluetooth port
+  static bool was = false; bool now = SerialBT.hasClient();
+  if (now != was) { was = now; RT_IO.println(now ? F("LINK bluetooth connected") : F("LINK bluetooth disconnected")); }
+}
 
 // ======================= CONFIG (generated; change it here if you rewire) =======================
 // motor driver: two inputs IN1 / IN2 per motor, both PWM (DRV8833, MX1508, L9110S, TB67H450, L298N with the ENA/ENB jumpers on)
@@ -557,7 +563,7 @@ void handle(const char* c) {
   else if (STARTS("CAL RUN")) runStart(a1 > 0 ? a1 : 10.0f);
   else if (IS("CAL STOP")) runStop();
   else if (STARTS("CAL TOF")) calTof(a1 > 0 ? (int)a1 : 100, a2);
-  else if (IS("CAL PING")) RT_IO.println(F("PONG"));
+  else if (IS("CAL PING")) { RT_IO.print(F("PONG ")); RT_IO.println(cmdFromBt ? F("bluetooth") : F("usb")); }
   else if (IS("STATUS")) status();
   else if (IS("LOAD SENSORS")) { motorsEnabled = false; setPwm(0, 0); RT_IO.println(F("OK profile SENSORS (motors off)")); }
   else if (IS("LOAD FINAL")) { motorsEnabled = true; RT_IO.println(F("OK profile FINAL")); }
@@ -565,6 +571,7 @@ void handle(const char* c) {
 }
 
 void loop() {
+  linkWatch();   // prints LINK bluetooth connected / disconnected when that changes
   // the "control loop": the sensors deliver readings at their own pace; STATUS reports the period of a full set
   idle(true);
   if (running) runTick();

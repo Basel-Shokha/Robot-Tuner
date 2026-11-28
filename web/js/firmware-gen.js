@@ -379,6 +379,7 @@ export const PROTOCOL_RULES = [
   'Replies are plain text lines ending in "\\r\\n" (Serial.println). The Tuner reads them line by line and matches the start of each line.',
   'At start-up the sketch prints: robot_tuner_min ready (commands: see the top of the sketch)',
   'Errors start with "ERR ", warnings with "WARN ", acknowledgements with "OK ". Unknown command -> "ERR unknown command".',
+  'Link messages (Bluetooth robots), printed by themselves when it happens: LINK bluetooth connected  /  LINK bluetooth disconnected  (a PC opened or closed the Bluetooth serial port). Robot Tuner shows them on screen.',
   'Without wheel encoders, every command that needs them answers: ERR <command> needs wheel encoders: this robot has none (time-based mode). Use CAL TIMED or type the value on the Measure page.',
 ];
 // motion: what the robot does when the command runs. hand = motors off, you turn the wheels; air = wheels spin, lift the
@@ -425,7 +426,7 @@ export const PROTOCOL = [
   { cmd: 'CAL TOF', motion: 'still', args: '[n] [true_mm]', usage: 'CAL TOF [n] [true_mm]', help: 'n readings per sensor -> noise, bias, dropouts', def: 'n = 100',
     replies: ['CAL TOF <sensor name> n <count> mean <mm> mm std <mm> mm min <mm> max <mm> dropouts <count> (<%>%)   (one line per sensor)',
       'CAL TOF <sensor name> bias vs <true mm> mm: <+/-mm> mm   (only when true_mm is given)', 'CAL: TOF done'] },
-  { cmd: 'PING', motion: 'still', usage: 'PING', help: 'is the robot there? Robot Tuner sends it every few seconds', replies: ['PONG'] },
+  { cmd: 'PING', motion: 'still', usage: 'PING', help: 'is the robot there, and over which link? Robot Tuner sends it every few seconds', replies: ['PONG <usb or bluetooth>   (the link the PING came over)'] },
   { cmd: 'STATUS', motion: 'still', usage: 'STATUS', help: 'loop period and reading age',
     replies: ['tof mm <sensor name> <mm> <sensor name> <mm> ...   (-1 = no valid reading)',
       'ToF ages at the last tick: data-ready seen <us>/<us>/<us> us ago (R/F/L), + 0 ms half budget',
@@ -522,7 +523,7 @@ export function generateSketch(robot, hwIn) {
   if (kinds.includes('l0x')) w('#include <VL53L0X.h>');
   if (kinds.includes('l1x')) w('#include <VL53L1X.h>');
   if (bt) {
-    w('BluetoothSerial SerialBT;',
+    w('BluetoothSerial SerialBT;', 'bool cmdFromBt = false;   // the last command came over Bluetooth (PING answers which link)',
       '// RT_IO: every reply goes to USB and Bluetooth; commands are read from both',
       'class TeeIO : public Stream {',
       ' public:',
@@ -530,14 +531,20 @@ export function generateSketch(robot, hwIn) {
       '  size_t write(uint8_t c) override { USB_SERIAL_.write(c); if (SerialBT.hasClient()) SerialBT.write(c); return 1; }',
       '  size_t write(const uint8_t* b, size_t n) override { USB_SERIAL_.write(b, n); if (SerialBT.hasClient()) SerialBT.write(b, n); return n; }',
       '  int available() override { return USB_SERIAL_.available() + SerialBT.available(); }',
-      '  int read() override { return USB_SERIAL_.available() ? USB_SERIAL_.read() : SerialBT.read(); }',
+      '  int read() override { if (USB_SERIAL_.available()) { cmdFromBt = false; return USB_SERIAL_.read(); } cmdFromBt = true; return SerialBT.read(); }',
       '  int peek() override { return USB_SERIAL_.available() ? USB_SERIAL_.peek() : SerialBT.peek(); }',
       '  void flush() override { USB_SERIAL_.flush(); SerialBT.flush(); }',
       '};',
       'TeeIO RT_IO;');
-  } else w('#define RT_IO Serial   // replies and commands: USB serial');
+  } else w('#define RT_IO Serial   // replies and commands: USB serial', 'const bool cmdFromBt = false;');
   w('', '#ifndef IRAM_ATTR', '#define IRAM_ATTR', '#endif',
     'struct Meter { long pl, pr; unsigned long us; };   // wheel speed meter (declared first for the Arduino prototype generator)', '');
+  // (after Meter: the Arduino IDE puts its function prototypes in front of the first function)
+  if (bt) w('void linkWatch() {   // tell USB and Bluetooth when a PC opens or closes the Bluetooth port',
+    '  static bool was = false; bool now = SerialBT.hasClient();',
+    '  if (now != was) { was = now; RT_IO.println(now ? F("LINK bluetooth connected") : F("LINK bluetooth disconnected")); }',
+    '}', '');
+  else w('void linkWatch() {}', '');
 
   // ---------- config ----------
   w('// ======================= CONFIG (generated; change it here if you rewire) =======================');
@@ -1252,7 +1259,7 @@ void handle(const char* c) {
   else if (STARTS("CAL RUN")) runStart(a1 > 0 ? a1 : 10.0f);
   else if (IS("CAL STOP")) runStop();
   else if (STARTS("CAL TOF")) calTof(a1 > 0 ? (int)a1 : 100, a2);
-  else if (IS("CAL PING")) Serial.println(F("PONG"));
+  else if (IS("CAL PING")) { Serial.print(F("PONG ")); Serial.println(cmdFromBt ? F("bluetooth") : F("usb")); }
   else if (IS("STATUS")) status();
   else if (IS("LOAD SENSORS")) { motorsEnabled = false; setPwm(0, 0); Serial.println(F("OK profile SENSORS (motors off)")); }
   else if (IS("LOAD FINAL")) { motorsEnabled = true; Serial.println(F("OK profile FINAL")); }
@@ -1260,6 +1267,7 @@ void handle(const char* c) {
 }
 
 void loop() {
+  linkWatch();   // prints LINK bluetooth connected / disconnected when that changes
   // the "control loop": the sensors deliver readings at their own pace; STATUS reports the period of a full set
   idle(true);
   if (running) runTick();

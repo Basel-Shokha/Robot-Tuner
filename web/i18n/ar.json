@@ -1209,5 +1209,10 @@
  "inst.sending": "",
  "inst.saved": "",
  "link.lost": "",
- "link.lost_h": ""
+ "link.lost_h": "",
+ "link.ok_via": "",
+ "link.via_bt": "",
+ "link.via_usb": "",
+ "link.bt_connected": "",
+ "link.bt_disconnected": ""
 }

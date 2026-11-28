@@ -1163,7 +1163,7 @@
  "cmd.ping": "Is the robot there?",
  "cmd.ping_h": "Sends PING; the robot answers PONG. The site also does this by itself every 3 seconds.",
  "cmd.ping_do": "Nothing to do.",
- "cmd.ping_next": "The status next to CONNECT turns green when the robot answers.",
+ "cmd.ping_next": "The status next to CONNECT turns green and says over which link the robot answers (USB or Bluetooth).",
  "link.off": "○ Not connected",
  "link.off_h": "Press CONNECT and pick the robot's port.",
  "link.waiting": "… Port open, waiting for the robot",
@@ -1207,5 +1207,10 @@
  "inst.sending": "Sending your settings…",
  "inst.saved": "Settings saved on the robot. It restarts and uses them.",
  "link.lost": "✕ Connection lost",
- "link.lost_h": "The robot stopped answering and the port closed: unplugged, powered off, or out of Bluetooth range. With Bluetooth on Windows, pick the OUTGOING COM port (Bluetooth settings → More Bluetooth settings → COM Ports). Press CONNECT again."
+ "link.lost_h": "The robot stopped answering and the port closed: unplugged, powered off, or out of Bluetooth range. With Bluetooth on Windows, pick the OUTGOING COM port (Bluetooth settings → More Bluetooth settings → COM Ports). Press CONNECT again.",
+ "link.ok_via": "● Robot answers over {via}",
+ "link.via_bt": "Bluetooth",
+ "link.via_usb": "USB",
+ "link.bt_connected": "Robot: Bluetooth connected",
+ "link.bt_disconnected": "Robot: Bluetooth disconnected"
 }

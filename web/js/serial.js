@@ -24,7 +24,10 @@ export class RobotLink {
           while ((i = this.buf.search(/\r?\n/)) >= 0) {
             const line = this.buf.slice(0, i); this.buf = this.buf.slice(i + (this.buf[i] === '\r' ? 2 : 1));
             this.lastRx = Date.now();
-            if (line.trim() === 'PONG') { this.lastPong = this.lastRx; continue; }   // keep-alive answers stay out of the log
+            const pong = /^PONG\b\s*(\w*)/.exec(line.trim());
+            if (pong) { this.lastPong = this.lastRx; this.via = pong[1] || ''; continue; }   // keep-alive answers stay out of the log
+            const lk = /^LINK bluetooth (connected|disconnected)/.exec(line.trim());
+            if (lk) for (const f of this.linkListeners || []) f(lk[1]);
             this.lines.push(line); if (this.lines.length > 2000) this.lines.shift();
             for (const f of this.listeners) f(line);
           }
@@ -44,6 +47,7 @@ export class RobotLink {
     try { if (this.reader) await this.reader.cancel(); if (this.writer) { this.writer.releaseLock(); } if (this.port) await this.port.close(); } catch (e) { /* ignore */ }
     this.port = null; this.closing = false;
   }
+  onLink(f) { (this.linkListeners = this.linkListeners || []).push(f); }
   onLine(f) { this.listeners.add(f); return () => this.listeners.delete(f); }
   /** keep-alive: PING without echo in the log */
   async ping() { if (this.writer) { try { await this.writer.write(new TextEncoder().encode('PING\n')); } catch (e) { /* port lost */ } } }
