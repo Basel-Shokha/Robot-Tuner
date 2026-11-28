@@ -151,7 +151,7 @@ export function studentPrompt(robot, hwIn, opts = {}) {
     for (const r of c.replies) w(`    reply: ${r}`);
   }
   w('Robot states in [robot: ...]:', ...Object.entries(MOTION).map(([k, v]) => `- ${k}: ${v}`),
-    'All commands arrive over the USB cable. The floor commands (CAL DRIVE, CAL SPIN, CAL TIMED, RUN) make the robot drive with the cable still plugged in, so they must stop on their own (distance, turns or time) and STOP must work at any moment. Do not make them wait for anything after they start.');
+    'Commands arrive over USB or, with the robot on the floor, over Bluetooth (no cable). The floor commands (CAL DRIVE, CAL SPIN, CAL TIMED, RUN) must stop on their own (distance, turns or time), STOP must work at any moment, and they must not wait for anything after they start. Never tell the student to drive the robot with the USB cable plugged in.');
   w('Follow the reference for HOW each command measures (timings, PWM steps, averaging); the Tuner\'s checks assume the same procedure.', '');
 
   w('## B. Encoder counting',

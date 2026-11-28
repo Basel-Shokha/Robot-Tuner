@@ -382,11 +382,11 @@ export const PROTOCOL_RULES = [
   'Without wheel encoders, every command that needs them answers: ERR <command> needs wheel encoders: this robot has none (time-based mode). Use CAL TIMED or type the value on the Measure page.',
 ];
 // motion: what the robot does when the command runs. hand = motors off, you turn the wheels; air = wheels spin, lift the
-// robot so they turn freely; floor = the robot DRIVES (the USB cable stays plugged in and must follow it); still = nothing moves.
+// robot so they turn freely; floor = the robot DRIVES on the floor: no cable, commands over Bluetooth; still = nothing moves.
 export const MOTION = {
   hand: 'motors off; the student turns the wheels by hand',
   air: 'the wheels spin: the robot must be lifted so the wheels turn freely (USB cable plugged in, robot does not move)',
-  floor: 'the robot DRIVES on the floor while the USB cable stays plugged in: the student holds the cable slack or uses a long (2 m) cable',
+  floor: 'the robot DRIVES on the floor on battery power with NO cable: commands arrive over Bluetooth serial (ESP32). Without Bluetooth the student skips these commands and measures by hand',
   still: 'nothing moves',
 };
 export const PROTOCOL = [

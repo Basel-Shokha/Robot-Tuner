@@ -127,5 +127,5 @@ test('every command says what the robot does (motion), and the prompt tells the 
     assert.ok(['hand', 'air', 'floor', 'still'].includes(c.motion), c.cmd);
     assert.ok(txt.includes(`[robot: ${c.motion}]`), c.cmd);
   }
-  assert.ok(txt.includes('the USB cable stays plugged in'));
+  assert.ok(txt.includes('NO cable') && txt.includes('Never tell the student to drive the robot with the USB cable plugged in'));
 });
