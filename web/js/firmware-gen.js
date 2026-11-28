@@ -310,6 +310,9 @@ export function validateHardware(robot, hwIn) {
     if ((k === 'l0x' || k === 'l1x') && hw.sensors[i].xshut < 0 && nTof > 1) msg('bad', 'fw.v.xshut_needed', { n: nm });
     if (k === 'none') msg('bad', 'fw.v.sensor_type', { n: nm, t: s.type });
   });
+  // Uno: the VL53L0X and VL53L1X libraries together do not fit in its 32 KB of flash (measured: up to 32.9 KB)
+  const kinds = robot.sensors.map((s) => sensorKind(s.type));
+  if (hw.board === 'uno' && kinds.includes('l0x') && kinds.includes('l1x')) msg('bad', 'fw.v.uno_two_tof');
   const i2c = usesI2C(robot, hw);
   // per pin checks
   const seen = new Map();

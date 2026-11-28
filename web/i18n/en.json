@@ -1223,5 +1223,6 @@
  "cmd.creep_r": "Turn right wheel slowly",
  "cmd.creep_r_h": "Only the right wheel, at the lowest power that moves it (starts at PWM 20), until STOP.",
  "cmd.creep_r_do": "Lift the robot so the wheels hang free.|Usually after \"Start counting ticks\".|Press Send, then STOP when the wheel has done the turns you want.",
- "cmd.creep_r_next": "Line the pen mark up by hand (forward or back): the encoder still counts."
+ "cmd.creep_r_next": "Line the pen mark up by hand (forward or back): the encoder still counts.",
+ "fw.v.uno_two_tof": "VL53L0X and VL53L1X together do not fit on an Arduino Uno: each needs its own library and the Uno has only 32 KB for code. Use the same type for all laser sensors, or an Arduino Mega / ESP32."
 }

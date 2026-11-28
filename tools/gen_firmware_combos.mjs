@@ -81,6 +81,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     const { robot, hw, failed } = buildCombo(c.board, c.enc, c.drv, c.set);
     if (failed.length) { skipped.push(`${c.name}: not enough pins for ${failed.join(', ')}`); continue; }
     const v = validateHardware(robot, hw);
+    if (v.some((m) => m.key === 'fw.v.uno_two_tof')) { skipped.push(`${c.name}: VL53L0X + VL53L1X do not fit an Uno (the builder refuses it)`); continue; }
     if (hasErrors(v)) { console.error(`${c.name}: suggestPins gave invalid pins:`, v.filter((m) => m.level === 'bad')); process.exitCode = 1; continue; }
     const g = generateSketch(robot, hw);
     const dir = join(outDir, c.name);

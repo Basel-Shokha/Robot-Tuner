@@ -81,16 +81,19 @@ test('the serial protocol: every line measure-steps.js parses is still printed',
 test('every combination gets valid pins from suggestPins and generates', () => {
   const combos = allCombos();
   assert.ok(combos.length > 100);
-  let ok = 0;
+  let ok = 0, refused = 0;
   for (const combo of combos) {
     const { robot, hw, failed } = buildCombo(combo.board, combo.enc, combo.drv, combo.set);
     if (failed.length) continue;  // too few pins on that board for that combination (reported by the tool)
-    assert.deepEqual(lvl(validateHardware(robot, hw), 'bad'), [], combo.name);
+    const bad = lvl(validateHardware(robot, hw), 'bad');
+    if (combo.board === 'uno' && bad.length === 1 && bad[0] === 'fw.v.uno_two_tof') { refused++; continue; }   // too big for the Uno: refused on purpose
+    assert.deepEqual(bad, [], combo.name);
     const g = generateSketch(robot, hw);
     assert.equal(g.fqbn, BOARDS[combo.board].fqbn);
     ok++;
   }
-  assert.ok(ok >= combos.length - 5, `${ok} of ${combos.length}`);
+  assert.ok(ok + refused >= combos.length - 5, `${ok} + ${refused} refused of ${combos.length}`);
+  assert.ok(refused > 0 && refused < 20, `${refused} Uno combinations refused (VL53L0X + VL53L1X)`);
 });
 
 test('pin checks catch the classic mistakes', () => {
