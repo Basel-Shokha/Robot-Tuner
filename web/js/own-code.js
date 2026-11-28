@@ -95,8 +95,8 @@ function hardwareLines(robot, hwIn) {
   robot.sensors.forEach((s, i) => L.push(`  ${i}: "${sensorWireName(s, i)}", ${s.type}, angle ${s.angle_deg} deg, at x ${s.x_mm} mm / y ${s.y_mm} mm from the wheel axle centre, range ${s.min_mm}-${s.max_mm} mm.`));
   L.push('- Pins used by the reference sketch (keep the student\'s own pins if they differ, and tell the student):');
   for (const r of pinRoles(robot, hw)) { const v = r.get(); L.push(`  ${r.role}: ${v >= 0 ? pinLabel(hw.board, v) : 'not set'}`); }
-  if (usesBt(hw)) L.push(`- Bluetooth serial: ON, device name "${btName(robot, hw)}" (classic ESP32, BluetoothSerial library from the esp32 board package). The robot must answer over USB and Bluetooth at the same time: copy the TeeIO / RT_IO bridge of the reference and send every reply through RT_IO.`);
-  else if (hw.board === 'esp32') L.push('- Bluetooth serial: off (USB only).');
+  if (usesBt(hw)) L.push(`- Bluetooth: ON, Bluetooth Low Energy, device name "${btName(robot, hw)}", Nordic UART Service (service 6E400001-B5A3-F393-E0A9-E50E24DCCA9E, RX = write 6E400002-..., TX = notify 6E400003-...). Robot Tuner connects with Web Bluetooth. The robot answers over USB and Bluetooth at the same time: copy the RtBle / TeeIO / RT_IO part of the reference (it works with esp32 core 3 and 4) and send every reply through RT_IO.`);
+  else if (hw.board === 'esp32') L.push('- Bluetooth: off (USB only).');
   const libs = requiredLibraries(robot, hw);
   L.push(`- Libraries: ${libs.length ? libs.map((l) => `"${l.name}" by ${l.by}`).join(', ') : 'only the built-in ones'}.`);
   return { lines: L, hw, ticks };

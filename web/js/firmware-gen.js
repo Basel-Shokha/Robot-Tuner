@@ -97,7 +97,7 @@ export function defaultHardware() {
     encoder: { type: 'quadrature', avr_mode: 'x1', ppr: 7, gear: 296.125, left: { a: 32, b: 33 }, right: { a: 27, b: 26 }, sign_l: -1, sign_r: -1,
       as5600_bus: 'mux', mux_addr: 0x70, mux_ch_l: 0, mux_ch_r: 1, sda2: 16, scl2: 17 },
     i2c: { sda: 21, scl: 22 },
-    bt: true, bt_name: '',   // ESP32: Bluetooth serial next to USB (classic ESP32 only; S3 / C3 / C6 have no classic Bluetooth)
+    bt: true, bt_name: '',   // ESP32: Bluetooth Low Energy serial next to USB (every ESP32 model)
     // index-aligned with robot.sensors (right, front, left)
     sensors: [{ xshut: 18, addr: 0x32, trig: -1, echo: -1, analog: -1 }, { xshut: 23, addr: 0x31, trig: -1, echo: -1, analog: -1 },
       { xshut: 5, addr: 0x30, trig: -1, echo: -1, analog: -1 }],
@@ -157,7 +157,7 @@ export function isLowRes(hw, ticks) {
 function usesPcnt(hw, ticks) { return hw.board === 'esp32' && hw.encoder.type === 'quadrature' && !isLowRes(hw, ticks); }
 function avrX4(hw) { return BOARDS[hw.board].arch === 'avr' && hw.encoder.type === 'quadrature' && hw.encoder.avr_mode === 'x4'; }
 
-/** ESP32 with Bluetooth serial switched on */
+/** ESP32 with Bluetooth (Low Energy, Nordic UART Service) switched on */
 export const usesBt = (hw) => hw.board === 'esp32' && hw.bt !== false;
 /** the Bluetooth device name the student pairs with: the typed name, else RobotTuner-<robot name> */
 export function btName(robot, hw) {
@@ -518,11 +518,16 @@ export function generateSketch(robot, hwIn) {
   }
   const bt = usesBt(hw);
   if (bt) {
-    w('// BLUETOOTH SERIAL (classic ESP32): the robot answers over USB AND Bluetooth at the same time. Pair the PC once with',
-      `// "${btName(robot, hw)}" (Windows: Settings -> Bluetooth -> Add device; it gets a COM port "Standard Serial over Bluetooth"),`,
-      '// then press CONNECT in Robot Tuner and pick that port: the robot can drive on the floor without a cable.',
-      '// ESP32-S3 / C3 / C6 have no classic Bluetooth: switch it off in Robot builder -> Firmware.',
-      '#include "BluetoothSerial.h"', '');
+    w('// BLUETOOTH LOW ENERGY (every ESP32): the robot answers over USB AND Bluetooth at the same time. Bluetooth is the',
+      `// Nordic UART Service, name "${btName(robot, hw)}". Robot Tuner connects with "Connect Bluetooth" (Web Bluetooth in Chrome /`,
+      '// Edge): no pairing in Windows, no COM port. The robot can then drive on the floor without a cable.',
+      '#if ESP_ARDUINO_VERSION_MAJOR >= 4',
+      '#include <BLE.h>          // esp32 core 4: BLEStream = a ready-made Nordic UART Service',
+      '#else',
+      '#include <BLEDevice.h>    // esp32 core 3: the same service built by hand (RtBle below)',
+      '#include <BLEServer.h>',
+      '#include <BLE2902.h>',
+      '#endif', '');
   }
   if (i2c) w('#include <Wire.h>');
   if (pcnt) w('#include <driver/pulse_cnt.h>   // ESP-IDF PCNT driver, part of the esp32 board package (core 3.x and 4.x)');
@@ -530,13 +535,60 @@ export function generateSketch(robot, hwIn) {
   if (kinds.includes('l0x')) w('#include <VL53L0X.h>');
   if (kinds.includes('l1x')) w('#include <VL53L1X.h>');
   if (bt) {
-    w('BluetoothSerial SerialBT;', 'bool cmdFromBt = false;   // the last command came over Bluetooth (PING answers which link)',
+    w('// RtBle: Bluetooth Low Energy serial (Nordic UART Service). Replies are sent a line at a time (one notification per',
+      '// line, 20 bytes max each) instead of one per character.',
+      '#if ESP_ARDUINO_VERSION_MAJOR >= 4',
+      'class RtBle {',
+      ' public:',
+      '  BLEStream s; uint8_t tb[20]; uint8_t tn = 0;',
+      '  bool begin(const char* name) { return (bool)s.begin(name); }',
+      '  bool connected() { return s.isConnected(); }',
+      '  int available() { return s.available(); }',
+      '  int read() { return s.read(); }',
+      '  int peek() { return s.peek(); }',
+      '  void flush() { if (tn && connected()) s.write(tb, tn); tn = 0; }',
+      '  void write(const uint8_t* b, size_t n) { for (size_t i = 0; i < n; i++) { tb[tn++] = b[i]; if (tn == sizeof(tb) || b[i] == 10) flush(); } }',
+      '};',
+      '#else',
+      'class RtBle : public BLEServerCallbacks, public BLECharacteristicCallbacks {',
+      ' public:',
+      '  BLECharacteristic* tx = nullptr; volatile bool conn = false;',
+      '  uint8_t rb[256]; volatile uint16_t rh = 0, rt = 0;   // received bytes (filled by the BLE task)',
+      '  uint8_t tb[20]; uint8_t tn = 0;                        // the line being sent',
+      '  bool begin(const char* name) {',
+      '    BLEDevice::init(name);',
+      '    BLEServer* srv = BLEDevice::createServer(); srv->setCallbacks(this);',
+      '    BLEService* svc = srv->createService("6E400001-B5A3-F393-E0A9-E50E24DCCA9E");',
+      '    tx = svc->createCharacteristic("6E400003-B5A3-F393-E0A9-E50E24DCCA9E", BLECharacteristic::PROPERTY_NOTIFY);',
+      '    tx->addDescriptor(new BLE2902());',
+      '    BLECharacteristic* rx = svc->createCharacteristic("6E400002-B5A3-F393-E0A9-E50E24DCCA9E", BLECharacteristic::PROPERTY_WRITE | BLECharacteristic::PROPERTY_WRITE_NR);',
+      '    rx->setCallbacks(this);',
+      '    svc->start();',
+      '    BLEAdvertising* adv = BLEDevice::getAdvertising(); adv->addServiceUUID("6E400001-B5A3-F393-E0A9-E50E24DCCA9E"); adv->setScanResponse(true);',
+      '    BLEDevice::startAdvertising();',
+      '    return true;',
+      '  }',
+      '  void onConnect(BLEServer*) override { conn = true; }',
+      '  void onDisconnect(BLEServer* srv) override { conn = false; tn = 0; srv->startAdvertising(); }',
+      '  void onWrite(BLECharacteristic* c) override {',
+      '    String v = c->getValue();',
+      '    for (size_t i = 0; i < v.length(); i++) { uint16_t nx = (rh + 1) % sizeof(rb); if (nx != rt) { rb[rh] = v[i]; rh = nx; } }',
+      '  }',
+      '  bool connected() { return conn; }',
+      '  int available() { return (rh + sizeof(rb) - rt) % sizeof(rb); }',
+      '  int read() { if (rh == rt) return -1; uint8_t c = rb[rt]; rt = (rt + 1) % sizeof(rb); return c; }',
+      '  int peek() { return rh == rt ? -1 : rb[rt]; }',
+      '  void flush() { if (tn && conn) { tx->setValue(tb, tn); tx->notify(); delay(3); } tn = 0; }',
+      '  void write(const uint8_t* b, size_t n) { for (size_t i = 0; i < n; i++) { tb[tn++] = b[i]; if (tn == sizeof(tb) || b[i] == 10) flush(); } }',
+      '};',
+      '#endif',
+      'RtBle SerialBT;', 'bool cmdFromBt = false;   // the last command came over Bluetooth (PING answers which link)',
       '// RT_IO: every reply goes to USB and Bluetooth; commands are read from both',
       'class TeeIO : public Stream {',
       ' public:',
-      '  // Bluetooth only while a PC is connected: with nobody listening its queue fills and every write waits 1 s',
-      '  size_t write(uint8_t c) override { USB_SERIAL_.write(c); if (SerialBT.hasClient()) SerialBT.write(c); return 1; }',
-      '  size_t write(const uint8_t* b, size_t n) override { USB_SERIAL_.write(b, n); if (SerialBT.hasClient()) SerialBT.write(b, n); return n; }',
+      '  // Bluetooth only while a PC is connected',
+      '  size_t write(uint8_t c) override { USB_SERIAL_.write(c); if (SerialBT.connected()) SerialBT.write(&c, 1); return 1; }',
+      '  size_t write(const uint8_t* b, size_t n) override { USB_SERIAL_.write(b, n); if (SerialBT.connected()) SerialBT.write(b, n); return n; }',
       '  int available() override { return USB_SERIAL_.available() + SerialBT.available(); }',
       '  int read() override { if (USB_SERIAL_.available()) { cmdFromBt = false; return USB_SERIAL_.read(); } cmdFromBt = true; return SerialBT.read(); }',
       '  int peek() override { return USB_SERIAL_.available() ? USB_SERIAL_.peek() : SerialBT.peek(); }',
@@ -548,7 +600,7 @@ export function generateSketch(robot, hwIn) {
     'struct Meter { long pl, pr; unsigned long us; };   // wheel speed meter (declared first for the Arduino prototype generator)', '');
   // (after Meter: the Arduino IDE puts its function prototypes in front of the first function)
   if (bt) w('void linkWatch() {   // tell USB and Bluetooth when a PC opens or closes the Bluetooth port',
-    '  static bool was = false; bool now = SerialBT.hasClient();',
+    '  static bool was = false; bool now = SerialBT.connected();',
     '  if (now != was) { was = now; RT_IO.println(now ? F("LINK bluetooth connected") : F("LINK bluetooth disconnected")); }',
     '}', '');
   else w('void linkWatch() {}', '');
@@ -928,7 +980,7 @@ export function generateSketch(robot, hwIn) {
     `#define CAN_RUN ${robot.sensors.length >= 2 && li !== ri ? 1 : 0}`, '');
   w(CORE);
   const code = C.join('\n').replace(/\bSerial\.(print|println|available|read)\(/g, 'RT_IO.$1(')
-    .replace(/USB_SERIAL_\./g, 'Serial.').replace('  BT_BEGIN', bt ? `  SerialBT.enableSSP();   // Secure Simple Pairing, "Just Works" (no PIN): Windows / Mac pair without questions\n  SerialBT.begin("${btName(robot, hw)}");   // Bluetooth device name` : '').replace(/\n\n(?=void setup)/, '\n\n');
+    .replace(/USB_SERIAL_\./g, 'Serial.').replace('  BT_BEGIN', bt ? `  SerialBT.begin("${btName(robot, hw)}");   // Bluetooth Low Energy name (Nordic UART Service)` : '').replace(/\n\n(?=void setup)/, '\n\n');
   return { code: code + '\n', libraries: libs, messages: validateHardware(robot, hw), ticks, lowRes, fileName: 'robot_tuner_min.ino', fqbn: B.fqbn };
 }
 
