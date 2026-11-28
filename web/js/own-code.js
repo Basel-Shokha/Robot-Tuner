@@ -161,7 +161,7 @@ export function studentPrompt(robot, hwIn, opts = {}) {
     `- Decoding: ${decodingText(hw)}.`,
     `- Ticks per WHEEL revolution: ${g6(ticks)} (computed: ${hw.encoder.type === 'none' ? 'no encoders' : `${hw.encoder.type === 'as5600' ? 4096 : +hw.encoder.ppr} x ${hw.encoder.type === 'as5600' ? 1 : edgesPerPulse(hw)} edges x gear ${+hw.encoder.gear} = ${g6(computedTicksPerRev(hw))}`}). The student must confirm it with CAL TICKS (turn the wheel once by hand) and use the measured value.`,
     `- If the student's code decodes differently (x1 / x2 / x4), ticks per revolution changes by the same factor: x2 = 2 ticks per pulse, x4 = 4 ticks per pulse. Every gain in ticks must then be converted (section F).`,
-    `- Metres per tick = pi x wheel diameter / ticks per revolution = ${g6(mpt * 1000)} mm.`, '');
+    `- Metres per tick = pi x wheel diameter / ticks per revolution = ${g6(mpt * 1000)} mm, times the wheel scale of each wheel (wheel_scale_left / _right in the robot file, from CAL DRIVE + CAL DIST; 1 = not measured). Use it for every distance and speed, as the reference does (mPerTickL / mPerTickR).`, '');
 
   w('## C. Wheel speed loop (one per wheel)',
     `The Tuner simulates this loop (Robot Tuner firmware wheel_pid.h); its numbers below are only valid for it:`,

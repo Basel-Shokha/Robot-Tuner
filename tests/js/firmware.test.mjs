@@ -179,3 +179,13 @@ test('hardware survives the saved robot and the robot file', () => {
   const old = JSON.parse(JSON.stringify(exampleRobot())); delete old.hardware;
   assert.deepEqual(migrate(old).hardware, defaultHardware());
 });
+
+test('the sketch uses the measured wheel scale (CAL DRIVE / CAL DIST): 1 until it is measured', () => {
+  const ex = exampleRobot(), code = generateSketch(ex, ex.hardware).code;
+  assert.match(code, /float wscale_l = 0\.972f, wscale_r = 0\.972f;/);
+  assert.match(code, /float dl = \(cntL\(\) - sl\) \* mPerTickL\(\), dr = \(cntR\(\) - sr\) \* mPerTickR\(\);/);   // CAL DRIVE drives real metres
+  const fresh = defaultRobot();
+  assert.match(generateSketch(fresh, fresh.hardware).code, /float wscale_l = 1\.0f, wscale_r = 1\.0f;/);
+  const m = exampleRobot(); m.wheels.scale_l = 0.98; m.wheels.scale_r = 0.99;
+  assert.match(generateSketch(m, m.hardware).code, /float wscale_l = 0\.98f, wscale_r = 0\.99f;/);
+});

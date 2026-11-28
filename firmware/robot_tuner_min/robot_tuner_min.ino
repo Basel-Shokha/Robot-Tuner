@@ -120,6 +120,7 @@ const int PIN_ENC_L_A = 32, PIN_ENC_L_B = 33, PIN_ENC_R_A = 27, PIN_ENC_R_B = 26
 const int ENC_SIGN_L = -1, ENC_SIGN_R = -1;   // flip to -1 if a wheel counts backwards
 const int PIN_SDA = 21, PIN_SCL = 22;
 const float WHEEL_DIAMETER_M = 0.045f;
+float wscale_l = 0.972f, wscale_r = 0.972f;   // replace with the CAL DIST suggestions (Measure: Straight drive)
 float ticks_per_rev = 8291.5f;     // computed: 7 pulses x 4 edges x gear 296.125 = 8291.5; replace with the CAL TICKS result
 float track_w = 0.1249f;             // replace with the CAL TURNS result
 const int PWM_MAX = 255;
@@ -183,7 +184,9 @@ void encSetup() { pcntL = pcntQuad(PIN_ENC_L_A, PIN_ENC_L_B); pcntR = pcntQuad(P
 void encPoll() {}
 long cntL() { int v = 0; pcnt_unit_get_count(pcntL, &v); return (long)v * ENC_SIGN_L; }
 long cntR() { int v = 0; pcnt_unit_get_count(pcntR, &v); return (long)v * ENC_SIGN_R; }
-float mPerTick() { return 3.14159265f * WHEEL_DIAMETER_M / ticks_per_rev; }
+float mPerTick() { return 3.14159265f * WHEEL_DIAMETER_M / ticks_per_rev; }   // nominal (no wheel scale)
+float mPerTickL() { return mPerTick() * wscale_l; }   // real metres per tick of each wheel
+float mPerTickR() { return mPerTick() * wscale_r; }
 
 // ---- distance sensors: every new reading goes through newReading(i, mm); -1 = no valid reading ----
 int lastMm[N_SENSORS];
@@ -288,21 +291,21 @@ void waitMs(unsigned long ms, bool sensors = false) { unsigned long t = millis()
 void meterStart(Meter& m) { m.pl = cntL(); m.pr = cntR(); m.us = micros(); }
 #if LOW_RES
 // few ticks per revolution: speed = distance of one timed edge / time between two edges
-float periodSpeed(volatile unsigned long& lastEdge, volatile unsigned long& period, int dir) {
+float periodSpeed(volatile unsigned long& lastEdge, volatile unsigned long& period, int dir, float mpt) {
   noInterrupts(); unsigned long p = period, t = lastEdge; interrupts();
   unsigned long since = micros() - t;
   if (p == 0 || since > 300000UL) return 0;   // no edge for 0.3 s: stopped
   if (since > p) p = since;                    // the next edge is late: the wheel is slowing down
-  return dir * TICKS_PER_EDGE * mPerTick() / (p * 1e-6f);
+  return dir * TICKS_PER_EDGE * mpt / (p * 1e-6f);
 }
 #endif
 float meterRead(Meter& m, float& vl, float& vr) {   // returns dt (s)
   long l = cntL(), r = cntR(); unsigned long now = micros();
   float dt = max(1e-4f, (now - m.us) * 1e-6f);
 #if LOW_RES
-  vl = periodSpeed(edgeUsL, periodUsL, dirL()); vr = periodSpeed(edgeUsR, periodUsR, dirR());
+  vl = periodSpeed(edgeUsL, periodUsL, dirL(), mPerTickL()); vr = periodSpeed(edgeUsR, periodUsR, dirR(), mPerTickR());
 #else
-  vl = (l - m.pl) * mPerTick() / dt; vr = (r - m.pr) * mPerTick() / dt;
+  vl = (l - m.pl) * mPerTickL() / dt; vr = (r - m.pr) * mPerTickR() / dt;
 #endif
   m.pl = l; m.pr = r; m.us = now;
   return dt;
@@ -374,7 +377,7 @@ void calFF() {
   for (int pwm = 0; pwm <= PWM_MAX; pwm += 5) {
     setPwm(pwm, pwm); waitMs(250);
     float vl, vr; avgSpeeds(LOW_RES ? 200 : 50, vl, vr);
-    float l50 = vl * 0.05f / mPerTick(), r50 = vr * 0.05f / mPerTick(), t50 = 0.5f * (l50 + r50);
+    float l50 = vl * 0.05f / mPerTickL(), r50 = vr * 0.05f / mPerTickR(), t50 = 0.5f * (l50 + r50);
     RT_IO.print(F("CAL FF: pwm ")); RT_IO.print(pwm); RT_IO.print(F("  left ")); RT_IO.print(l50, 2); RT_IO.print(F("  right ")); RT_IO.print(r50, 2); RT_IO.println(F(" ticks/50ms"));
     if (start < 0 && t50 >= (LOW_RES ? 0.1f : 1)) start = pwm;
     if (t50 >= (LOW_RES ? 0.2f : 2)) { sx += t50; sy += pwm; sxx += t50 * t50; sxy += t50 * pwm; n++; }
@@ -383,7 +386,7 @@ void calFF() {
   if (n >= 3) {
     float g = (n * sxy - sx * sy) / (n * sxx - sx * sx);
     RT_IO.print(F("CAL FF: slope ")); RT_IO.print(g, 4); RT_IO.print(F(" PWM per tick/50ms (= ")); RT_IO.print(g, 4); RT_IO.println(F(" per tick/50 ms)"));
-    ff_gain = g * 0.05f / mPerTick();  // PWM per (m/s) for this sketch's own PI
+    ff_gain = g * 0.05f / (mPerTick() * 0.5f * (wscale_l + wscale_r));  // PWM per (m/s) for this sketch's own PI
     RT_IO.print(F("CAL suggestion: SET ff_gain ")); RT_IO.println(g, 4);
   }
   if (start >= 0) { ff_static = start; RT_IO.print(F("CAL suggestion: SET ff_static ")); RT_IO.println(start); }
@@ -428,7 +431,7 @@ void calDrive(float dist) {
   long sl = cntL(), sr = cntR(); Meter m; meterStart(m); iL = iR = 0; float v = 0.2f;
   for (;;) {
     float vl, vr; waitMs(10); float dt = meterRead(m, vl, vr);
-    float dl = (cntL() - sl) * mPerTick(), dr = (cntR() - sr) * mPerTick();
+    float dl = (cntL() - sl) * mPerTickL(), dr = (cntR() - sr) * mPerTickR();
     if (0.5f * (dl + dr) >= dist) break;
     float corr = 2.0f * (dl - dr);
     wheelPI(v - corr, v + corr, vl, vr, dt);
@@ -449,7 +452,7 @@ void calSpin(float turns) {
   float dl = 0, dr = 0;
   for (;;) {
     float vl, vr; waitMs(10); float dt = meterRead(m, vl, vr);
-    dl = (cntL() - sl) * mPerTick(); dr = (cntR() - sr) * mPerTick();
+    dl = (cntL() - sl) * mPerTickL(); dr = (cntR() - sr) * mPerTickR();
     if ((dr - dl) / track_w >= goal) break;
     float drift = 2.0f * (dl + dr);
     wheelPI(-v - drift, v - drift, vl, vr, dt);
