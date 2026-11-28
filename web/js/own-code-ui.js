@@ -5,7 +5,7 @@ import { studentPrompt } from './own-code.js';
 import { generateSketch } from './firmware-gen.js';
 import { RobotLink, serialSupported } from './serial.js';
 import { commandButtons } from './cmd-buttons.js';
-import { linkStatus } from './link-status.js';
+import { linkStatus, btHelp } from './link-status.js';
 
 export const REF_NAME = 'robot_tuner_reference.ino';
 export const isOwnMode = () => new URLSearchParams(location.search).get('own') === '1';
@@ -79,7 +79,7 @@ export function mountOwn(root, getRobot, openTab) {
         el('small', { class: 'muted', text: t('own.prompt_note') }), prev),
       step(3, 'own.s3_h', el('p', { text: t('own.s3') }),
         el('p', { class: 'muted small-note', text: t('own.compile_note') }),
-        el('div', { class: 'row' }, conn, state, linkStatus(link)),
+        el('div', { class: 'row' }, conn, linkStatus(link)), btHelp(getRobot()),
         serialSupported() ? null : el('p', { class: 'muted', text: t('own.nosupport') }),
         cmdBox, el('p', { class: 'muted small-note', text: t('cmd.or_type') }), el('div', { class: 'row' }, cmd, send), log,
         el('p', { html: t('own.fail') }),

@@ -400,3 +400,5 @@ button.danger { background: var(--red); color: #fff; border-color: var(--red); }
 .link-status.ok { color: var(--green); border-color: var(--green); background: var(--green-soft); }
 .link-status.waiting, .link-status.foreign { color: var(--amber-ink); border-color: var(--amber); background: var(--amber-soft); }
 .link-status.silent { color: var(--red); border-color: var(--red); background: var(--red-soft); }
+.bt-help summary { font-weight: 700; cursor: pointer; } .bt-help { margin-top: 10px; }
+#conn-state, .own-step .link-status ~ .pill { display: none; }

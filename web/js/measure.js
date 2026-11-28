@@ -1,7 +1,7 @@
 // measure.js - 2. GUIDED MEASUREMENT over USB (Web Serial) with manual entry for every value.
 import { page, $, el, t, toast } from './common.js';
 import { commandButtons, motionBadge } from './cmd-buttons.js';
-import { linkStatus } from './link-status.js';
+import { linkStatus, btHelp } from './link-status.js';
 const STEP_MOTION = { ticks: 'hand', maxspeed: 'air', vmin: 'air', ff: 'air', step: 'air', drive: 'floor', spin: 'floor', timed: 'floor', tof: 'still', timing: 'still' };
 import { loadRobot, saveRobot } from './store.js';
 import { RobotLink, serialSupported } from './serial.js';
@@ -34,6 +34,7 @@ export function expandCommand(c) {
   return CAL_WORDS.has(w) ? 'CAL ' + c.trim() : c.trim();
 }
 document.querySelector('#conn-state').after(linkStatus(link));
+{ const h = btHelp(R); if (h) document.querySelector('#connect').closest('.row').after(h); }
 const cmdBox = commandButtons((c) => link.connected && link.send(c), () => link.connected);
 $('#cmd-buttons').append(cmdBox);
 const sendCmd = () => { const c = expandCommand($('#cmd').value); if (c && link.connected) link.send(c); $('#cmd').value = ''; };

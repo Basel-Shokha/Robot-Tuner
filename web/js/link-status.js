@@ -1,6 +1,17 @@
 // link-status.js - "is the robot really there?": while the port is open, PING every 3 s (hidden from the log) and show
 // whether anything came back. Any received line counts; PONG proves the robot understands Robot Tuner's commands.
 import { el, t } from './common.js';
+import { usesBt, btName, normalizeHardware } from './firmware-gen.js';
+
+/** "No cable: Bluetooth" how-to for ESP32 robots with Bluetooth on (null otherwise) */
+export function btHelp(robot) {
+  const hw = normalizeHardware(robot.hardware, robot.sensors.length);
+  if (!usesBt(hw)) return null;
+  const name = btName(robot, hw);
+  return el('details', { class: 'card bt-help' }, el('summary', { text: t('bt.h') }),
+    el('ol', {}, ...t('bt.steps', { name }).split('|').map((x) => el('li', { text: x }))),
+    el('p', { class: 'muted small-note', text: t('bt.no_wifi') }));
+}
 
 /** returns a pill element that updates itself; state: off | waiting | ok | silent | foreign */
 export function linkStatus(link) {
