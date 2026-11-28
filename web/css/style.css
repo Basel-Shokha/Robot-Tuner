@@ -408,3 +408,12 @@ button.danger { background: var(--red); color: #fff; border-color: var(--red); }
 .own-intro .own-step p { margin: 2px 0 6px; }
 .install-card { border: 2px solid var(--green); }
 .install-card ol li { margin-bottom: 8px; }
+
+/* Measure: one column (connection bar, steps, console folded away); ticks step = one section per wheel */
+.conn-bar .conn-row { flex-wrap: wrap; gap: 10px; }
+.conn-bar .small-note { margin: 6px 0 0; }
+.console-box summary { font-weight: 700; cursor: pointer; }
+.console-box[open] > * + * { margin-top: 10px; }
+.wheel-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; margin: 10px 0; }
+.wheel-box h4 { margin: 0; }
+.wheel-box.done { border-color: var(--green); background: var(--green-soft); }

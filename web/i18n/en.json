@@ -342,7 +342,6 @@
  "tr.dl_model": "best_pid_model.txt",
  "ms.h1": "Measure your robot",
  "ms.intro": "Connect the robot (USB, or Bluetooth for the steps where it drives) and let it measure itself, one step at a time. Each step says what it measures, why it matters and what to do. Results go into your robot description (marked MEASURED). No robot or other firmware? Type the values instead.",
- "ms.conn_h": "Connection",
  "ms.connect": "Connect (USB or Bluetooth)",
  "ms.disconnect": "Disconnect",
  "ms.connected": "connected",
@@ -351,8 +350,6 @@
  "ms.nosupport": "Your browser cannot talk to USB devices. Use Chrome or Edge on a computer, or type the values by hand (manual mode).",
  "ms.manual": "Manual mode: type values myself",
  "ms.manual_note": "Every step also accepts typed values, e.g. from your own measurement program.",
- "ms.nofw_h": "No firmware that answers these commands?",
- "ms.nofw_p": "Robot builder → Firmware generates a sketch for your wiring (board, encoders, motor driver, sensors) that answers these commands. The file below is the sketch for the example robot (ESP32, DRV8833, quadrature encoders, 3× VL53L1X).",
  "ms.fw_btn": "Generate my sketch",
  "ms.dl_sketch": "Download the example robot's sketch",
  "ms.console_h": "Serial console",
@@ -1197,7 +1194,7 @@
  "link.bt_connected": "Robot: Bluetooth connected",
  "link.bt_disconnected": "Robot: Bluetooth disconnected",
  "ms.rep.total": "Total ticks (left / right)",
- "ms.ticks.side": "{side} wheel: press \"Turn slowly\". The robot turns only this wheel, at the lowest power that moves it. Press Stop when it has turned about {n} full turns. Then turn it by hand, forward or back, until the pen mark lines up exactly after {n} turns (hand turns are counted too).",
+ "ms.ticks.side": "Press \"Turn slowly\". Only this wheel turns, at the lowest power that moves it. Press Stop near {n} full turns, then turn it by hand, forward or back, until the pen mark lines up exactly after {n} turns (hand turns are counted too).",
  "ms.ticks.side_done": "{side} wheel: {n} turns done",
  "ms.ticks.creep": "Turn {side} wheel slowly",
  "ms.ticks.stop": "Stop",
@@ -1209,5 +1206,11 @@
  "cmd.creep_r_h": "Only the right wheel, at the lowest power that moves it (starts at PWM 20), until STOP.",
  "cmd.creep_r_do": "Lift the robot so the wheels hang free.|Usually after \"Start counting ticks\".|Press Send, then STOP when the wheel has done the turns you want.",
  "cmd.creep_r_next": "Line the pen mark up by hand (forward or back): the encoder still counts.",
- "fw.v.uno_two_tof": "VL53L0X and VL53L1X together do not fit on an Arduino Uno: each needs its own library and the Uno has only 32 KB for code. Use the same type for all laser sensors, or an Arduino Mega / ESP32."
+ "fw.v.uno_two_tof": "VL53L0X and VL53L1X together do not fit on an Arduino Uno: each needs its own library and the Uno has only 32 KB for code. Use the same type for all laser sensors, or an Arduino Mega / ESP32.",
+ "ms.nofw_short": "Robot not answering these commands yet? Upload the sketch for your robot with the Arduino IDE:",
+ "ms.console_all": "Console and all commands",
+ "ms.ticks.wheel_h": "{side} wheel",
+ "ms.ticks.turning": "Turning…",
+ "ms.ticks.stopped": "Stopped. Now line the mark up by hand.",
+ "ms.ticks.side_ok": "done"
 }

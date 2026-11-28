@@ -7,7 +7,7 @@ import { t } from './i18n.js';
 export const TOURS = {
   index: [['.page-head', 'what'], ['#start-here', 'start'], ['#route', 'route'], ['.extras', 'extras'], ['#knowhow', 'know'], ['.guide-btn', 'guide']],
   builder: [['.page-head', 'what'], ['#robot-name', 'name'], ['#drive', 'drive'], ['.tabs', 'tabs'], ['.canvas-wrap', 'canvas'], ['#checks', 'checks'], ['[data-tab="file"]', 'file'], ['.next-step', 'next']],
-  measure: [['.page-head', 'what'], ['#connect', 'connect'], ['#manual', 'manual'], ['#steps .step', 'physical'], ['#steps .step:nth-child(2)', 'step'], ['#log', 'console'], ['.next-step', 'next']],
+  measure: [['.page-head', 'what'], ['#connect', 'connect'], ['#manual', 'manual'], ['#steps .step', 'physical'], ['#steps .step:nth-child(2)', 'step'], ['#console', 'console'], ['.next-step', 'next']],
   corridor: [['.page-head', 'what'], ['.tabs', 'mode'], ['#env-errors', 'errors'], ['#env-start', 'start'], ['#run', 'run'], ['.canvas-wrap', 'canvas'], ['#plots', 'plots'], ['.next-step', 'next']],
   train: [['.page-head', 'what'], ['input[name="tset"]', 'setup'], ['#speed-frac', 'speed'], ['#effort', 'effort'], ['#start', 'start'], ['#plots', 'plots'], ['.next-step', 'next']],
   playground: [['.page-head', 'what'], ['#gains', 'gains'], ['#presets', 'presets'], ['#sweep', 'sweep'], ['#run', 'run'], ['#save-gains', 'save'], ['#plots', 'plots']],

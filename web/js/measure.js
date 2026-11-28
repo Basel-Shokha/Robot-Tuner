@@ -34,7 +34,7 @@ export function expandCommand(c) {
   return CAL_WORDS.has(w) ? 'CAL ' + c.trim() : c.trim();
 }
 document.querySelector('#conn-state').after(linkStatus(link));
-{ const h = btHelp(R); if (h) document.querySelector('#connect').closest('.row').after(h); }
+{ const h = btHelp(R); if (h) document.querySelector('#conn-bar .conn-row').after(h); }
 const cmdBox = commandButtons((c) => link.connected && link.send(c), () => link.connected);
 $('#cmd-buttons').append(cmdBox);
 const sendCmd = () => { const c = expandCommand($('#cmd').value); if (c && link.connected) link.send(c); $('#cmd').value = ''; };
@@ -50,17 +50,30 @@ const STEPS = [
   { id: 'physical', physical: true },
   { id: 'ticks', enc: true, fields: [['ms.f.ticks', () => R.wheels.ticks_per_rev, (v) => { R.wheels.ticks_per_rev = v; }, '', 'wheels.ticks_per_rev']],
     async run(ui) {
-      // one count over all N turns, one wheel at a time: the robot turns the wheel slowly (CAL CREEP, lowest PWM that moves it),
-      // the student presses Stop near N turns and lines the mark up by hand (back or forth: still counted). Ticks per turn = total / N
+      // one count over all N turns; one section per wheel (either order): the robot turns that wheel slowly (CAL CREEP, lowest
+      // PWM that moves it), the student presses Stop near N turns and lines the mark up by hand (back or forth: still counted)
       const n = reps.ticks;
       await link.send('CAL TICKS');
+      const done = new Set();
+      let finish; const allDone = new Promise((r) => { finish = r; });
+      const grid = ui.append(el('div', { class: 'wheel-grid' }));
       for (const side of ['L', 'R']) {
         const name = t(side === 'L' ? 'fw.left' : 'fw.right'), Name = name.charAt(0).toUpperCase() + name.slice(1);
-        ui.ask(t('ms.ticks.side', { side: Name, n }), t('ms.ticks.side_done', { side: Name, n }));
-        ui.controls([[t('ms.ticks.creep', { side: name }), () => link.send('CAL CREEP ' + side), 'primary'], [t('ms.ticks.stop'), () => link.send('STOP'), 'danger']]);
-        await ui.answered();
-        await link.send('STOP');
+        const state = el('p', { class: 'muted small-note', text: '' });
+        const ok = el('button', { class: 'primary', text: t('ms.ticks.side_done', { side: Name, n }) });
+        const box = el('section', { class: 'card stack wheel-box' }, el('h4', { text: t('ms.ticks.wheel_h', { side: Name }) }),
+          el('p', { text: t('ms.ticks.side', { side: Name, n }) }),
+          el('div', { class: 'row' },
+            el('button', { text: t('ms.ticks.creep', { side: name }), onclick: () => { link.send('CAL CREEP ' + side); state.textContent = t('ms.ticks.turning'); } }),
+            el('button', { class: 'danger', text: t('ms.ticks.stop'), onclick: () => { link.send('STOP'); state.textContent = t('ms.ticks.stopped'); } })),
+          state, ok);
+        ok.addEventListener('click', async () => {
+          await link.send('STOP'); ok.disabled = true; box.classList.add('done'); state.textContent = '✓ ' + t('ms.ticks.side_ok');
+          done.add(side); if (done.size === 2) finish();
+        });
+        grid.append(box);
       }
+      await allDone;
       const got = link.waitFor(P.parseTicks, 5000);
       await link.send('CAL END');
       const tot = await got;
@@ -291,6 +304,8 @@ function makeUI(out, s) {
       out.append(el('div', { class: 'ask stack' }, el('p', { class: 'notice', text }), el('button', { class: 'primary', text: btn, onclick: (ev) => { ev.target.disabled = true; if (resolveAns) resolveAns(); } })));
     },
     answered() { return new Promise((r) => { resolveAns = r; }); },
+    /** any element into the step's output */
+    append(node) { out.append(node); return node; },
     /** a row of extra buttons under the current question: [[label, onclick, class], ...] */
     controls(list) {
       const q = out.querySelector('.ask');

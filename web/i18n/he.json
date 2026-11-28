@@ -344,7 +344,6 @@
  "tr.dl_model": "",
  "ms.h1": "",
  "ms.intro": "",
- "ms.conn_h": "",
  "ms.connect": "",
  "ms.disconnect": "",
  "ms.connected": "",
@@ -353,8 +352,6 @@
  "ms.nosupport": "",
  "ms.manual": "",
  "ms.manual_note": "",
- "ms.nofw_h": "",
- "ms.nofw_p": "",
  "ms.fw_btn": "",
  "ms.dl_sketch": "",
  "ms.console_h": "",
@@ -1211,5 +1208,11 @@
  "cmd.creep_r_h": "",
  "cmd.creep_r_do": "",
  "cmd.creep_r_next": "",
- "fw.v.uno_two_tof": ""
+ "fw.v.uno_two_tof": "",
+ "ms.nofw_short": "",
+ "ms.console_all": "",
+ "ms.ticks.wheel_h": "",
+ "ms.ticks.turning": "",
+ "ms.ticks.stopped": "",
+ "ms.ticks.side_ok": ""
 }
