@@ -1,6 +1,7 @@
 // measure.js - 2. GUIDED MEASUREMENT over USB (Web Serial) with manual entry for every value.
 import { page, $, el, t, toast } from './common.js';
-import { commandButtons } from './cmd-buttons.js';
+import { commandButtons, motionBadge } from './cmd-buttons.js';
+const STEP_MOTION = { ticks: 'hand', maxspeed: 'air', vmin: 'air', ff: 'air', step: 'air', drive: 'floor', spin: 'floor', timed: 'floor', tof: 'still', timing: 'still' };
 import { loadRobot, saveRobot } from './store.js';
 import { RobotLink, serialSupported } from './serial.js';
 import * as P from './measure-steps.js';
@@ -197,12 +198,13 @@ function stepCard(s, n, hw) {
   const k = 'ms.' + s.id;
   const done = s.fields && s.fields.every((f) => R.source[f[4]] === 'MEASURED');
   const card = el('section', { class: 'step' + (open.has(s.id) ? ' open' : '') + (done ? ' done' : '') });
-  const head = el('header', {}, el('span', { class: 'num', text: done ? '✓' : String(n) }), el('b', { text: t(k + '.title') }), el('span', { class: 'spacer' }),
+  const head = el('header', {}, el('span', { class: 'num', text: done ? '✓' : String(n) }), el('b', { text: t(k + '.title') }), STEP_MOTION[s.id] ? motionBadge(STEP_MOTION[s.id]) : null, el('span', { class: 'spacer' }),
     done ? el('span', { class: 'pill ok', text: t('ms.measured') }) : null);
   head.addEventListener('click', () => { open.has(s.id) ? open.delete(s.id) : open.add(s.id); card.classList.toggle('open'); });
   const body = el('div', { class: 'body' });
   body.append(el('dl', {}, el('dt', { text: t('ms.what') }), el('dd', { text: t(k + '.what') }), el('dt', { text: t('ms.why') }), el('dd', { text: t(k + '.why') }),
     el('dt', { text: t('ms.how') }), el('dd', { text: t(k + '.how') })));
+  if (STEP_MOTION[s.id] === 'floor') body.append(el('p', { class: 'usb-note', text: t('cmd.m_floor_h') }));
   const media = stepMedia(s.id, { n: reps[s.id] || 1, label: t(k + '.title'), turnWord: t(s.id === 'spin' ? 'ms.rep.spin_word' : 'ms.rep.turn_word'), videoWord: t('ms.video') });
   if (media) body.append(media);
   if (reps[s.id] !== undefined) {
