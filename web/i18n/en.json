@@ -1235,5 +1235,8 @@
  "ms.current": "current",
  "ms.hist_h": "Your results ({n}), newest first",
  "ms.repeat_badge": "↻ repeat until right",
- "ms.repeat": "Keep doing this until you get the right measurement: measure, choose the value (the robot uses it at once), measure again. When the robot really drives / turns what it was told, you are done. Every result stays in the list below, so you can go back to an older one."
+ "ms.repeat": "Keep doing this until you get the right measurement: measure, choose the value (the robot uses it at once), measure again. When the robot really drives / turns what it was told, you are done. Every result stays in the list below, so you can go back to an older one.",
+ "fw.unset_h": "{n} wiring values are still N/A",
+ "fw.unset_p": "Choose the board, motor driver, encoder and every pin above first: the sketch drives these pins. Measured values (ticks, wheel scale, speeds, gains) may stay N/A: you measure them with this sketch. If everything shown above is already your wiring, press \"These are right\".",
+ "fw.unset_ok": "These are right"
 }

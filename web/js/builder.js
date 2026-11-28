@@ -422,8 +422,18 @@ function buildFirmware() {
   const pre = el('pre', { id: 'fw-code' });
   const det = el('details', {}, el('summary', { text: t('fw.preview') }), pre);
   det.addEventListener('toggle', () => { if (det.open) pre.textContent = generateSketch(R, R.hardware).code; });
-  box.append(el('div', { class: 'card stack' }, el('h3', { text: t('fw.download_h') }),
-    el('div', { class: 'row' }, el('button', { class: 'primary', id: 'fw-dl', text: t('fw.download'), onclick: () => {
+  // wiring still N/A: the sketch would drive the example robot's pins on this board -> no download until it is chosen
+  const unsetWiring = allFields(R).filter((f) => f.path.startsWith('hardware.') && f.path !== 'hardware.bt_name' && !isSet(R, f.path));
+  const wiringBox = unsetWiring.length ? el('div', { class: 'notice warn stack', id: 'fw-unset' },
+    el('b', { text: t('fw.unset_h', { n: unsetWiring.length }) }),
+    el('span', { text: t('fw.unset_p') }),
+    el('small', { class: 'muted', text: unsetWiring.map((f) => f.key).join(', ') }),
+    el('div', { class: 'row' }, el('button', { class: 'small', text: t('fw.unset_ok'), onclick: () => {
+      for (const f of unsetWiring) R.source[f.path] = 'TYPED';
+      commit(); buildFirmware();
+    } }))) : null;
+  box.append(el('div', { class: 'card stack' }, el('h3', { text: t('fw.download_h') }), wiringBox,
+    el('div', { class: 'row' }, el('button', { class: 'primary', id: 'fw-dl', text: t('fw.download'), disabled: unsetWiring.length ? true : null, onclick: () => {
       const g = generateSketch(R, R.hardware);
       if (hasErrors(g.messages) && !confirm(t('fw.confirm_errors'))) return;
       download(g.fileName, g.code, 'text/plain');
