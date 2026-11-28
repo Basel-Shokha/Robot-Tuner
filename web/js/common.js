@@ -57,13 +57,14 @@ export async function page() {
       ${group('learn', 'nav.group_learn', LEARN, `<nav class="rail-links">${LEARN.map(link).join('')}</nav>`)}
       ${group('beyond', 'nav.group_beyond', BEYOND, `<nav class="rail-links">${BEYOND.map(link).join('')}</nav>`)}
       <div class="rail-foot">
+        <button class="primary save-robot" type="button">💾 ${t('save.btn')}</button>
         <button class="small theme-toggle" type="button"></button>
         <span>${t('footer.offline')}</span>
       </div>
     </aside>
     <div class="page">
       <div class="topbar"><button class="small" id="nav-toggle" aria-controls="rail" aria-expanded="false">${t('nav.menu')}</button>
-        <a class="brand" href="index.html">${LOGO}<span>Robot Tuner</span></a><button class="small theme-toggle" type="button"></button></div>
+        <a class="brand" href="index.html">${LOGO}<span>Robot Tuner</span></a><button class="small primary save-robot" type="button" title="${t('save.btn')}">💾</button><button class="small theme-toggle" type="button"></button></div>
     </div>`;
   main.replaceWith(app);
   const pageEl = app.querySelector('.page');
@@ -99,6 +100,11 @@ export async function page() {
   }
 
   app.querySelectorAll('.theme-toggle').forEach((b) => b.addEventListener('click', () => applyTheme(theme() === 'dark' ? 'light' : 'dark')));
+  // save the robot file from any page (the robot in use is the one kept in this browser)
+  app.querySelectorAll('.save-robot').forEach((b) => b.addEventListener('click', async () => {
+    const [{ loadRobot }, { saveRobotFile }] = await Promise.all([import('./store.js'), import('./save-reminder.js')]);
+    saveRobotFile(loadRobot());
+  }));
   applyTheme(theme());
   const tog = app.querySelector('#nav-toggle');
   tog.addEventListener('click', () => { const o = app.classList.toggle('nav-open'); tog.setAttribute('aria-expanded', o); });

@@ -279,7 +279,6 @@ function render() {
     open.add(next.id); render(); const c = document.querySelector(`[data-step="${next.id}"]`); if (c) c.scrollIntoView({ behavior: 'smooth', block: 'start' });
   } }));
   else pr.append(' · ', t('ms.all_done'));
-  pr.append(el('span', { class: 'spacer' }), el('button', { class: 'primary small', id: 'ms-save', text: '💾 ' + t('save.btn'), onclick: () => saveRobotFile(R) }));
 }
 function stepCard(s, n, hw) {
   const blocked = s.enc && hw.encoder.type === 'none';
