@@ -4,8 +4,9 @@ export const serialSupported = () => typeof navigator !== 'undefined' && 'serial
 export class RobotLink {
   constructor() { this.port = null; this.listeners = new Set(); this.buf = ''; this.lines = []; this.lastRx = 0; this.lastPong = 0; this.openedAt = 0; }
   get connected() { return !!this.port; }
-  async connect(baud = 115200) {
-    this.port = await navigator.serial.requestPort();
+  /** port: an already chosen SerialPort (else the browser asks the student to pick one) */
+  async connect(baud = 115200, port = null) {
+    this.port = port || await navigator.serial.requestPort();
     await this.port.open({ baudRate: baud });
     // ESP32 boards wire DTR / RTS to EN (reset) and IO0 (boot): Windows switches both on when a port opens, which can hold
     // the ESP32 in reset (silent: "no answer"). Switch them off like the Arduino Serial Monitor does: the robot starts normally.

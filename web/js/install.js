@@ -40,11 +40,13 @@ async function flash(log, progress) {
   } finally {
     try { await transport.disconnect(); } catch (e) { /* already closed */ }
   }
+  return port;
 }
 
-async function sendSettings(robot, log) {
+async function sendSettings(robot, log, port = null) {
   const link = new RobotLink();
-  await link.connect();
+  await link.connect(115200, port);
+  await new Promise((r) => setTimeout(r, 1500));   // let it start
   try {
     await new Promise((r) => setTimeout(r, 1500));   // the ESP32 restarts when the port opens
     for (const line of settingsLines(robot)) {
@@ -73,8 +75,11 @@ export function installCard(getRobot) {
   };
   const b1 = el('button', { class: 'primary', text: t('inst.flash'), onclick: run(async () => {
     bar.hidden = false; bar.value = 0; log(t('inst.flashing'));
-    await flash(log, (p) => { bar.value = p; });
-    log(t('inst.flashed')); toast(t('inst.flashed'), 'ok');
+    const port = await flash(log, (p) => { bar.value = p; });
+    log(t('inst.flashed'));
+    // then at once the robot's settings, over the same USB port (the firmware keeps the motors off without them)
+    log(t('inst.sending')); await sendSettings(getRobot(), log, port);
+    toast(t('inst.saved'), 'ok');
   }) });
   const b2 = el('button', { text: t('inst.send'), onclick: run(async () => { log(t('inst.sending')); await sendSettings(getRobot(), log); toast(t('inst.saved'), 'ok'); }) });
   const btns = [b1, b2];
