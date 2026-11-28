@@ -101,6 +101,16 @@ async function buildPage() {
   }
 
   app.querySelectorAll('.theme-toggle').forEach((b) => b.addEventListener('click', () => applyTheme(theme() === 'dark' ? 'light' : 'dark')));
+  // another tab changed the robot: this page still shows the old values -> offer to update (not automatic: a running
+  // training or measurement would stop)
+  window.addEventListener('storage', (e) => {
+    if (e.key !== 'rt.robot' || document.querySelector('#sync-bar')) return;
+    const bar = document.createElement('div');
+    bar.id = 'sync-bar'; bar.className = 'sync-bar';
+    bar.innerHTML = `<span>${t('sync.changed')}</span><button class="primary small" type="button">${t('sync.update')}</button>`;
+    bar.querySelector('button').addEventListener('click', () => location.reload());
+    document.body.append(bar);
+  });
   // save the robot file from any page (the robot in use is the one kept in this browser)
   app.querySelectorAll('.save-robot').forEach((b) => b.addEventListener('click', async () => {
     const [{ loadRobot }, { saveRobotFile }] = await Promise.all([import('./store.js'), import('./save-reminder.js')]);

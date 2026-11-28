@@ -444,3 +444,4 @@ input.pwm-val { width: 4.5em; }
 .tool.measuring { grid-template-columns: 1fr !important; }
 .tool.measuring > :not(.side) { display: none; }
 .measure-panel > .card, .measure-panel > .progress-line, .measure-panel > #steps { margin-bottom: 0; }
+.sync-bar { position: fixed; left: 50%; transform: translateX(-50%); bottom: 16px; z-index: 60; display: flex; gap: 12px; align-items: center; background: var(--amber-soft); border: 2px solid var(--amber); border-radius: var(--r-l); padding: 10px 14px; max-width: calc(100vw - 32px); box-shadow: 0 4px 16px rgb(0 0 0 / .15); }

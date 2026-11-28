@@ -242,8 +242,8 @@
  "pg.env_h": "Corridor",
  "pg.edit_env": "Change corridor, start pose, noise →",
  "pg.env_sum": "{mode}, {w} mm wide, start {a}° / {o} mm, noise ×{n}.",
- "pg.save_gains": "Save these gains to my robot",
- "pg.saved": "Gains saved to your robot.",
+ "pg.save_gains": "Choose these gains",
+ "pg.saved": "✓ Chosen: these are your robot's gains now (every page uses them, and they go into the robot file).",
  "pg.plot_wheels": "Wheel speeds (m/s): command (solid) and real (dashed)",
  "pg.plot_pid": "PID terms (m/s of turn)",
  "pg.cmd_l": "left command",
@@ -322,7 +322,7 @@
  "tr.reporting": "Testing the best gains at 0×, 1× and 2× noise…",
  "tr.done": "Done in {s} s.",
  "tr.best_h": "Best gains so far",
- "tr.use": "Use these gains for my robot",
+ "tr.use": "Choose these gains",
  "tr.try_pg": "Try them in the playground →",
  "tr.score": "Score",
  "tr.crash_pct": "Crashes",
@@ -1247,5 +1247,7 @@
  "ms.next_is": "next: {name}",
  "ms.go": "Go",
  "ms.all_done": "all done: save your robot file, then the Corridor.",
- "builder.tab_measure": "📏 Measure"
+ "builder.tab_measure": "📏 Measure",
+ "sync.changed": "Your robot was changed in another tab.",
+ "sync.update": "Update this page"
 }

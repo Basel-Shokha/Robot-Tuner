@@ -1249,5 +1249,7 @@
  "ms.next_is": "",
  "ms.go": "",
  "ms.all_done": "",
- "builder.tab_measure": ""
+ "builder.tab_measure": "",
+ "sync.changed": "",
+ "sync.update": ""
 }
