@@ -1062,7 +1062,7 @@
  "builder.robotfile_h": "Robot file (everything about your robot)",
  "builder.robotfile_p": "One text file with every hardware value: body, wheels, caster ball, motors, encoders, sensors, timing, board and pins, and your PID gains. Values you have not set are written as N/A. Load it on any computer to get your robot back.",
  "builder.export_file": "Save robot file",
- "builder.import_file": "Load robot file",
+ "builder.import_file": "Load robot file (.txt or .json)",
  "builder.file_unknown": "These lines were not understood and were skipped: {keys}",
  "builder.set_this": "Set this value first: {name}",
  "gate.h": "Set up your robot first",
@@ -1189,5 +1189,7 @@
  "fw.bt_note": "The robot answers over USB and Bluetooth at the same time, so it can drive on the floor without a cable. Your PC keeps its WiFi and internet. Pair the PC with the robot once in the Bluetooth settings, then press CONNECT and pick the Bluetooth port. Only the classic ESP32 has it: switch it off for ESP32-S3, C3 or C6.",
  "bt.h": "No cable: Bluetooth (ESP32)",
  "bt.steps": "Upload the code once with the USB cable (Bluetooth on in Robot builder → Firmware).|Unplug USB and power the robot from its battery.|On the PC: Bluetooth settings → Add device → pick \"{name}\". Windows then creates a COM port (\"Standard Serial over Bluetooth link\"); on a Mac it appears as /dev/cu.{name}.|Press CONNECT here and pick that port. When the status turns green, the robot answers.",
- "bt.no_wifi": "Why not WiFi? This site runs over https, and browsers do not let https pages talk to a robot's plain WiFi address. Bluetooth shows up as a normal serial port, and your PC stays on its WiFi."
+ "bt.no_wifi": "Why not WiFi? This site runs over https, and browsers do not let https pages talk to a robot's plain WiFi address. Bluetooth shows up as a normal serial port, and your PC stays on its WiFi.",
+ "builder.load_h": "Have a robot file? Load it first.",
+ "builder.load_p": "A .robot.txt or .robot.json file you saved before. It fills in everything below."
 }

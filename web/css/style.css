@@ -402,3 +402,5 @@ button.danger { background: var(--red); color: #fff; border-color: var(--red); }
 .link-status.silent { color: var(--red); border-color: var(--red); background: var(--red-soft); }
 .bt-help summary { font-weight: 700; cursor: pointer; } .bt-help { margin-top: 10px; }
 #conn-state, .own-step .link-status ~ .pill { display: none; }
+.load-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; border: 2px solid var(--green); }
+.load-bar b { display: block; font-size: 1.05rem; }

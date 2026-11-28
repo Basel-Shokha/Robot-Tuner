@@ -1191,5 +1191,7 @@
  "fw.bt_note": "",
  "bt.h": "",
  "bt.steps": "",
- "bt.no_wifi": ""
+ "bt.no_wifi": "",
+ "builder.load_h": "",
+ "builder.load_p": ""
 }

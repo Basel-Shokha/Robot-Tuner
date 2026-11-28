@@ -224,7 +224,7 @@ $$('[role="tab"]').forEach((b) => b.addEventListener('click', () => {
 $('#robot-name').addEventListener('input', (e) => { R.name = e.target.value; mark('name'); commit(); });
 $('#drive').addEventListener('change', (e) => { R.drive = e.target.value; mark('drive'); if (R.drive === '4wd') R.caster.enabled = false; commit(true); fitRobot(); draw(); });
 $('#exp-file').addEventListener('click', () => download(downloadName(R, '.robot.txt'), robotToFile(R)));
-$('#imp-file').addEventListener('click', async () => {
+async function loadRobotFile() {
   const f = await pickFile('.txt,.json,text/plain,application/json'); if (!f) return;
   try {
     if (/^\s*\{/.test(f.text)) R = migrate(JSON.parse(f.text));
@@ -232,7 +232,8 @@ $('#imp-file').addEventListener('click', async () => {
     else R = hardwareTxtToRobot(f.text, R);
     commit(true); fitRobot(); draw(); toast(t('builder.imported', { name: f.name }), 'ok');
   } catch (e) { toast(t('builder.import_err') + ' ' + e.message, 'bad'); }
-});
+}
+$('#imp-file').addEventListener('click', loadRobotFile);
 $('#exp-json').addEventListener('click', () => download(downloadName(R, '.robot.json'), JSON.stringify(R, null, 2), 'application/json'));
 $('#imp-json').addEventListener('click', async () => {
   const f = await pickFile('.json,application/json'); if (!f) return;
@@ -284,6 +285,11 @@ if (location.hash === '#firmware') showTab('firmware');
   const own = isOwnMode(), head = $('.page-head') || $('h1');
   const bar = choiceBar(own);
   head.after(bar);
+  // the robot file, right at the top: load a saved robot first, save it any time
+  bar.after(el('div', { class: 'card load-bar', id: 'load-bar' },
+    el('div', { class: 'stack', style: 'flex:1;min-width:200px' }, el('b', { text: t('builder.load_h') }), el('small', { class: 'muted', text: t('builder.load_p') })),
+    el('button', { class: 'primary big', text: t('builder.import_file'), onclick: loadRobotFile }),
+    el('button', { text: t('builder.export_file'), onclick: () => $('#exp-file').click() })));
   if (own) { const box = el('section', { id: 'own' }); bar.after(box); mountOwn(box, () => R, showTab); }
 }
 
