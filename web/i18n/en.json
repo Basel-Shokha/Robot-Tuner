@@ -1183,5 +1183,12 @@
  "bt.no_wifi": "Why not WiFi? This site runs over https, and browsers do not let https pages talk to a robot's plain WiFi address. Bluetooth shows up as a normal serial port, and your PC stays on its WiFi.",
  "builder.load_h": "Have a robot file? Load it first.",
  "builder.load_p": "The .robot.txt file you saved before. It fills in everything below.",
- "builder.not_robot_file": "This is not a Robot Tuner robot file (.robot.txt)."
+ "builder.not_robot_file": "This is not a Robot Tuner robot file (.robot.txt).",
+ "own.pop_h": "Using your own code: what to do now",
+ "own.pop_1": "<b>Copy the prompt</b> and paste it into your AI (ChatGPT, Claude, ...). Attach your robot code (all files) and the reference file.",
+ "own.pop_2": "<b>Upload the code your AI gives you</b> with the Arduino IDE.",
+ "own.pop_3": "Your AI also gives you a file <b>robot.robot.txt</b> with your robot. <b>Load it here</b>: it fills in your robot.",
+ "own.pop_4": "<b>Press CONNECT</b> (step 3 on this page). When the status turns green, your robot talks to Robot Tuner.",
+ "own.pop_go": "Got it",
+ "own.pop_off": "Don't show this again"
 }

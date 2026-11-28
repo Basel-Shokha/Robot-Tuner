@@ -29,7 +29,7 @@ async function copyText(txt, box) {
 }
 
 /** builds the three steps into `root`; getRobot() returns the current robot; openTab(id) shows a builder tab */
-export function mountOwn(root, getRobot, openTab) {
+export function mountOwn(root, getRobot, openTab, loadFile) {
   const prompt = () => studentPrompt(getRobot(), getRobot().hardware, { sketchName: REF_NAME });
   const pre = el('pre', { class: 'code prompt-preview', id: 'own-preview' });
   const prev = el('details', { class: 'prompt-box' }, el('summary', { text: t('own.preview') }), pre);
@@ -85,6 +85,28 @@ export function mountOwn(root, getRobot, openTab) {
         el('p', { html: t('own.fail') }),
         el('p', { html: t('own.next') })))));
   refresh();
+  // every visit: a popup with the whole way, in order (can be switched off)
+  let skip = false; try { skip = localStorage.getItem('rt.own.intro') === 'off'; } catch (e) { /* storage blocked */ }
+  if (!skip) {
+    const dlg = el('dialog', { class: 'cmd-dialog own-intro' });
+    const close = () => { dlg.close(); dlg.remove(); };
+    const off = el('input', { type: 'checkbox' });
+    off.addEventListener('change', () => { try { localStorage.setItem('rt.own.intro', off.checked ? 'off' : 'on'); } catch (e) { /* ignore */ } });
+    const st = (n, key, ...btns) => el('li', { class: 'own-step' }, el('span', { class: 'n', text: String(n) }),
+      el('div', { class: 'stack' }, el('p', { html: t(key) }), btns.length ? el('div', { class: 'row' }, ...btns) : null));
+    dlg.append(
+      el('div', { class: 'row' }, el('h2', { text: t('own.pop_h'), style: 'margin:0' }), el('span', { class: 'spacer' }), el('button', { class: 'small', text: '✕', 'aria-label': t('cmd.cancel'), onclick: close })),
+      el('ol', { class: 'own-steps' },
+        st(1, 'own.pop_1', el('button', { class: 'primary small', text: t('own.copy'), onclick: () => copyText(prompt(), prev) }),
+          el('button', { class: 'small', text: t('own.ref'), onclick: () => { const r = getRobot(); download(REF_NAME, generateSketch(r, r.hardware).code); } })),
+        st(2, 'own.pop_2'),
+        st(3, 'own.pop_3', loadFile ? el('button', { class: 'primary small', text: t('builder.import_file'), onclick: () => { close(); loadFile(); } }) : null),
+        st(4, 'own.pop_4')),
+      el('div', { class: 'row' }, el('button', { class: 'primary', text: t('own.pop_go'), onclick: close }),
+        el('label', { class: 'toggle' }, off, el('span', { text: t('own.pop_off') }))));
+    dlg.addEventListener('cancel', (e) => { e.preventDefault(); close(); });
+    document.body.append(dlg); dlg.showModal();
+  }
   window.addEventListener('robot-changed', refresh);
   return { refresh };
 }

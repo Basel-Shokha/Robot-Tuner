@@ -286,7 +286,7 @@ if (location.hash === '#firmware') showTab('firmware');
     el('div', { class: 'stack', style: 'flex:1;min-width:200px' }, el('b', { text: t('builder.load_h') }), el('small', { class: 'muted', text: t('builder.load_p') })),
     el('button', { class: 'primary big', text: t('builder.import_file'), onclick: loadRobotFile }),
     el('button', { text: t('builder.export_file'), onclick: () => $('#exp-file').click() })));
-  if (own) { const box = el('section', { id: 'own' }); bar.after(box); mountOwn(box, () => R, showTab); }
+  if (own) { const box = el('section', { id: 'own' }); bar.after(box); mountOwn(box, () => R, showTab, loadRobotFile); }
 }
 
 // ---- 5. FIRMWARE: what hardware the robot has -> a ready-to-flash sketch ------------------------------------

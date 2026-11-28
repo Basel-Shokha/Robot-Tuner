@@ -1185,5 +1185,12 @@
  "bt.no_wifi": "",
  "builder.load_h": "",
  "builder.load_p": "",
- "builder.not_robot_file": ""
+ "builder.not_robot_file": "",
+ "own.pop_h": "",
+ "own.pop_1": "",
+ "own.pop_2": "",
+ "own.pop_3": "",
+ "own.pop_4": "",
+ "own.pop_go": "",
+ "own.pop_off": ""
 }
