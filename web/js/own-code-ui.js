@@ -3,9 +3,9 @@
 import { $, el, t, download, toast } from './common.js';
 import { studentPrompt } from './own-code.js';
 import { generateSketch, btName, normalizeHardware } from './firmware-gen.js';
-import { RobotLink, serialSupported } from './serial.js';
+import { RobotLink, serialSupported, bleSupported } from './serial.js';
 import { commandButtons } from './cmd-buttons.js';
-import { linkStatus, btHelp } from './link-status.js';
+import { linkStatus, btHelp, connectButtons } from './link-status.js';
 
 export const REF_NAME = 'robot_tuner_reference.ino';
 export const isOwnMode = () => new URLSearchParams(location.search).get('own') === '1';
@@ -44,7 +44,6 @@ export function mountOwn(root, getRobot, openTab, loadFile) {
   const state = el('span', { class: 'pill', text: t('ms.disconnected') });
   const cmd = el('input', { placeholder: t('own.cmd_ph'), style: 'flex:1;min-width:120px' });
   const send = el('button', { text: t('own.send'), disabled: true });
-  const conn = el('button', { class: 'primary', id: 'own-connect', text: t('own.connect') });
   const lines = [];
   link.onLine((l) => {
     lines.push(l); if (lines.length > 200) lines.shift();
@@ -54,16 +53,13 @@ export function mountOwn(root, getRobot, openTab, loadFile) {
   const upd = () => {
     cmdBox.refresh();
     state.textContent = t(link.connected ? 'ms.connected' : 'ms.disconnected'); state.className = 'pill ' + (link.connected ? 'ok' : '');
-    conn.textContent = t(link.connected ? 'own.disconnect' : 'own.connect'); send.disabled = !link.connected;
+    send.disabled = !link.connected;
   };
-  conn.addEventListener('click', async () => {
-    try { if (link.connected) await link.disconnect(); else { await link.connect(); setTimeout(() => link.connected && link.send('STATUS'), 1500); } } catch (e) { toast(String(e.message || e)); }
-    upd();
-  });
+
   const doSend = () => { const c = cmd.value.trim(); if (c && link.connected) link.send(c); cmd.value = ''; };
   send.addEventListener('click', doSend);
   cmd.addEventListener('keydown', (e) => { if (e.key === 'Enter') doSend(); });
-  if (!serialSupported()) conn.disabled = true;
+  const conns = connectButtons(link, () => upd());
 
   root.append(el('div', { class: 'card own' },
     el('h2', { text: t('own.h') }),
@@ -79,8 +75,8 @@ export function mountOwn(root, getRobot, openTab, loadFile) {
         el('small', { class: 'muted', text: t('own.prompt_note') }), prev),
       step(3, 'own.s3_h', el('p', { text: t('own.s3') }),
         el('p', { class: 'muted small-note', text: t('own.compile_note') }),
-        el('div', { class: 'row' }, conn, linkStatus(link)), btHelp(getRobot()),
-        serialSupported() ? null : el('p', { class: 'muted', text: t('own.nosupport') }),
+        el('div', { class: 'row' }, conns.usb, conns.ble, linkStatus(link)), btHelp(getRobot()),
+        serialSupported() || bleSupported() ? null : el('p', { class: 'muted', text: t('own.nosupport') }),
         cmdBox, el('p', { class: 'muted small-note', text: t('cmd.or_type') }), el('div', { class: 'row' }, cmd, send), log,
         el('p', { html: t('own.fail') }),
         el('p', { html: t('own.next') })))));

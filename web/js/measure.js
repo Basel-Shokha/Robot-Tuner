@@ -1,10 +1,10 @@
 // measure.js - 2. GUIDED MEASUREMENT over USB (Web Serial) with manual entry for every value.
 import { page, $, el, t, toast } from './common.js';
 import { commandButtons, motionBadge } from './cmd-buttons.js';
-import { linkStatus, btHelp } from './link-status.js';
+import { linkStatus, btHelp, connectButtons } from './link-status.js';
 const STEP_MOTION = { ticks: 'hand', maxspeed: 'air', vmin: 'air', ff: 'air', step: 'air', drive: 'floor', spin: 'floor', timed: 'floor', tof: 'still', timing: 'still' };
 import { loadRobot, saveRobot } from './store.js';
-import { RobotLink, serialSupported } from './serial.js';
+import { RobotLink, serialSupported, bleSupported } from './serial.js';
 import * as P from './measure-steps.js';
 import { fmt } from './i18n.js';
 import { stepMedia } from './measure-media.js';
@@ -15,17 +15,10 @@ const link = new RobotLink();
 let R = loadRobot();
 const log = $('#log');
 link.onLine((l) => { log.textContent += l + '\n'; log.scrollTop = log.scrollHeight; });
-if (!serialSupported()) { $('#nosupport').hidden = false; $('#connect').disabled = true; $('#manual').checked = true; }
-$('#connect').addEventListener('click', async () => {
-  try {
-    if (link.connected) { await link.disconnect(); } else { await link.connect(); }
-  } catch (e) { toast(t('ms.conn_err') + ' ' + e.message, 'bad'); }
-  $('#conn-state').textContent = t(link.connected ? 'ms.connected' : 'ms.disconnected');
-  $('#conn-state').className = 'pill ' + (link.connected ? 'ok' : '');
-  $('#connect').textContent = t(link.connected ? 'ms.disconnect' : 'ms.connect');
-  cmdBox.refresh();
-  render();
-});
+if (!serialSupported() && !bleSupported()) { $('#nosupport').hidden = false; $('#manual').checked = true; }
+let cmdBox = null, ready = false;   // set below; the buttons refresh once at once
+const conns = connectButtons(link, () => { if (ready) { cmdBox.refresh(); render(); } }, $('#connect'));
+$('#connect').after(conns.ble);
 $('#manual').addEventListener('change', render);
 // Calibration commands can be typed without "CAL": TICKS, SPIN 5, TOF 200 200 ... are sent as CAL TICKS etc.
 const CAL_WORDS = new Set(['TICKS', 'END', 'MAXSPEED', 'VMIN', 'RUN', 'FF', 'STEP', 'DRIVE', 'DIST', 'SPIN', 'TURNS', 'TIMED', 'TOF', 'APPLY', 'STOP', 'DIR', 'AUTOTUNE']);
@@ -35,7 +28,7 @@ export function expandCommand(c) {
 }
 document.querySelector('#conn-state').after(linkStatus(link));
 { const h = btHelp(R); if (h) document.querySelector('#conn-bar .conn-row').after(h); }
-const cmdBox = commandButtons((c) => link.connected && link.send(c), () => link.connected);
+cmdBox = commandButtons((c) => link.connected && link.send(c), () => link.connected);
 $('#cmd-buttons').append(cmdBox);
 const sendCmd = () => { const c = expandCommand($('#cmd').value); if (c && link.connected) link.send(c); $('#cmd').value = ''; };
 $('#send').addEventListener('click', sendCmd);
@@ -253,7 +246,13 @@ function stepCard(s, n, hw) {
   const body = el('div', { class: 'body' });
   body.append(el('dl', {}, el('dt', { text: t('ms.what') }), el('dd', { text: t(k + '.what') }), el('dt', { text: t('ms.why') }), el('dd', { text: t(k + '.why') }),
     el('dt', { text: t('ms.how') }), el('dd', { text: t(k + '.how') })));
-  if (STEP_MOTION[s.id] === 'floor') body.append(el('p', { class: 'usb-note', text: t('cmd.m_floor_h') }));
+  if (STEP_MOTION[s.id] === 'floor' && link.mode !== 'ble') {
+    // this step drives: propose the wireless link first (the student may still go on with the cable: their call)
+    const b = el('button', { class: 'primary', text: t('ms.connect_ble') });
+    b.addEventListener('click', async () => { try { if (link.connected) await link.disconnect(); await link.connectBle(); } catch (e) { if (e && e.name !== 'NotFoundError') toast(t('ms.conn_err') + ' ' + (e.message || e), 'bad'); } open.add(s.id); conns.refresh(); });
+    if (!bleSupported()) b.disabled = true;
+    body.append(el('div', { class: 'usb-note stack' }, el('b', { text: t('ms.floor_first') }), el('span', { text: t('cmd.m_floor_h') }), el('div', { class: 'row' }, b)));
+  }
   const media = stepMedia(s.id, { n: reps[s.id] || 1, label: t(k + '.title'), turnWord: t(s.id === 'spin' ? 'ms.rep.spin_word' : 'ms.rep.turn_word'), videoWord: t('ms.video') });
   if (media) body.append(media);
   if (s.id === 'drive') {
@@ -372,4 +371,5 @@ function makeUI(out, s) {
     },
   };
 }
+ready = true;
 render();

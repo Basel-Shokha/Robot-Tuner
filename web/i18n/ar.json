@@ -344,7 +344,6 @@
  "tr.dl_model": "",
  "ms.h1": "",
  "ms.intro": "",
- "ms.connect": "",
  "ms.disconnect": "",
  "ms.connected": "",
  "ms.disconnected": "",
@@ -981,8 +980,6 @@
  "own.s3_h": "",
  "own.s3": "",
  "own.compile_note": "",
- "own.connect": "",
- "own.disconnect": "",
  "own.send": "",
  "own.cmd_ph": "",
  "own.nosupport": "",
@@ -1221,5 +1218,9 @@
  "ms.ticks.pwm_note": "",
  "ms.ticks.set": "",
  "ms.drive.choose": "",
- "ms.drive.why_long": ""
+ "ms.drive.why_long": "",
+ "ms.connect_usb": "",
+ "ms.connect_ble": "",
+ "ms.no_ble": "",
+ "ms.floor_first": ""
 }

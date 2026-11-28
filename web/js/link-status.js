@@ -1,6 +1,7 @@
 // link-status.js - "is the robot really there?": while the port is open, PING every 3 s (hidden from the log) and show
 // whether anything came back. Any received line counts; PONG proves the robot understands Robot Tuner's commands.
 import { el, t, toast } from './common.js';
+import { serialSupported, bleSupported } from './serial.js';
 import { usesBt, btName, normalizeHardware } from './firmware-gen.js';
 
 /** "No cable: Bluetooth" how-to for ESP32 robots with Bluetooth on (null otherwise) */
@@ -11,6 +12,35 @@ export function btHelp(robot) {
   return el('details', { class: 'card bt-help' }, el('summary', { text: t('bt.h') }),
     el('ol', {}, ...t('bt.steps', { name }).split('|').map((x) => el('li', { text: x }))),
     el('p', { class: 'muted small-note', text: t('bt.no_wifi') }));
+}
+
+/** the two connect buttons (USB cable, Bluetooth): the one in use turns into Disconnect, the other waits.
+ *  usb: an existing button to reuse (Measure keeps its #connect); after(): called after every change */
+export function connectButtons(link, after = () => {}, usb = null) {
+  usb = usb || el('button', { class: 'primary' });
+  const ble = el('button', { class: 'primary', id: usb.id ? usb.id + '-ble' : null });
+  const upd = () => {
+    const m = link.mode;
+    usb.textContent = t(m === 'usb' ? 'ms.disconnect' : 'ms.connect_usb');
+    ble.textContent = t(m === 'ble' ? 'ms.disconnect' : 'ms.connect_ble');
+    usb.disabled = !serialSupported() || m === 'ble';
+    ble.disabled = !bleSupported() || m === 'usb';
+    ble.title = bleSupported() ? '' : t('ms.no_ble');
+    after();
+  };
+  const go = (kind) => async () => {
+    try {
+      if (link.connected) await link.disconnect();
+      else if (kind === 'ble') await link.connectBle();
+      else await link.connect();
+    } catch (e) { if (e && e.name !== 'NotFoundError') toast(t('ms.conn_err') + ' ' + (e.message || e), 'bad'); }
+    upd();
+  };
+  usb.addEventListener('click', go('usb'));
+  ble.addEventListener('click', go('ble'));
+  link.onLine((l) => { if (l.startsWith('# connection lost')) upd(); });
+  upd();
+  return { usb, ble, refresh: upd };
 }
 
 /** returns a pill element that updates itself; state: off | waiting | ok | silent | foreign */
