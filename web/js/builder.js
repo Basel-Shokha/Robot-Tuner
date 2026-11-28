@@ -5,6 +5,7 @@ import { View, robotShapes, css, PALETTE } from './draw.js';
 import { usesBt, btName, BOARDS, pinLabel, pinTags, ENCODERS, DRIVERS, generateSketch, validateHardware, hasErrors, suggestPins, computedTicksPerRev, sketchTicks,
   isLowRes, edgesPerPulse, requiredLibraries, sensorWireName, normalizeHardware, defaultHardware, unoHardware } from './firmware-gen.js';
 import { choiceBar, mountOwn, isOwnMode } from './own-code-ui.js';
+import { Robot3D, isHand } from './robot3d.js';
 import { robotToFile, fileToRobot, isRobotFile, allFields } from './robotfile.js';
 import { isSet, markSaved } from './store.js';
 import { saveRobotFile, guardLeave } from './save-reminder.js';
@@ -46,7 +47,8 @@ function num(group, key, labelKey, unit, opts = {}) {
   const need = REQUIRED.has(full) ? el('span', { class: 'req', text: ' *', title: t('builder.req_hint') }) : null;
   const ms = measureStep(full);
   const meas = ms ? el('a', { class: 'measure-link', href: `#measure-${ms}`, title: t('builder.measure_hint'), text: '📏 ' + t('builder.measure') }) : null;
-  return el('label', { class: 'field' }, el('span', {}, el('span', { text: t(labelKey) }), need, unit ? el('span', { class: 'muted', text: ` (${unit})` }) : null, ' ', src, meas ? ' ' : null, meas), inp);
+  const hand = isHand(full) ? el('button', { type: 'button', class: 'small hand-btn', text: t('builder.hand') + ' 📏', title: t('builder.hand_hint'), onclick: (e) => { e.preventDefault(); showHand(full, labelKey); } }) : null;
+  return el('label', { class: 'field' }, el('span', {}, el('span', { text: t(labelKey) }), need, unit ? el('span', { class: 'muted', text: ` (${unit})` }) : null, ' ', src, meas ? ' ' : null, meas, hand ? ' ' : null, hand), inp);
 }
 
 function buildForms() {
@@ -139,7 +141,27 @@ function zoomLimit() {
   view.minScale = Math.min(view.w / (3 * Math.max(0.02, len)), view.h / (3 * Math.max(0.02, wid)));
   if (view.scale < view.minScale) view.scale = view.minScale;
 }
+// ---- 3D view (default) and the 2D top view (drag sensors / caster) ----------------------------------------
+let v3 = null;
+try { v3 = new Robot3D($('#view3d')); } catch (e) { console.warn('3D view unavailable', e); }
+function setView(three) {
+  $('#view3d').hidden = !three || !v3; $('#view2d').hidden = three && !!v3;
+  $('#view-3d').classList.toggle('on', three); $('#view-2d').classList.toggle('on', !three);
+  $('#view-hint').textContent = t(three ? 'builder.hint_3d' : 'builder.hint_2d');
+  if (!three) { fitRobot(); draw(); }
+}
+$('#view-3d').addEventListener('click', () => setView(true));
+$('#view-2d').addEventListener('click', () => setView(false));
+if (!v3) setView(false);
+/** MEASURE BY HAND: the 3D view turns and a red laser shows where to measure from and to */
+function showHand(path, labelKey) {
+  if (!v3) return;
+  setView(true); v3.show(path);
+  const n = $('#laser-note'); n.hidden = false; n.textContent = '📏 ' + t(labelKey) + ': ' + t('builder.laser_note');
+  if (window.innerWidth < 1100) $('#view3d').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
 function draw() {
+  if (v3) v3.update(R);
   zoomLimit();
   const g = view.begin();
   view.grid(0.01);

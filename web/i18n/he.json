@@ -1251,5 +1251,12 @@
  "ms.all_done": "",
  "builder.tab_measure": "",
  "sync.changed": "",
- "sync.update": ""
+ "sync.update": "",
+ "builder.view_3d": "",
+ "builder.view_2d": "",
+ "builder.hint_3d": "",
+ "builder.hint_2d": "",
+ "builder.hand": "",
+ "builder.hand_hint": "",
+ "builder.laser_note": ""
 }

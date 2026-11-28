@@ -63,7 +63,9 @@
       </div>
     </div>
     <div class="stack">
-      <div class="canvas-wrap"><canvas id="cv"></canvas><div class="overlay" data-i18n="builder.canvas_hint"></div></div>
+      <div class="row view-switch" role="group"><button type="button" class="small on" id="view-3d" data-i18n="builder.view_3d"></button><button type="button" class="small" id="view-2d" data-i18n="builder.view_2d"></button><span class="muted small-note" id="view-hint" data-i18n="builder.hint_3d"></span></div>
+      <div class="canvas-wrap view3d" id="view3d"><div class="overlay laser-note" id="laser-note" hidden></div></div>
+      <div class="canvas-wrap" id="view2d" hidden><canvas id="cv"></canvas><div class="overlay" data-i18n="builder.canvas_hint"></div></div>
       <div id="checks" class="card"></div>
     </div>
   </div>

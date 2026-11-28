@@ -1,0 +1,1 @@
+three.js 0.186.1 (npm, MIT): the classes listed in web/js/robot3d.js plus OrbitControls, bundled and minified with esbuild 0.25.0 into three.bundle.js.
