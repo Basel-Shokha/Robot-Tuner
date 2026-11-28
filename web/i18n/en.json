@@ -99,7 +99,7 @@
  "builder.reset_example": "Load the example robot",
  "builder.new_name": "My robot",
  "builder.confirm_new": "Replace the current robot? Export it first if you want to keep it.",
- "builder.canvas_hint": "Drag: move view · wheel: zoom · drag a sensor: move it · Shift+drag: rotate it",
+ "builder.canvas_hint": "Drag: move view · wheel: zoom · drag a sensor: move it · Shift+drag: rotate it · Alt+drag: move the caster ball",
  "builder.json_preview": "Robot JSON",
  "builder.checks_h": "Checks",
  "builder.track_short": "track",
@@ -1058,5 +1058,5 @@
  "tour.numbers.conv": "Formulas with examples from your robot, for when your code uses other units.",
  "footer.by": "Made by Basel Shokha and Nicole Shaer, Technion.",
  "builder.caster_y": "Caster position y (+ = left of centre)",
- "builder.caster_note": "Measure from the middle of the wheel axle to the centre of the ball. Or drag the grey ball in the drawing. It is drawn and saved in your robot file; the simulator does not need it to drive."
+ "builder.caster_note": "Measure from the middle of the wheel axle to the centre of the ball. Or drag the grey ball in the drawing (hold Alt if a sensor sits on top of it). It is drawn and saved in your robot file; the simulator does not need it to drive."
 }

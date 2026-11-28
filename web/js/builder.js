@@ -166,12 +166,22 @@ let drag = null;
 view.onPointerDown = (e) => {
   const [x, y] = view.eventWorld(e);
   let best = -1, bd = 0.012;
-  R.sensors.forEach((s, i) => { const d = Math.hypot(s.x_mm / 1000 - x, s.y_mm / 1000 - y); if (d < bd) { bd = d; best = i; } });
-  if (best < 0) return false;
+  if (!e.altKey) R.sensors.forEach((s, i) => { const d = Math.hypot(s.x_mm / 1000 - x, s.y_mm / 1000 - y); if (d < bd) { bd = d; best = i; } });
+  if (best < 0) {   // no sensor there (or Alt held): the caster ball
+    const c = R.caster;   // the caster ball can be dragged too
+    if (!c.enabled || R.drive !== '2wd' || Math.hypot(c.x_mm / 1000 - x, (c.y_mm || 0) / 1000 - y) > Math.max(0.012, c.diameter_mm / 2000)) return false;
+    drag = { caster: true }; view.c.setPointerCapture(e.pointerId); return true;
+  }
   selected = best; drag = { i: best, rotate: e.shiftKey }; view.c.setPointerCapture(e.pointerId); return true;
 };
 view.onPointerMove = (e) => {
   if (!drag) return false;
+  if (drag.caster) {
+    const [x, y] = view.eventWorld(e);
+    R.caster.x_mm = Math.round(x * 2000) / 2; R.caster.y_mm = Math.round(y * 2000) / 2;
+    R.source['caster.x_mm'] = R.source['caster.y_mm'] = 'TYPED';
+    draw(); return true;
+  }
   const [x, y] = view.eventWorld(e), s = R.sensors[drag.i];
   if (drag.rotate) s.angle_deg = Math.round(Math.atan2(y - s.y_mm / 1000, x - s.x_mm / 1000) * 180 / Math.PI);
   else { s.x_mm = Math.round(x * 2000) / 2; s.y_mm = Math.round(y * 2000) / 2; }
