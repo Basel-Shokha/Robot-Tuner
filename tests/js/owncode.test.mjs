@@ -120,3 +120,12 @@ test('speed smoothing: 0 = the old simulator results exactly, > 0 changes them',
   // the native golden scenarios (wheel_model 1) do not set the key: they still pass in wasm_equiv.test.mjs
   assert.ok(!readFileSync(new URL('../golden/scenarios.txt', import.meta.url), 'utf8').includes('wheel_speed_tau_ms'));
 });
+
+test('every command says what the robot does (motion), and the prompt tells the AI', () => {
+  const r = exampleRobot(), txt = O.studentPrompt(r, r.hardware);
+  for (const c of PROTOCOL) {
+    assert.ok(['hand', 'air', 'floor', 'still'].includes(c.motion), c.cmd);
+    assert.ok(txt.includes(`[robot: ${c.motion}]`), c.cmd);
+  }
+  assert.ok(txt.includes('the USB cable stays plugged in'));
+});

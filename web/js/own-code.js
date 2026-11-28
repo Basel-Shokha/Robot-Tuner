@@ -8,7 +8,7 @@
 //   wheel PID  = vendor/.../firmware/robot_fw/wheel_pid.h (run by sim/rt_engine.hpp Drive::Step every
 //                motor.wheel_pid_period_ms): speeds in encoder ticks PER PID PERIOD, output in PWM counts.
 //   steering   = sim/rt_engine.hpp Pid::Control = export.js cFunction(): error in metres, output in m/s.
-import { PROTOCOL, PROTOCOL_RULES, BOARDS, DRIVER_TEXT, encoderText, edgesPerPulse, computedTicksPerRev, sketchTicks,
+import { PROTOCOL, PROTOCOL_RULES, MOTION, BOARDS, DRIVER_TEXT, encoderText, edgesPerPulse, computedTicksPerRev, sketchTicks,
   normalizeHardware, pinRoles, pinLabel, sensorWireName, requiredLibraries } from './firmware-gen.js';
 import { cruiseSpeed } from './store.js';
 
@@ -145,9 +145,11 @@ export function studentPrompt(robot, hwIn, opts = {}) {
   w('## A. Serial protocol (copy exactly; the Tuner reads these lines)', 'General rules:', ...PROTOCOL_RULES.map((r) => '- ' + r), '',
     'Commands. "<x>" = a number filled in at run time; [x] = optional argument. Each reply is one line, printed exactly as written (same words, spaces, units and punctuation).');
   for (const c of PROTOCOL) {
-    w(`- ${c.cmd}${c.args ? ' ' + c.args : ''}: ${c.help}${c.def ? ` (default ${c.def})` : ''}${c.enc ? ' [needs encoders]' : ''}`);
+    w(`- ${c.cmd}${c.args ? ' ' + c.args : ''}: ${c.help}${c.def ? ` (default ${c.def})` : ''}${c.enc ? ' [needs encoders]' : ''} [robot: ${c.motion}]`);
     for (const r of c.replies) w(`    reply: ${r}`);
   }
+  w('Robot states in [robot: ...]:', ...Object.entries(MOTION).map(([k, v]) => `- ${k}: ${v}`),
+    'All commands arrive over the USB cable. The floor commands (CAL DRIVE, CAL SPIN, CAL TIMED, RUN) make the robot drive with the cable still plugged in, so they must stop on their own (distance, turns or time) and STOP must work at any moment. Do not make them wait for anything after they start.');
   w('Follow the reference for HOW each command measures (timings, PWM steps, averaging); the Tuner\'s checks assume the same procedure.', '');
 
   w('## B. Encoder counting',
