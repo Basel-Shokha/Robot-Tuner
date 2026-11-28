@@ -57,9 +57,9 @@
  "builder.skid_note": "A skid-steer robot turns like a 2-wheel robot with a WIDER track: the wheels scrub sideways. The spin test in Measure gives the effective value.",
  "builder.track_eff": "Effective track width",
  "builder.track_eff_note": "What the robot really turns with (from the spin test). Starts equal to the wheel spacing; measure it in step 'Spin test'.",
- "builder.caster_h": "Caster",
- "builder.caster_on": "Has a caster ball / wheel",
- "builder.caster_x": "Caster position x",
+ "builder.caster_h": "Caster ball",
+ "builder.caster_on": "Has a caster ball (the free-rolling ball or wheel that holds up the front or back)",
+ "builder.caster_x": "Caster position x (+ = ahead of the axle)",
  "builder.caster_d": "Caster diameter",
  "builder.sensors_intro": "1 to 5 distance sensors. For centring between two walls you need at least one sensor looking left (angle > 15°) and one looking right (angle < -15°). Drag a sensor on the drawing to move it; Shift + drag rotates it.",
  "builder.add_sensor": "+ Add sensor",
@@ -1056,5 +1056,7 @@
  "tour.numbers.units": "Every number from your robot profile, its unit, and how big one unit is.",
  "tour.numbers.conv.h": "Conversions",
  "tour.numbers.conv": "Formulas with examples from your robot, for when your code uses other units.",
- "footer.by": "Made by Basel Shokha and Nicole Shaer, Technion."
+ "footer.by": "Made by Basel Shokha and Nicole Shaer, Technion.",
+ "builder.caster_y": "Caster position y (+ = left of centre)",
+ "builder.caster_note": "Measure from the middle of the wheel axle to the centre of the ball. Or drag the grey ball in the drawing. It is drawn and saved in your robot file; the simulator does not need it to drive."
 }

@@ -51,7 +51,8 @@ function buildForms() {
   const cas = el('div', { class: 'card stack' }, el('h3', { text: t('builder.caster_h') }));
   const cb = el('input', { type: 'checkbox' }); cb.checked = R.caster.enabled;
   cb.addEventListener('change', () => { R.caster.enabled = cb.checked; commit(); });
-  cas.append(el('label', { class: 'toggle' }, cb, el('span', { text: t('builder.caster_on') })), num('caster', 'x_mm', 'builder.caster_x', 'mm'), num('caster', 'diameter_mm', 'builder.caster_d', 'mm'));
+  cas.append(el('label', { class: 'toggle' }, cb, el('span', { text: t('builder.caster_on') })), num('caster', 'x_mm', 'builder.caster_x', 'mm'), num('caster', 'y_mm', 'builder.caster_y', 'mm'), num('caster', 'diameter_mm', 'builder.caster_d', 'mm'),
+    el('small', { class: 'muted', text: t('builder.caster_note') }));
   if (R.drive === '2wd') g.append(cas);
   // sensors
   const s = $('[data-panel="sensors"]'); s.innerHTML = '';
@@ -129,7 +130,7 @@ function draw() {
   });
   S.wheels.forEach((w) => view.poly(w.map(m), '#2b3442', null, 0.85));
   view.poly(S.body.map(m), css('--robot') + '30', css('--robot'));
-  if (S.caster) { view.dot(S.caster.x / 1000, 0, Math.max(3, S.caster.d / 2000 * view.scale), '#888'); }
+  if (S.caster) { view.dot(S.caster.x / 1000, S.caster.y / 1000, Math.max(3, S.caster.d / 2000 * view.scale), '#888'); }
   S.sensors.forEach((s, i) => {
     const x = s.x_mm / 1000, y = s.y_mm / 1000, a = s.angle_deg * Math.PI / 180, c = PALETTE[i % PALETTE.length];
     const d = 0.006, w = 0.004;
@@ -220,7 +221,7 @@ function blank(drive) {
   r.name = t('builder.new_name'); r.drive = drive; r.source = {};
   r.body = { front_mm: 120, rear_mm: 60, width_mm: 150 };
   r.wheels = { ...r.wheels, diameter_mm: 65, width_mm: 26, track_mm: 140, x_mm: 0, wheelbase_mm: 100, track_effective_mm: drive === '4wd' ? 190 : 140, ticks_per_rev: 1440, scale_l: 1, scale_r: 1 };
-  r.caster = { enabled: drive === '2wd', x_mm: 90, diameter_mm: 15 };
+  r.caster = { enabled: drive === '2wd', x_mm: 90, y_mm: 0, diameter_mm: 15 };
   r.motor = { ...r.motor, model: 'lag', max_speed_mps: 0.5, step_tau_s: 0.12 };
   r.sensors = [makeSensor('VL53L0X', { name: 'right', x_mm: 110, y_mm: -40, angle_deg: -45 }), makeSensor('VL53L0X', { name: 'front', x_mm: 120, y_mm: 0, angle_deg: 0 }),
     makeSensor('VL53L0X', { name: 'left', x_mm: 110, y_mm: 40, angle_deg: 45 })];

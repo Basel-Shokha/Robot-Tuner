@@ -133,5 +133,5 @@ export function robotShapes(r) {
     const cy = side * w.track_mm / 2, hl = w.diameter_mm / 2, hw = w.width_mm / 2;
     wheels.push([[x + hl, cy - hw], [x + hl, cy + hw], [x - hl, cy + hw], [x - hl, cy - hw]]);
   }
-  return { body, wheels, caster: r.caster.enabled ? { x: r.caster.x_mm, d: r.caster.diameter_mm } : null, sensors: r.sensors };
+  return { body, wheels, caster: r.caster.enabled ? { x: r.caster.x_mm, y: r.caster.y_mm || 0, d: r.caster.diameter_mm } : null, sensors: r.sensors };
 }

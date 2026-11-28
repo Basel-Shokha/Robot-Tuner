@@ -49,7 +49,7 @@ export function defaultRobot() {
     body: { front_mm: 140, rear_mm: 40, width_mm: 140 },
     wheels: { diameter_mm: 45, width_mm: 20, track_mm: 120, x_mm: 0, wheelbase_mm: 80, track_effective_mm: 124.9,
       ticks_per_rev: 8291.5, scale_l: 0.972, scale_r: 0.972 },
-    caster: { enabled: true, x_mm: 105, diameter_mm: 15 },
+    caster: { enabled: true, x_mm: 105, y_mm: 0, diameter_mm: 15 },
     motor: {
       model: 'pid',               // 'pid' = firmware wheel PID on a DC-motor model; 'lag' = first-order lag only
       max_speed_mps: 0.156, step_tau_s: 0.10,
@@ -241,7 +241,7 @@ export function robotToHardwareTxt(r) {
   line('body_front_mm', r.body.front_mm, src('body.front_mm'));
   line('body_rear_mm', r.body.rear_mm, src('body.rear_mm'));
   line('body_width_mm', r.body.width_mm, src('body.width_mm'));
-  if (r.caster.enabled) { line('caster_x_mm', r.caster.x_mm, src('caster.x_mm')); line('caster_diameter_mm', r.caster.diameter_mm, src('caster.diameter_mm')); }
+  if (r.caster.enabled) { line('caster_x_mm', r.caster.x_mm, src('caster.x_mm')); line('caster_diameter_mm', r.caster.diameter_mm, src('caster.diameter_mm')); if (r.caster.y_mm) line('caster_y_mm', r.caster.y_mm, src('caster.y_mm'), '+ = left of centre'); }
   line('track_w_effective_mm', r.wheels.track_effective_mm, src('wheels.track_effective_mm'), 'CAL SPIN');
   L.push(`# drive ${r.drive}${r.drive === '4wd' ? ` (skid steer), wheelbase ${r.wheels.wheelbase_mm} mm` : ''}`);
   L.push('');
@@ -307,7 +307,7 @@ export function hardwareTxtToRobot(text, base = defaultRobot()) {
   const set = (key, obj, field, f = (x) => x) => { if (kv[key] !== undefined && !Number.isNaN(kv[key])) { obj[field] = f(kv[key]); r.source[`${objName(obj, r)}.${field}`] = 'IMPORTED'; } };
   set('wheel_diameter_mm', r.wheels, 'diameter_mm'); set('wheel_width_mm', r.wheels, 'width_mm'); set('wheel_track_mm', r.wheels, 'track_mm');
   set('wheel_x_mm', r.wheels, 'x_mm'); set('body_front_mm', r.body, 'front_mm'); set('body_rear_mm', r.body, 'rear_mm'); set('body_width_mm', r.body, 'width_mm');
-  set('caster_x_mm', r.caster, 'x_mm'); set('caster_diameter_mm', r.caster, 'diameter_mm');
+  set('caster_x_mm', r.caster, 'x_mm'); set('caster_diameter_mm', r.caster, 'diameter_mm'); set('caster_y_mm', r.caster, 'y_mm');
   set('track_w_effective_mm', r.wheels, 'track_effective_mm'); set('enc_ticks_per_rev', r.wheels, 'ticks_per_rev');
   set('wheel_scale_left', r.wheels, 'scale_l'); set('wheel_scale_right', r.wheels, 'scale_r');
   set('max_speed_mps', r.motor, 'max_speed_mps'); set('v_min_mps', r.motor, 'v_min_mps');
