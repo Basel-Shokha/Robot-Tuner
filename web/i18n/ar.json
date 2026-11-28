@@ -365,7 +365,6 @@
  "ms.type_h": "",
  "ms.type_note": "",
  "ms.ok": "",
- "ms.apply": "",
  "ms.saved": "",
  "ms.plausible": "",
  "ms.measured": "",
@@ -1233,5 +1232,10 @@
  "link.stale": "",
  "link.stale_h": "",
  "ms.live_ok": "",
- "ms.live_fail": ""
+ "ms.live_fail": "",
+ "ms.choose": "",
+ "ms.current": "",
+ "ms.hist_h": "",
+ "ms.repeat_badge": "",
+ "ms.repeat": ""
 }

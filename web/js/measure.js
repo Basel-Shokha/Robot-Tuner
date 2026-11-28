@@ -52,7 +52,8 @@ async function sendLive(paths) {
     toast(t('ms.live_ok'), 'ok');
   } catch (e) { toast(t('ms.live_fail'), 'warn'); }
 }
-function save(paths) { for (const p of paths) R.source[p] = 'MEASURED'; saveRobot(R); toast(t('ms.saved'), 'ok'); render(); measurementDone(() => R, paths[0]); sendLive(paths); }
+let capturing = null;   // while a result is captured into the step's list: the paths save() would mark
+function save(paths) { if (capturing) { capturing.push(...paths); return; } for (const p of paths) R.source[p] = 'MEASURED'; saveRobot(R); if (!link.connected || !paths.some((p) => LIVE[p])) toast(t('ms.saved'), 'ok'); render(); measurementDone(() => R, paths[0]); sendLive(paths); }
 guardLeave();
 const tofNames = () => R.sensors.map(sensorWireName);  // the names the generated sketch prints
 const hwOf = () => normalizeHardware(R.hardware, R.sensors.length);
@@ -272,12 +273,13 @@ function stepCard(s, n, hw) {
   const k = 'ms.' + s.id;
   const done = s.fields && s.fields.every((f) => R.source[f[4]] === 'MEASURED');
   const card = el('section', { class: 'step' + (open.has(s.id) ? ' open' : '') + (done ? ' done' : '') });
-  const head = el('header', {}, el('span', { class: 'num', text: done ? '✓' : String(n) }), el('b', { text: t(k + '.title') }), STEP_MOTION[s.id] ? motionBadge(STEP_MOTION[s.id]) : null, el('span', { class: 'spacer' }),
+  const head = el('header', {}, el('span', { class: 'num', text: done ? '✓' : String(n) }), el('b', { text: t(k + '.title') }), STEP_MOTION[s.id] ? motionBadge(STEP_MOTION[s.id]) : null, s.id === 'drive' || s.id === 'spin' ? el('span', { class: 'pill', text: t('ms.repeat_badge') }) : null, el('span', { class: 'spacer' }),
     done ? el('span', { class: 'pill ok', text: t('ms.measured') }) : null);
   head.addEventListener('click', () => { open.has(s.id) ? open.delete(s.id) : open.add(s.id); card.classList.toggle('open'); });
   const body = el('div', { class: 'body' });
   body.append(el('dl', {}, el('dt', { text: t('ms.what') }), el('dd', { text: t(k + '.what') }), el('dt', { text: t('ms.why') }), el('dd', { text: t(k + '.why') }),
     el('dt', { text: t('ms.how') }), el('dd', { text: t(k + '.how') })));
+  if (s.id === 'drive' || s.id === 'spin') body.prepend(el('p', { class: 'notice repeat-note', text: t('ms.repeat') }));
   if (STEP_MOTION[s.id] === 'floor' && link.mode !== 'ble') {
     // this step drives: propose the wireless link first (the student may still go on with the cable: their call)
     const b = el('button', { class: 'primary', text: t('ms.connect_ble') });
@@ -328,6 +330,7 @@ function stepCard(s, n, hw) {
     man.append(el('small', { class: 'muted', text: t('ms.type_note') }));
     body.append(man);
   }
+  if (s.fields) body.append(histBox(s));
   card.append(head, body);
   return card;
 }
@@ -366,6 +369,32 @@ function calcBox(id, man) {
   box.append(res, el('button', { type: 'button', text: t('ms.calc.use'), onclick: () => { if (res.dataset.v) put(res.dataset.v); } }));
   return box;
 }
+// ---- every result of a step stays in its list; one of them is the current value ----
+function isCurrent(s, e) { return Object.keys(e.vals).length > 0 && s.fields.every((f) => !(f[4] in e.vals) || Math.abs(f[1]() - e.vals[f[4]]) <= 1e-9 * Math.max(1, Math.abs(e.vals[f[4]]))); }
+function chooseEntry(s, e) {
+  for (const f of s.fields) if (f[4] in e.vals) f[2](e.vals[f[4]]);
+  open.add(s.id);
+  save(e.paths);   // = the robot's value now: saved in the browser, in the robot file, and sent to the robot (SET)
+}
+const histEls = {};
+function histBox(s) {
+  const list = (R.history && R.history[s.id]) || [];
+  const box = el('div', { class: 'hist' });
+  if (list.length) {
+    box.append(el('h4', { text: t('ms.hist_h', { n: list.length }) }));
+    for (const e of [...list].reverse()) {
+      const cur = isCurrent(s, e);
+      const when = new Date(e.t).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+      box.append(el('div', { class: 'hist-row' + (cur ? ' current' : '') + (e.bad ? ' bad' : '') },
+        el('span', { class: 'muted', text: when }),
+        el('span', { class: 'hist-vals', text: e.rows.map(([a, b]) => `${a}: ${b}`).join(' · ') }),
+        cur ? el('b', { class: 'hist-cur', text: '● ' + t('ms.current') }) : el('button', { class: 'small', text: t('ms.choose'), onclick: () => chooseEntry(s, e) })));
+    }
+  }
+  histEls[s.id] = box;
+  return box;
+}
+function refreshHist(s) { const old = histEls[s.id]; if (old && old.isConnected) old.replaceWith(histBox(s)); }
 function makeUI(out, s) {
   let resolveAns = null;
   return {
@@ -400,7 +429,19 @@ function makeUI(out, s) {
       out.append(el('table', {}, ...rows.map(([lab, val, unit]) => el('tr', {}, el('th', { text: lab.startsWith('ms.') ? t(lab) : lab }), el('td', { class: 'num', text: typeof val === 'string' ? val : `${fmt(val, 4)} ${unit || ''}` })))));
       if (c) out.append(el('p', { class: 'notice ' + (c[0] === 'bad' ? 'bad' : 'warn'), text: t(c[1], c[2]) }));
       else out.append(el('p', { class: 'pill ok', text: t('ms.plausible') }));
-      out.append(el('button', { class: 'primary', text: t('ms.apply'), onclick: apply }));
+      // what this result would set (run apply() with save() recording, then put the old values back)
+      const before = s.fields.map((f) => f[1]());
+      capturing = [];
+      try { apply(); } finally { /* below */ }
+      const paths = capturing; capturing = null;
+      const vals = {}; s.fields.forEach((f, i) => { if (paths.includes(f[4])) vals[f[4]] = f[1](); f[2](before[i]); });
+      const entry = { t: Date.now(), rows: rows.map(([lab, val, unit]) => [lab.startsWith('ms.') ? t(lab) : lab, typeof val === 'string' ? val : `${fmt(val, 4)} ${unit || ''}`.trim()]), vals, paths, bad: !!(c && c[0] === 'bad') };
+      R.history = R.history || {};
+      (R.history[s.id] = R.history[s.id] || []).push(entry);
+      if (R.history[s.id].length > 30) R.history[s.id].shift();
+      saveRobot(R);
+      out.append(el('button', { class: 'primary', text: t('ms.choose'), onclick: () => chooseEntry(s, entry) }));
+      refreshHist(s);
     },
   };
 }

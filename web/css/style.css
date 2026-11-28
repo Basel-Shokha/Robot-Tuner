@@ -421,3 +421,12 @@ button.danger { background: var(--red); color: #fff; border-color: var(--red); }
 .pwm-val { min-width: 2.5em; text-align: center; font-size: 1.1rem; }
 .pwm-row button { min-width: 36px; font-size: 1.1rem; }
 input.pwm-val { width: 4.5em; }
+
+/* Measure: every result of a step in a list; the one in use is marked */
+.hist { margin-top: 12px; display: grid; gap: 6px; }
+.hist h4 { margin: 0 0 2px; font-size: .9rem; }
+.hist-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 6px 10px; border: 1px solid var(--line-2); border-radius: var(--r-m); background: var(--panel); }
+.hist-row .hist-vals { flex: 1; min-width: 180px; font-family: var(--mono); font-size: .84rem; }
+.hist-row.current { border-color: var(--green); background: var(--green-soft); }
+.hist-row.bad { opacity: .7; }
+.hist-cur { color: var(--green); white-space: nowrap; }
