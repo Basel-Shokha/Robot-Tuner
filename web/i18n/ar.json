@@ -1258,5 +1258,10 @@
  "builder.hint_2d": "",
  "builder.hand": "",
  "builder.hand_hint": "",
- "builder.laser_note": ""
+ "builder.laser_note": "",
+ "err.openings": "",
+ "err.openings.cell_mm": "",
+ "err.openings.per_m": "",
+ "err.openings.hint": "",
+ "tr.cell": ""
 }

@@ -24,7 +24,7 @@ function setupText() {
   try { localStorage.setItem('rt.train', JSON.stringify(TS)); } catch (e) { /* ignore */ }
 }
 document.querySelectorAll('input[name="tset"]').forEach((r) => { r.checked = r.value === TS.mode; r.addEventListener('change', () => { TS.mode = r.value; setupText(); }); });
-for (const [id, k] of [['#t-width', 'width_mm'], ['#t-spread', 'spread_pct'], ['#t-angle', 'angle_deg']]) {
+for (const [id, k] of [['#t-width', 'width_mm'], ['#t-spread', 'spread_pct'], ['#t-angle', 'angle_deg'], ['#t-cell', 'cell_mm']]) {
   const inp = $(id); inp.value = TS[k];
   inp.addEventListener('input', () => { const v = parseFloat(inp.value); if (Number.isFinite(v)) { TS[k] = v; setupText(); } });
 }

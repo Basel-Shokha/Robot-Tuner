@@ -11,12 +11,13 @@ export const TRACK_LEN = 4.0;  // m of each training corridor
 // Typical wall errors of a hand-built corridor, used for the "type a width" training set.
 export const TRAIN_ERRORS = {
   jitter: { on: true, mm: 2 }, tilt: { on: true, deg: 1.0 }, bumps: { on: true, mm: 8, per_m: 0.3 },
-  gaps: { on: true, mm: 60, per_m: 0.15 }, steps: { on: true, mm: 8, per_m: 0.2 },
+  gaps: { on: false, mm: 60, per_m: 0.15 }, steps: { on: true, mm: 8, per_m: 0.2 },
+  openings: { on: true, per_m: 1.5, cell_mm: 300 },   // maze openings: alcoves, side corridors, open stretches
 };
 
 /** Settings of the training set. mode 'width': straight corridors around a typed width with the typical wall errors;
  *  mode 'mine': straight corridors with the wall errors and noise set on the Corridor page. */
-export function defaultTrainSettings() { return { mode: 'width', width_mm: 200, spread_pct: 15, angle_deg: 30 }; }
+export function defaultTrainSettings() { return { mode: 'width', width_mm: 200, spread_pct: 15, angle_deg: 30, cell_mm: 300 }; }
 
 /** The environment the trainer uses (always straight corridors). */
 /** Widest part of the robot (body or wheels), mm. */
@@ -30,6 +31,7 @@ export function trainEnv(settings, env, robot = null) {
   if (settings.mode === 'width') {
     base.width_mm = settings.width_mm;
     base.errors = JSON.parse(JSON.stringify(TRAIN_ERRORS));
+    base.errors.openings.cell_mm = settings.cell_mm || 300;   // = the maze grid
     // The wall errors must never close the corridor in on the robot: in the narrowest corridor of the set, each kind
     // of error may use only a share of the room between robot and wall (worst case all together ~85 % of it).
     if (robot) {

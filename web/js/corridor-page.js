@@ -138,7 +138,7 @@ function buildSide() {
     return box;
   };
   R.append(errRow('jitter', [['mm', 'mm', 0, 10, 0.5]]), errRow('tilt', [['deg', '°', 0, 5, 0.1]]));
-  if (env.mode === 'endless') R.append(errRow('bumps', [['mm', 'mm', 2, 40, 1], ['per_m', '1/m', 0.05, 2, 0.05]]), errRow('gaps', [['mm', 'mm', 20, 200, 5], ['per_m', '1/m', 0.05, 2, 0.05]]), errRow('steps', [['mm', 'mm', 2, 60, 1], ['per_m', '1/m', 0.05, 2, 0.05]]));
+  if (env.mode === 'endless') R.append(errRow('bumps', [['mm', 'mm', 2, 40, 1], ['per_m', '1/m', 0.05, 2, 0.05]]), errRow('gaps', [['mm', 'mm', 20, 200, 5], ['per_m', '1/m', 0.05, 2, 0.05]]), errRow('steps', [['mm', 'mm', 2, 60, 1], ['per_m', '1/m', 0.05, 2, 0.05]]), errRow('openings', [['cell_mm', 'mm', 120, 600, 10], ['per_m', '1/m', 0.1, 1.5, 0.05]]));
   // start pose
   const P = $('#env-start'); P.innerHTML = '';
   P.append(el('h3', { text: t('corr.start_h') }),

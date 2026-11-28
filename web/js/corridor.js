@@ -19,6 +19,7 @@ export function defaultEnv() {
     errors: {
       jitter: { on: true, mm: 2 }, tilt: { on: true, deg: 1.0 }, bumps: { on: false, mm: 10, per_m: 0.4 },
       gaps: { on: false, mm: 80, per_m: 0.3 }, steps: { on: false, mm: 15, per_m: 0.25 },
+      openings: { on: false, per_m: 0.5, cell_mm: 300 },
     },
     track: { preset: 's_bend', points: null, width_mm: 250, radius_mm: 300, closed: false },
     start: { angle_deg: 20, offset_mm: 0, random: false },
@@ -55,6 +56,7 @@ export class EndlessCorridor {
     const r = rng((this.env.seed * 7919 + this.chunk * 104729) >>> 0);
     const x0 = this.until, x1 = x0 + CHUNK;
     const clean = x0 < 0.6;  // keep the start area simple (only jitter)
+    const w0 = this.walls.length;
     for (let s = 0; s < 2; s++) {
       const st = this.side[s], sign = s === 0 ? 1 : -1;  // 0 = left wall (+y), 1 = right wall (-y)
       let x = x0;
@@ -102,12 +104,60 @@ export class EndlessCorridor {
         x += L;
       }
     }
+    if (x1 > 1.0 && this.e.openings && this.e.openings.on) this._openings(rng((this.env.seed * 4241 + this.chunk * 7907 + 3) >>> 0), x0, x1, w0);
     // centre line: nominal walls including width steps (not the small errors)
     for (let x = x0; x < x1 - 1e-9; x += 0.1) {
       const yl = this.W / 2 + this.side[0].step, yr = -this.W / 2 - this.side[1].step;
       this.center.push([x, (yl + yr) / 2, (yl - yr) / 2]);
     }
     this.until = x1; this.chunk++;
+  }
+  /** Maze openings in this chunk: dead-end alcoves (one cell, back wall one cell deep), side corridors (one cell
+   *  wide, 2-3 cells deep, then a wall) and a few truly open stretches (30-60 cm, no wall at all). Left, right or
+   *  both sides, sometimes several cells in a row. Cuts the side wall made above and builds the pocket behind it. */
+  _openings(r, x0, x1, w0) {
+    const o = this.e.openings, cell = (o.cell_mm || 300) / 1000, post = 0.012, w = cell - post;
+    const holes = [[], []];   // per side: [a, b, depth (m, Infinity = open)]
+    let x = Math.max(x0 + 0.05, 0.7);   // the start area stays plain
+    while (true) {
+      x += -Math.log(1 - r()) / Math.max(0.01, o.per_m);   // next opening (Poisson)
+      const u = r(), kind = u < 0.55 ? 'alcove' : u < 0.82 ? 'side' : 'open';
+      const v = r(), sides = v < 0.2 ? [0, 1] : v < 0.6 ? [0] : [1];
+      const n = kind === 'open' ? 1 : r() < 0.35 ? 2 + Math.floor(r() * 2) : 1;   // several cells in a row
+      const len = kind === 'open' ? 0.3 + 0.3 * r() : n * w + (n - 1) * post;
+      if (x > x1) break;
+      if (x + len > x1 - 0.05) continue;   // does not fit here: try further on
+      for (const s of sides) {
+        if (kind === 'open') holes[s].push([x, x + len, Infinity]);
+        else for (let i = 0; i < n; i++) { const a = x + i * cell; holes[s].push([a, a + w, kind === 'alcove' ? cell : cell * (2 + Math.floor(r() * 2))]); }
+      }
+      x += len + post;
+    }
+    for (let s = 0; s < 2; s++) {
+      if (!holes[s].length) continue;
+      const sign = s === 0 ? 1 : -1, mine = (wl) => Math.sign(wl[1] + wl[3]) === sign;
+      // cut the side wall over each hole (keep the other side and earlier chunks)
+      let segs = this.walls.slice(w0).filter(mine);
+      for (const [a, b] of holes[s]) {
+        const out = [];
+        for (const g of segs) {
+          const [ax, ay, bx, by] = g[0] <= g[2] ? g : [g[2], g[3], g[0], g[1]];
+          const yAt = (q) => (bx - ax < 1e-9 ? ay : ay + (by - ay) * (q - ax) / (bx - ax));
+          if (bx <= a || ax >= b) { out.push(g); continue; }
+          if (ax < a) out.push([ax, ay, a, yAt(a)]);
+          if (bx > b) out.push([b, yAt(b), bx, by]);
+        }
+        segs = out;
+      }
+      this.walls = this.walls.slice(0, w0).concat(this.walls.slice(w0).filter((g) => !mine(g)), segs);
+      // the pocket behind each hole, from the nominal wall line
+      const yw = sign * (this.W / 2 + this.side[s].step);
+      for (const [a, b, d] of holes[s]) {
+        if (d === Infinity) continue;
+        const yb = yw + sign * d;
+        this.walls.push([a, yw, a, yb], [b, yw, b, yb], [a, yb, b, yb]);
+      }
+    }
   }
   _pt(s, x, st, sign) {
     // wall line: nominal +-W/2, moved outward by step, and toward the centre by off
