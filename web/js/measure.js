@@ -53,7 +53,7 @@ async function sendLive(paths) {
   } catch (e) { toast(t('ms.live_fail'), 'warn'); }
 }
 let capturing = null;   // while a result is captured into the step's list: the paths save() would mark
-function save(paths) { if (capturing) { capturing.push(...paths); return; } for (const p of paths) R.source[p] = 'MEASURED'; saveRobot(R); if (!link.connected || !paths.some((p) => LIVE[p])) toast(t('ms.saved'), 'ok'); render(); measurementDone(() => R, paths[0]); sendLive(paths); }
+function save(paths) { if (capturing) { capturing.push(...paths); return; } for (const p of paths) R.source[p] = 'MEASURED'; saveRobot(R); if (!link.connected || !paths.some((p) => LIVE[p])) toast(t('ms.saved'), 'ok'); render(); if (goTo) { const c = document.querySelector(`[data-step="${goTo}"]`); goTo = ''; if (c) setTimeout(() => c.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50); } measurementDone(() => R, paths[0]); sendLive(paths); }
 guardLeave();
 const tofNames = () => R.sensors.map(sensorWireName);  // the names the generated sketch prints
 const hwOf = () => normalizeHardware(R.hardware, R.sensors.length);
@@ -268,7 +268,17 @@ function render() {
   const hw = hwOf(), noEnc = hw.encoder.type === 'none';
   $('#hw-line').textContent = t('ms.hw_line', { board: BOARDS[hw.board].label, enc: t('fw.enc.' + hw.encoder.type) });
   // without encoders the timed run replaces the encoder top-speed step; with encoders it is not shown
-  STEPS.filter((s) => (noEnc ? s.id !== 'maxspeed' : !s.noEncOnly)).forEach((s, n) => box.append(stepCard(s, n + 1, hw)));
+  const shown = STEPS.filter((s) => (noEnc ? s.id !== 'maxspeed' : !s.noEncOnly));
+  shown.forEach((s, n) => box.append(stepCard(s, n + 1, hw)));
+  // how far: steps whose values are all set (measured, typed or from the file), and the next one to do
+  const todo = shown.filter((s) => s.fields && s.fields.length), doneN = todo.filter((s) => s.fields.every((f) => isSet(R, f[4]))).length;
+  const next = todo.find((s) => !s.fields.every((f) => isSet(R, f[4])));
+  const pr = $('#progress'); pr.innerHTML = '';
+  pr.append(el('b', { text: t('ms.progress', { n: doneN, total: todo.length }) }));
+  if (next) pr.append(' · ', t('ms.next_is', { name: t('ms.' + next.id + '.title') }), ' ', el('button', { class: 'small', text: t('ms.go'), onclick: () => {
+    open.add(next.id); render(); const c = document.querySelector(`[data-step="${next.id}"]`); if (c) c.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } }));
+  else pr.append(' · ', t('ms.all_done'));
 }
 function stepCard(s, n, hw) {
   const blocked = s.enc && hw.encoder.type === 'none';
@@ -276,7 +286,7 @@ function stepCard(s, n, hw) {
   const done = s.fields && s.fields.every((f) => R.source[f[4]] === 'MEASURED');
   const card = el('section', { class: 'step' + (open.has(s.id) ? ' open' : '') + (done ? ' done' : ''), 'data-step': s.id });
   const head = el('header', {}, el('span', { class: 'num', text: done ? '✓' : String(n) }), el('b', { text: t(k + '.title') }), STEP_MOTION[s.id] ? motionBadge(STEP_MOTION[s.id]) : null, s.id === 'drive' || s.id === 'spin' ? el('span', { class: 'pill', text: t('ms.repeat_badge') }) : null, el('span', { class: 'spacer' }),
-    done ? el('span', { class: 'pill ok', text: t('ms.measured') }) : null);
+    stepValue(s), done ? el('span', { class: 'pill ok', text: t('ms.measured') }) : null);
   head.addEventListener('click', () => { open.has(s.id) ? open.delete(s.id) : open.add(s.id); card.classList.toggle('open'); });
   const body = el('div', { class: 'body' });
   body.append(el('dl', {}, el('dt', { text: t('ms.what') }), el('dd', { text: t(k + '.what') }), el('dt', { text: t('ms.why') }), el('dd', { text: t(k + '.why') }),
@@ -373,11 +383,21 @@ function calcBox(id, man) {
 }
 // ---- every result of a step stays in its list; one of them is the current value ----
 function isCurrent(s, e) { return Object.keys(e.vals).length > 0 && s.fields.every((f) => !(f[4] in e.vals) || Math.abs(f[1]() - e.vals[f[4]]) <= 1e-9 * Math.max(1, Math.abs(e.vals[f[4]]))); }
+/** "8291.6 ticks" in the step header: the value in use now (N/A if not set yet) */
+function stepValue(s) {
+  if (!s.fields || !s.fields.length) return null;
+  const txt = s.fields.slice(0, 2).map(([lab, get, , unit, path]) => (isSet(R, path) ? `${fmt(get(), 4)}${unit ? ' ' + unit : ''}` : 'N/A')).join(' · ');
+  return el('span', { class: 'step-val' + (txt.includes('N/A') ? ' unset' : ''), text: txt });
+}
 function chooseEntry(s, e) {
   for (const f of s.fields) if (f[4] in e.vals) f[2](e.vals[f[4]]);
-  open.add(s.id);
+  const i = STEPS.indexOf(s), next = STEPS.slice(i + 1).find((x) => !x.physical && isVisibleStep(x));
+  if (s.id === 'drive' || s.id === 'spin' || !next) open.add(s.id);   // repeat until right: stay
+  else { open.delete(s.id); open.add(next.id); goTo = next.id; }
   save(e.paths);   // = the robot's value now: saved in the browser, in the robot file, and sent to the robot (SET)
 }
+let goTo = '';   // after render: scroll to this step
+function isVisibleStep(x) { const enc = R.hardware && R.hardware.encoder && R.hardware.encoder.type !== 'none'; return !(x.noEncOnly && enc); }
 const histEls = {};
 function histBox(s) {
   const list = (R.history && R.history[s.id]) || [];

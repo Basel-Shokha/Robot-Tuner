@@ -1242,5 +1242,11 @@
  "fw.unset_p": "",
  "fw.unset_ok": "",
  "builder.measure": "",
- "builder.measure_hint": ""
+ "builder.measure_hint": "",
+ "builder.req_legend": "",
+ "builder.req_hint": "",
+ "ms.progress": "",
+ "ms.next_is": "",
+ "ms.go": "",
+ "ms.all_done": ""
 }

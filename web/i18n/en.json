@@ -1240,5 +1240,11 @@
  "fw.unset_p": "Choose the board, motor driver, encoder and every pin above first: the sketch drives these pins. Measured values (ticks, wheel scale, speeds, gains) may stay N/A: you measure them with this sketch. If everything shown above is already your wiring, press \"These are right\".",
  "fw.unset_ok": "These are right",
  "builder.measure": "Measure",
- "builder.measure_hint": "Measure this value with the robot (opens its step on the Measure page). Or type it here, or load it from a robot file: it is the same value."
+ "builder.measure_hint": "Measure this value with the robot (opens its step on the Measure page). Or type it here, or load it from a robot file: it is the same value.",
+ "builder.req_legend": "= needed before you can simulate. Everything else can stay N/A for now.",
+ "builder.req_hint": "Needed before you can simulate (Corridor, Train, Playground).",
+ "ms.progress": "{n} of {total} measured",
+ "ms.next_is": "next: {name}",
+ "ms.go": "Go",
+ "ms.all_done": "all done: save your robot file, then the Corridor."
 }
