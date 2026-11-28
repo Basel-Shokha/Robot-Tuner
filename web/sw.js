@@ -1,5 +1,6 @@
 // sw.js - offline cache. Every file of the site is cached on first visit; afterwards the site works offline.
-// Network first for pages and code (so updates arrive), cache first otherwise. Bump VERSION on release.
+// Network first, ALWAYS asking the server (cache: 'no-cache'): GitHub Pages lets browsers keep files 10 minutes, and
+// a page made of some new and some old files breaks (e.g. two menus). Offline: the saved copy. Bump VERSION on release.
 const VERSION = 'rt-v36';
 const CORE = [
   './', 'index.html', 'builder.html', 'measure.html', 'corridor.html', 'playground.html', 'train.html', 'troubleshoot.html',
@@ -10,7 +11,7 @@ const CORE = [
   'firmware/robot_tuner_min.ino', 'fonts/archivo-latin.woff2', 'tracks/c90_l_20.track', 'tracks/c90_r_20.track', 'tracks/w20_s.track', 'tracks/m_s90_20.track', 'tracks/w20_err_A.track', 'tracks/w20_gaps_A.track', 'tracks/w20_bumps.track', 'tracks/w20_bend_l.track', 'tracks/o_gaps_20.track', 'tracks/smooth_loop.track', 'tracks/tight_broken.track', 'fonts/archivo-latin-ext.woff2',
 ];
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(VERSION).then((c) => Promise.all(CORE.map((u) => c.add(u).catch(() => null)))).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(VERSION).then((c) => Promise.all(CORE.map((u) => c.add(new Request(u, { cache: 'reload' })).catch(() => null)))).then(() => self.skipWaiting()));
 });
 self.addEventListener('activate', (e) => {
   e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== VERSION).map((k) => caches.delete(k)))).then(() => self.clients.claim()));
@@ -19,7 +20,7 @@ self.addEventListener('fetch', (e) => {
   const req = e.request;
   if (req.method !== 'GET' || new URL(req.url).origin !== location.origin) return;
   e.respondWith(
-    fetch(req).then((res) => {
+    fetch(new Request(req.url, { cache: 'no-cache', credentials: 'same-origin' })).then((res) => {
       if (res.ok) { const copy = res.clone(); caches.open(VERSION).then((c) => c.put(req, copy)); }
       return res;
     }).catch(() => caches.match(req, { ignoreSearch: true }).then((r) => r || caches.match('index.html')))
