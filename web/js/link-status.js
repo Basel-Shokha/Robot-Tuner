@@ -69,7 +69,7 @@ export function linkStatus(link, getRobot = null) {
     let txt = t('link.' + st, { s: link.lastPong ? Math.round((now - link.lastPong) / 1000) : 0 });
     if (st === 'ok' && link.via) txt = t('link.ok_via', { via: t('link.via_' + (link.via === 'bluetooth' ? 'bt' : 'usb')) });
     if (st + txt !== last) { last = st + txt; pill.className = 'link-status ' + st; pill.textContent = txt; pill.title = t('link.' + st + '_h'); }
-    stale.hidden = !(getRobot && st === 'ok' && link.sketchId && link.sketchId !== expected());
+    stale.hidden = !(getRobot && st === 'ok' && link.sketchId && link.sketchId !== expected() && link.liveFor !== JSON.stringify(getRobot()));   // liveFor: new values sent with SET
   };
   tick(); setInterval(tick, 1000);
   if (!getRobot) return pill;

@@ -15,7 +15,7 @@ await page();
 const link = new RobotLink();
 let R = loadRobot();
 const log = $('#log');
-link.onLine((l) => { log.textContent += l + '\n'; log.scrollTop = log.scrollHeight; });
+link.onLine((l) => { log.textContent += l + '\n'; log.scrollTop = log.scrollHeight; if (l.startsWith('robot_tuner_min ready')) link.liveFor = ''; });
 if (!serialSupported() && !bleSupported()) { $('#nosupport').hidden = false; $('#manual').checked = true; }
 let cmdBox = null, ready = false;   // set below; the buttons refresh once at once
 const conns = connectButtons(link, () => { if (ready) { cmdBox.refresh(); render(); } }, $('#connect'));
@@ -35,7 +35,24 @@ const sendCmd = () => { const c = expandCommand($('#cmd').value); if (c && link.
 $('#send').addEventListener('click', sendCmd);
 $('#cmd').addEventListener('keydown', (e) => { if (e.key === 'Enter') sendCmd(); });
 
-function save(paths) { for (const p of paths) R.source[p] = 'MEASURED'; saveRobot(R); toast(t('ms.saved'), 'ok'); render(); measurementDone(() => R, paths[0]); }
+// measured values the robot itself uses while measuring: sent at once (SET), so the next run needs no new upload
+const LIVE = { 'wheels.ticks_per_rev': ['ticks_rev', () => R.wheels.ticks_per_rev], 'wheels.scale_l': ['wscale_l', () => R.wheels.scale_l],
+  'wheels.scale_r': ['wscale_r', () => R.wheels.scale_r], 'wheels.track_effective_mm': ['track_w', () => R.wheels.track_effective_mm / 1000] };
+async function sendLive(paths) {
+  const todo = paths.filter((p) => LIVE[p]);
+  if (!todo.length || !link.connected) return;
+  try {
+    for (const p of todo) {
+      const [key, get] = LIVE[p];
+      const ok = link.waitFor((l) => (l.startsWith('OK SET ' + key) || l.startsWith('ERR')) && l, 3000);
+      await link.send(`SET ${key} ${+get().toFixed(6)}`);
+      if ((await ok).startsWith('ERR')) throw new Error('ERR');
+    }
+    link.liveFor = JSON.stringify(R);   // the robot now runs these settings (until it restarts)
+    toast(t('ms.live_ok'), 'ok');
+  } catch (e) { toast(t('ms.live_fail'), 'warn'); }
+}
+function save(paths) { for (const p of paths) R.source[p] = 'MEASURED'; saveRobot(R); toast(t('ms.saved'), 'ok'); render(); measurementDone(() => R, paths[0]); sendLive(paths); }
 guardLeave();
 const tofNames = () => R.sensors.map(sensorWireName);  // the names the generated sketch prints
 const hwOf = () => normalizeHardware(R.hardware, R.sensors.length);

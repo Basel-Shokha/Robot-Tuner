@@ -1231,5 +1231,7 @@
  "ms.step.target": "",
  "ms.step.never": "",
  "link.stale": "",
- "link.stale_h": ""
+ "link.stale_h": "",
+ "ms.live_ok": "",
+ "ms.live_fail": ""
 }
