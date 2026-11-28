@@ -116,7 +116,7 @@ export class EndlessCorridor {
    *  wide, 2-3 cells deep, then a wall) and a few truly open stretches (30-60 cm, no wall at all). Left, right or
    *  both sides, sometimes several cells in a row. Cuts the side wall made above and builds the pocket behind it. */
   _openings(r, x0, x1, w0) {
-    const o = this.e.openings, cell = (o.cell_mm || 300) / 1000, post = 0.012, w = cell - post;
+    const o = this.e.openings, cell = (o.cell_mm || 300) / 1000, post = 0.012, w = this.W;   // as wide as the main corridor
     const holes = [[], []];   // per side: [a, b, depth (m, Infinity = open)]
     let x = Math.max(x0 + 0.05, 0.7);   // the start area stays plain
     while (true) {
@@ -129,7 +129,7 @@ export class EndlessCorridor {
       if (x + len > x1 - 0.05) continue;   // does not fit here: try further on
       for (const s of sides) {
         if (kind === 'open') holes[s].push([x, x + len, Infinity]);
-        else for (let i = 0; i < n; i++) { const a = x + i * cell; holes[s].push([a, a + w, kind === 'alcove' ? cell : cell * (2 + Math.floor(r() * 2))]); }
+        else for (let i = 0; i < n; i++) { const a = x + i * (w + post); holes[s].push([a, a + w, kind === 'alcove' ? cell : cell * (2 + Math.floor(r() * 2))]); }
       }
       x += len + post;
     }
