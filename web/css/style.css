@@ -370,3 +370,6 @@ input.unset { border-style: dashed; }
 input.unset::placeholder { color: var(--amber-ink); font-weight: 600; }
 .flash { outline: 3px solid var(--amber); outline-offset: 2px; animation: flash 1.2s ease-in-out 3; }
 @keyframes flash { 50% { outline-color: transparent; } }
+.gated { opacity: .35; pointer-events: none; filter: grayscale(.6); }
+.gate { border: 2px solid var(--amber); background: var(--amber-soft); }
+.gate ul { columns: 2 220px; margin: 12px 0 0; }

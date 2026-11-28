@@ -1,6 +1,7 @@
 // corridor-page.js - 3. CORRIDOR SIMULATOR: environment, wall errors, track editor, start pose, noise.
 // The settings are saved (rt.env) and used by the playground and the trainer.
 import { page, $, $$, el, t, slider, toggle, pickFile, toast, download } from './common.js';
+import { robotReady } from './simgate.js';
 import { REAL_TRACKS, loadRealTrack, myTracks, saveMyTrack, deleteMyTrack, exportMyTracks, importMyTracks } from './tracklib.js';
 import { loadRobot } from './store.js';
 import { loadEngine, S } from './engine.js';
@@ -11,6 +12,7 @@ import { TimePlot } from './plot.js';
 import { fmt } from './i18n.js';
 
 await page();
+robotReady();
 const engine = await loadEngine();
 const robot = loadRobot();
 let env = loadEnv();

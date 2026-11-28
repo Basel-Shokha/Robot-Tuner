@@ -1066,5 +1066,9 @@
  "builder.export_file": "",
  "builder.import_file": "",
  "builder.file_unknown": "",
- "builder.set_this": ""
+ "builder.set_this": "",
+ "gate.h": "",
+ "gate.p": "",
+ "gate.go": "",
+ "gate.file": ""
 }

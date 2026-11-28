@@ -1,5 +1,6 @@
 // playground.js - 5. PLAYGROUND: live gains while the robot drives, presets, sweep with ghost robots.
 import { page, $, el, t, slider, toast } from './common.js';
+import { robotReady } from './simgate.js';
 import { loadRobot, saveRobot, cruiseSpeed } from './store.js';
 import { loadEngine, S } from './engine.js';
 import { loadEnv } from './corridor.js';
@@ -10,6 +11,7 @@ import { PRESETS, PRESET_IDS } from './presets.js';
 import { fmt } from './i18n.js';
 
 await page();
+robotReady();
 const engine = await loadEngine();
 let stored = loadRobot();
 let robot = JSON.parse(JSON.stringify(stored));

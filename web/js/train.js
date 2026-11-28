@@ -1,5 +1,6 @@
 // train.js - 4. PID TRAINING: grid search, then GA refinement (upstream method), in Web Workers.
 import { page, $, el, t, download, toast, slider } from './common.js';
+import { robotReady } from './simgate.js';
 import { loadRobot, saveRobot, cruiseSpeed } from './store.js';
 import { loadEnv } from './corridor.js';
 import { grid, mutate, rngJS, trainEnv, trackSet, defaultTrainSettings, robotWidthMm } from './train-core.js';
@@ -8,6 +9,7 @@ import { cFunction, configH, modelTxt } from './export.js';
 import { fmt } from './i18n.js';
 
 await page();
+robotReady();
 const robot = loadRobot(), pageEnv = loadEnv();
 let TS; try { TS = { ...defaultTrainSettings(), ...JSON.parse(localStorage.getItem('rt.train') || '{}') }; } catch (e) { TS = defaultTrainSettings(); }
 let env = trainEnv(TS, pageEnv, robot);

@@ -1064,5 +1064,9 @@
  "builder.export_file": "Save robot file",
  "builder.import_file": "Load robot file",
  "builder.file_unknown": "These lines were not understood and were skipped: {keys}",
- "builder.set_this": "Set this value first: {name}"
+ "builder.set_this": "Set this value first: {name}",
+ "gate.h": "Set up your robot first",
+ "gate.p": "The simulator needs {n} more value(s) about your robot. Each link opens the Robot builder at that value.",
+ "gate.go": "Set {name} now →",
+ "gate.file": "Have a robot file? Load it in Robot builder → File → Load robot file."
 }
