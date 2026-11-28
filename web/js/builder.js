@@ -7,7 +7,6 @@ import { usesBt, btName, BOARDS, pinLabel, pinTags, ENCODERS, DRIVERS, generateS
 import { choiceBar, mountOwn, isOwnMode } from './own-code-ui.js';
 import { robotToFile, fileToRobot, isRobotFile, allFields } from './robotfile.js';
 import { isSet } from './store.js';
-import { installCard } from './install.js';
 
 await page();
 let R = loadRobot();
@@ -337,7 +336,6 @@ function buildFirmware() {
   const hw = R.hardware, B = BOARDS[hw.board], box = $('[data-panel="firmware"]');
   box.innerHTML = '';
   box.append(el('p', { class: 'muted', text: t('fw.intro') }));
-  if (hw.board === 'esp32') box.append(installCard(() => R));
   // board
   const pinRows = B.pins.map((p) => el('tr', {}, el('td', { class: 'num', text: pinLabel(hw.board, p) }), el('td', { text: pinTags(hw.board, p).join(', ') || t('fw.plain_io') })));
   box.append(el('div', { class: 'card stack' }, el('h3', { text: t('fw.board_h') }),

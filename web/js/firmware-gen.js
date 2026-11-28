@@ -926,7 +926,6 @@ export function generateSketch(robot, hwIn) {
     `const int PID_LEFT = ${li}, PID_RIGHT = ${ri};   // sensors looking most to the left / right`,
     `const float SENSOR_MAX_M[N_SENSORS] = {${robot.sensors.map((q) => f(q.max_mm / 1000, 3) + 'f').join(', ')}};   // no reading = nothing within range`,
     `#define CAN_RUN ${robot.sensors.length >= 2 && li !== ri ? 1 : 0}`, '');
-  w('// no extra commands in this sketch (the ESP32 install firmware adds SET / GET / SAVE here)', 'bool extraCommand(const char* u, const char* orig) { return false; }', '');
   w(CORE);
   const code = C.join('\n').replace(/\bSerial\.(print|println|available|read)\(/g, 'RT_IO.$1(')
     .replace(/USB_SERIAL_\./g, 'Serial.').replace('  BT_BEGIN', bt ? `  SerialBT.enableSSP();   // Secure Simple Pairing, "Just Works" (no PIN): Windows / Mac pair without questions\n  SerialBT.begin("${btName(robot, hw)}");   // Bluetooth device name` : '').replace(/\n\n(?=void setup)/, '\n\n');
@@ -934,7 +933,7 @@ export function generateSketch(robot, hwIn) {
 }
 
 // The calibration protocol. Every printed result line is parsed by web/js/measure-steps.js: keep them identical.
-export const CORE = String.raw`// ---- waiting: keeps the encoders (AS5600) and, when asked, the sensors running ----
+const CORE = String.raw`// ---- waiting: keeps the encoders (AS5600) and, when asked, the sensors running ----
 void idle(bool sensors) { encPoll(); if (sensors) pollSensors(); }
 void waitMs(unsigned long ms, bool sensors = false) { unsigned long t = millis(); while (millis() - t < ms) idle(sensors); }
 
@@ -1260,7 +1259,6 @@ bool needsEncoders(const char* u) {
 void handle(const char* c) {
   // trimmed, upper case; the calibration commands also work without "CAL": TICKS, SPIN 5, TOF 200 200 ...
   while (*c == ' ') ++c;
-  const char* orig = c;   // as typed (extraCommand gets it with its case)
   char u[64]; int n = 0;
   bool cal = strncasecmp(c, "CAL ", 4) == 0 || strcasecmp(c, "STATUS") == 0 || strncasecmp(c, "LOAD", 4) == 0;
   if (!cal) { memcpy(u, "CAL ", 4); n = 4; }
@@ -1297,7 +1295,7 @@ void handle(const char* c) {
   else if (IS("STATUS")) status();
   else if (IS("LOAD SENSORS")) { motorsEnabled = false; setPwm(0, 0); Serial.println(F("OK profile SENSORS (motors off)")); }
   else if (IS("LOAD FINAL")) { motorsEnabled = true; Serial.println(F("OK profile FINAL")); }
-  else if (!extraCommand(u, orig)) Serial.println(F("ERR unknown command"));
+  else Serial.println(F("ERR unknown command"));
 }
 
 void loop() {

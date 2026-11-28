@@ -9,7 +9,6 @@
 import { mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { defaultRobot, makeSensor } from '../web/js/store.js';
-import { generateEsp32Install } from '../web/js/firmware-esp32.js';
 import { BOARDS, generateSketch, suggestPins, validateHardware, hasErrors, defaultHardware } from '../web/js/firmware-gen.js';
 
 export const ENCODER_VARIANTS = [
@@ -88,12 +87,6 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     mkdirSync(dir, { recursive: true });
     writeFileSync(join(dir, c.name + '.ino'), g.code);
     lines.push(`${g.fqbn} ${c.name}`);
-  }
-  if (!only || only === 'esp32') {   // the ESP32 install firmware (one build for every ESP32 robot, settings over serial)
-    const g = generateEsp32Install(), name = 'robot_tuner_esp32';
-    mkdirSync(join(outDir, name), { recursive: true });
-    writeFileSync(join(outDir, name, name + '.ino'), g.code);
-    lines.push(`${g.fqbn} ${name}`);
   }
   writeFileSync(join(outDir, 'combos.txt'), lines.join('\n') + '\n');
   console.log(`${lines.length} sketches in ${outDir}`);

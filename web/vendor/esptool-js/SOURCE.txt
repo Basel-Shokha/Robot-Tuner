@@ -1,2 +1,0 @@
-esptool-js 0.7.1 (npm, Apache-2.0, Espressif Systems): bundle.js copied unchanged as esptool.bundle.js.
-Used by web/js/install.js to flash the ESP32 install firmware from the browser.
