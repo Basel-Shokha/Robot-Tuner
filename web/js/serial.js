@@ -8,12 +8,13 @@ export class RobotLink {
     this.port = await navigator.serial.requestPort();
     await this.port.open({ baudRate: baud });
     this.writer = this.port.writable.getWriter();
-    this.openedAt = Date.now(); this.lastRx = 0; this.lastPong = 0; this.lost = false; this.lostReason = ''; this.errors = 0;
-    this._read();
+    this.openedAt = Date.now(); this.lastRx = 0; this.lastPong = 0; this.lastPingAt = 0; this.lost = false; this.lostReason = ''; this.errors = 0;
+    this.closing = false;
+    this.readDone = this._read();
   }
   async _read() {
     const dec = new TextDecoder();
-    while (this.port && this.port.readable) {
+    while (this.port && this.port.readable && !this.closing) {
       this.reader = this.port.readable.getReader();
       try {
         for (;;) {
@@ -42,10 +43,16 @@ export class RobotLink {
     // the read loop ended without disconnect(): the robot is gone (unplugged, out of Bluetooth range, powered off)
     if (this.port && !this.closing) { const p = this.port; this.port = null; this.lost = true; try { await p.close(); } catch (e) { /* ignore */ } for (const f of this.listeners) f('# connection lost' + (this.lostReason ? ' (' + this.lostReason + ')' : '')); }
   }
+  /** close the port for real: stop the read loop first (a still-locked stream would make port.close() fail) */
   async disconnect() {
+    if (!this.port) return;
     this.closing = true;
-    try { if (this.reader) await this.reader.cancel(); if (this.writer) { this.writer.releaseLock(); } if (this.port) await this.port.close(); } catch (e) { /* ignore */ }
-    this.port = null; this.closing = false;
+    const port = this.port;
+    try { if (this.reader) await this.reader.cancel(); } catch (e) { /* already done */ }
+    try { await this.readDone; } catch (e) { /* ignore */ }
+    try { if (this.writer) { this.writer.releaseLock(); this.writer = null; } } catch (e) { /* a write still pending */ }
+    try { await port.close(); } catch (e) { console.warn('serial close:', e); }
+    this.port = null; this.lost = false;
   }
   onLink(f) { (this.linkListeners = this.linkListeners || []).push(f); }
   onLine(f) { this.listeners.add(f); return () => this.listeners.delete(f); }
