@@ -72,6 +72,18 @@ test('every serial command has a button (cmd-buttons.js) with an i18n label and 
   for (const [, , k] of btns) { assert.ok(en['cmd.' + k], k); assert.ok(en['cmd.' + k + '_h'], k + '_h'); }
 });
 
+test('the prompt asks for a robot file and holds the current one as the template', async () => {
+  const { robotToFile, fileToRobot, FILE_HEADER } = await import('../../web/js/robotfile.js');
+  const { defaultRobot } = await import('../../web/js/store.js');
+  for (const r of [exampleRobot(), defaultRobot()]) {
+    const txt = O.studentPrompt(r, r.hardware);
+    assert.ok(txt.includes('robot.robot.txt') && txt.includes(FILE_HEADER));
+    const block = txt.slice(txt.indexOf('```\n' + FILE_HEADER) + 4, txt.lastIndexOf('```'));
+    assert.equal(block.trimEnd(), robotToFile(r).trimEnd());          // the template = the student's robot file
+    assert.deepEqual(fileToRobot(block).unknown, []);                   // and it loads as it is
+  }
+});
+
 test('unit conversions round trip', () => {
   const close = (a, b, msg) => assert.ok(Math.abs(a - b) <= 1e-9 * Math.max(1, Math.abs(a), Math.abs(b)), `${msg}: ${a} vs ${b}`);
   const mpt = O.metersPerTick(45, 8291.5);

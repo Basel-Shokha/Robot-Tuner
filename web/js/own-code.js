@@ -11,6 +11,7 @@
 import { PROTOCOL, PROTOCOL_RULES, MOTION, usesBt, btName, BOARDS, DRIVER_TEXT, encoderText, edgesPerPulse, computedTicksPerRev, sketchTicks,
   normalizeHardware, pinRoles, pinLabel, sensorWireName, requiredLibraries } from './firmware-gen.js';
 import { cruiseSpeed } from './store.js';
+import { robotToFile, FILE_HEADER } from './robotfile.js';
 
 const g4 = (x) => +(+x).toPrecision(4);
 const g6 = (x) => +(+x).toPrecision(6);
@@ -120,6 +121,7 @@ export function studentPrompt(robot, hwIn, opts = {}) {
   const tau = Math.max(0, +m.speed_tau_ms || 0);
   const angles = robot.sensors.map((s) => s.angle_deg);
   const li = angles.indexOf(Math.max(...angles)), ri = angles.indexOf(Math.min(...angles));
+  const robotFileTemplate = robotToFile(robot);
   const T = [];
   const w = (...x) => T.push(...x);
   w('# Task: connect a student\'s own robot code to Robot Tuner', '',
@@ -139,7 +141,7 @@ export function studentPrompt(robot, hwIn, opts = {}) {
     '- If the student\'s code uses other units or another loop period, convert every gain with the formulas in section F BEFORE using it.',
     '- Use Serial.print / Serial.println, no String class in the command parser (it must also fit an Arduino Uno).',
     '- Do not block loop() for long: the encoders and the sensors must keep running while a command runs (see idle() / waitMs() in the reference).',
-    '- Give back: the COMPLETE code (every file), ready to upload in the Arduino IDE, then a short list of what you changed and why.',
+    '- Give back: (1) the COMPLETE code (every file), ready to upload in the Arduino IDE, (2) a short list of what you changed and why, (3) the robot file robot.robot.txt (section G).',
     '');
 
   w('## Hardware (from the student\'s Robot Tuner profile)', ...hwLines, '');
@@ -206,7 +208,23 @@ export function studentPrompt(robot, hwIn, opts = {}) {
     '- Ticks per revolution different (other decoding): tp scales by new_ticks / old_ticks, so divide KP, KI, KD, FF_GAIN by the same factor.',
     '- No feedforward in the student\'s code (no start PWM / ff): add it as in section C. Without it the PID gains must be much bigger and the Tuner\'s gains will not work.',
     '- Steering gains: units are m, s and m/s. If the student measures distances in mm or cm, or wheel speeds in another unit, convert the error and the output the same way.',
+    '');
+
+  w('## G. Robot file for Robot Tuner (give it back as a file named robot.robot.txt)',
+    'The student loads this file in Robot Tuner (Robot builder -> Load / Save -> Load robot file). Below is their current file.',
+    'Rules:',
+    `- Keep the format exactly: the first line "${FILE_HEADER}", then one "key value" per line; everything after # is a comment.`,
+    '- Fill in every value you can read from the student\'s code (pins, motor and encoder signs, ticks per wheel turn, wheel size, gains, loop periods, sensor types, I2C addresses ...), in the unit written in its comment. Convert units if their code uses other ones.',
+    '- A value that is already set: keep it, unless the student\'s code clearly says otherwise (then mention it in your list of changes).',
+    '- A value you cannot find: leave N/A. Never guess one. Ask the student for the ones marked * (needed to simulate) that stay N/A.',
+    '- Keep the keys. Only if the robot has another number of distance sensors, or another encoder / driver / board type than below: change sensor_count or the type, and add or drop the matching lines in the same pattern (sensor<N>_..., pin_...). Text values use _ instead of spaces.',
     '',
+    '```',
+    ...robotFileTemplate.trimEnd().split('\n'),
+    '```',
+    '');
+
+  w(
     '## Check list for the student (tell them to do this after uploading)',
     '1. Upload with the Arduino IDE, open Robot Tuner -> Robot builder -> "I have my own code" -> CONNECT.',
     '2. CAL TICKS: turn each wheel one turn by hand forward; both counts must be positive and match the ticks per revolution.',

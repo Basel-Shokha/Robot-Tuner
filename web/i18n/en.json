@@ -973,7 +973,7 @@
  "own.s1": "Use the tabs below. <b>Firmware</b>: board, pins, encoder, motor driver. <b>Sensors</b>: where each sensor looks. <b>Motor</b>: speeds and timing. A pin is a numbered connection on the board. An encoder counts wheel turns in small steps (ticks). The motor driver is the chip that powers the motors.",
  "own.s1_btn": "Open the Firmware tab",
  "own.s2_h": "Give your AI the prompt",
- "own.s2": "Press COPY PROMPT and paste it into your AI (ChatGPT, Claude, ...). Attach two things: your own robot code (all files), and the reference file (DOWNLOAD REFERENCE). The reference is the code the Tuner would write for this hardware, so your AI sees exactly what the Tuner expects.",
+ "own.s2": "Press COPY PROMPT and paste it into your AI (ChatGPT, Claude, ...). Attach two things: your own robot code (all files), and the reference file (DOWNLOAD REFERENCE). The reference is the code the Tuner would write for this hardware, so your AI sees exactly what the Tuner expects. Your AI gives back your changed code AND a robot file (robot.robot.txt) with your hardware: load that file in Robot builder → Load / Save.",
  "own.copy": "COPY PROMPT",
  "own.copied": "Prompt copied. Paste it into your AI.",
  "own.copy_fail": "Copy did not work. Open the preview, select the text and copy it.",
