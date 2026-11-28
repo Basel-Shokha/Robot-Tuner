@@ -11,6 +11,18 @@ jobs:
     environment: { name: github-pages, url: '${{ steps.d.outputs.page_url }}' }
     steps:
       - uses: actions/checkout@v4
+      # the ESP32 install firmware (one build for every ESP32 robot): web/firmware/esp32/robot_tuner_esp32.bin
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - uses: arduino/setup-arduino-cli@v2
+      - name: build the ESP32 install firmware
+        run: |
+          arduino-cli config init
+          arduino-cli config add board_manager.additional_urls https://espressif.github.io/arduino-esp32/package_esp32_index.json
+          arduino-cli core update-index
+          arduino-cli core install esp32:esp32
+          arduino-cli lib install VL53L0X VL53L1X
+          ./tools/build_esp32_install.sh
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with: { path: web }

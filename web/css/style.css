@@ -406,3 +406,5 @@ button.danger { background: var(--red); color: #fff; border-color: var(--red); }
 .load-bar b { display: block; font-size: 1.05rem; }
 .own-intro { max-width: min(620px, calc(100vw - 32px)); }
 .own-intro .own-step p { margin: 2px 0 6px; }
+.install-card { border: 2px solid var(--green); }
+.install-card ol li { margin-bottom: 8px; }

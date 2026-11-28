@@ -3,3 +3,7 @@ node_modules/
 *.o
 tests/native/bin/
 tests/native/bin/
+
+# built by tools/build_esp32_install.sh (pages.yml publishes it)
+web/firmware/esp32/
+build/
