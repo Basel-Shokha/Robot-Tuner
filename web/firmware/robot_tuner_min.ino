@@ -292,6 +292,14 @@ void setup() {
   encSetup();
   sensorsSetup();
   RT_IO.println(F("robot_tuner_min ready (commands: see the top of the sketch)"));
+#ifdef ESP32
+  {   // why the ESP32 (re)started: a "brownout" = the supply voltage dipped (weak battery / regulator, e.g. when Bluetooth starts)
+    const char* why[] = {"unknown", "power on", "external pin", "software restart", "crash (panic)", "watchdog (interrupt)", "watchdog (task)",
+                         "watchdog (other)", "deep sleep", "BROWNOUT: the supply voltage dipped", "SDIO", "USB", "JTAG", "eFuse", "power glitch", "CPU lockup"};
+    int r = (int)esp_reset_reason();
+    RT_IO.print(F("BOOT reason: ")); RT_IO.println(r >= 0 && r < 16 ? why[r] : "unknown");
+  }
+#endif
 }
 
 long c0L, c0R; bool ticksRunning = false; long driveTicksL = 0, driveTicksR = 0; float spinEncRot = 0;

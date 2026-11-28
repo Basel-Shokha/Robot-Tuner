@@ -377,7 +377,7 @@ export const PROTOCOL_RULES = [
   'Numbers after a command are separated by spaces; decimals use a dot ("CAL STEP 0.15").',
   'Every CAL command also works without the word CAL ("TICKS" = "CAL TICKS", "SPIN 5" = "CAL SPIN 5").',
   'Replies are plain text lines ending in "\\r\\n" (Serial.println). The Tuner reads them line by line and matches the start of each line.',
-  'At start-up the sketch prints: robot_tuner_min ready (commands: see the top of the sketch)',
+  'At start-up the sketch prints: robot_tuner_min ready (commands: see the top of the sketch); an ESP32 then prints why it started: BOOT reason: <power on / software restart / crash (panic) / BROWNOUT: the supply voltage dipped / ...>',
   'Errors start with "ERR ", warnings with "WARN ", acknowledgements with "OK ". Unknown command -> "ERR unknown command".',
   'Link messages (Bluetooth robots), printed by themselves when it happens: LINK bluetooth connected  /  LINK bluetooth disconnected  (a PC opened or closed the Bluetooth serial port). Robot Tuner shows them on screen.',
   'Without wheel encoders, every command that needs them answers: ERR <command> needs wheel encoders: this robot has none (time-based mode). Use CAL TIMED or type the value on the Measure page.',
@@ -988,6 +988,14 @@ void setup() {
   encSetup();
   sensorsSetup();
   Serial.println(F("robot_tuner_min ready (commands: see the top of the sketch)"));
+#ifdef ESP32
+  {   // why the ESP32 (re)started: a "brownout" = the supply voltage dipped (weak battery / regulator, e.g. when Bluetooth starts)
+    const char* why[] = {"unknown", "power on", "external pin", "software restart", "crash (panic)", "watchdog (interrupt)", "watchdog (task)",
+                         "watchdog (other)", "deep sleep", "BROWNOUT: the supply voltage dipped", "SDIO", "USB", "JTAG", "eFuse", "power glitch", "CPU lockup"};
+    int r = (int)esp_reset_reason();
+    Serial.print(F("BOOT reason: ")); Serial.println(r >= 0 && r < 16 ? why[r] : "unknown");
+  }
+#endif
 }
 
 long c0L, c0R; bool ticksRunning = false; long driveTicksL = 0, driveTicksR = 0; float spinEncRot = 0;
