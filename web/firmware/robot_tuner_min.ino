@@ -21,6 +21,7 @@
 //   CAL VMIN                   PWM ramp both ways, wheels in the air -> slowest steady speed (v_min)
 //   RUN [s] / STOP             wall following with the PID below (constant cruise speed), default 10 s
 //   CAL TOF [n] [true_mm]      n readings per sensor -> noise, bias, dropouts
+//   SET <key> <value>          change a measured value at once: ticks_rev (ticks per wheel turn), wscale_l / wscale_r (wheel scale), track_w (effective track width, m); kept until the robot restarts (Robot Tuner sends it after "Use these values")
 //   PING                       is the robot there, and over which link? Robot Tuner sends it every few seconds
 //   STATUS                     loop period and reading age
 //   LOAD SENSORS / LOAD FINAL  motors off / on (sensor timing test)
@@ -121,7 +122,7 @@ const int ENC_SIGN_L = -1, ENC_SIGN_R = -1;   // flip to -1 if a wheel counts ba
 const int PIN_SDA = 21, PIN_SCL = 22;
 const float WHEEL_DIAMETER_M = 0.045f;
 float wscale_l = 0.972f, wscale_r = 0.972f;   // replace with the CAL DIST suggestions (Measure: Straight drive)
-const char* SKETCH_ID = "4218a342";   // fingerprint of this sketch: PING answers it, Robot Tuner checks it is up to date
+const char* SKETCH_ID = "34403c61";   // fingerprint of this sketch: PING answers it, Robot Tuner checks it is up to date
 float ticks_per_rev = 8291.5f;     // computed: 7 pulses x 4 edges x gear 296.125 = 8291.5; replace with the CAL TICKS result
 float track_w = 0.1249f;             // replace with the CAL TURNS result
 const int PWM_MAX = 255;
@@ -496,6 +497,17 @@ void creepTick() {
   if (d >= 2) { creepMoving = true; RT_IO.print(F("CREEP moving at PWM ")); RT_IO.println(creepP); }
   else if (creepP < PWM_MAX) { creepP = min(PWM_MAX, creepP + 2); creepOut(); }
 }
+// SET <key> <value>: Robot Tuner sends a measured value at once ("Use these values"), so the next run uses it without a
+// new upload. Kept until the robot restarts; the sketch made from the new settings keeps it for good.
+void setValue(const char* k, float v) {
+  bool ok = v > 0;
+  if (ok && strncmp_P(k, PSTR("TICKS_REV "), 10) == 0) ticks_per_rev = v;
+  else if (ok && strncmp_P(k, PSTR("WSCALE_L "), 9) == 0) wscale_l = v;
+  else if (ok && strncmp_P(k, PSTR("WSCALE_R "), 9) == 0) wscale_r = v;
+  else if (ok && strncmp_P(k, PSTR("TRACK_W "), 8) == 0) track_w = v;
+  else { RT_IO.println(F("ERR SET: unknown key or value (ticks_rev, wscale_l, wscale_r, track_w; value > 0)")); return; }
+  RT_IO.print(F("OK SET ")); while (*k && *k != ' ') RT_IO.print((char)tolower(*k++)); RT_IO.print(' '); RT_IO.println(v, 4);
+}
 void calTimed(unsigned long ms) {
   // open loop: no encoders needed. Measure the distance and divide by the time (minus about one time constant)
   setPwm(PWM_MAX, PWM_MAX); waitMs(ms); setPwm(0, 0);
@@ -659,6 +671,7 @@ void handle(const char* c) {
   else if (STARTS("CAL CREEP L")) creepStart(0, a2 > 0 ? (int)a2 : 20);
   else if (STARTS("CAL CREEP R")) creepStart(1, a2 > 0 ? (int)a2 : 20);
   else if (STARTS("CAL TOF")) calTof(a1 > 0 ? (int)a1 : 100, a2);
+  else if (STARTS("CAL SET")) setValue(sp1 ? sp1 + 1 : "", a2);
   else if (IS("CAL PING")) { RT_IO.print(F("PONG ")); RT_IO.print(cmdFromBt ? F("bluetooth ") : F("usb ")); RT_IO.println(SKETCH_ID); }
   else if (IS("STATUS")) status();
   else if (IS("LOAD SENSORS")) { motorsEnabled = false; setPwm(0, 0); RT_IO.println(F("OK profile SENSORS (motors off)")); }

@@ -68,7 +68,7 @@ test('every serial command has a button (cmd-buttons.js) with an i18n label and 
   const en = JSON.parse(readFileSync(new URL('../../web/i18n/en.json', import.meta.url), 'utf8'));
   const btns = [...src.matchAll(/cmd: '([A-Z ]+)', id: '(\w+)'/g)];
   const cmds = new Set(btns.map((m) => m[1]));
-  for (const c of PROTOCOL) assert.ok(cmds.has(c.cmd), `no button for ${c.cmd}`);
+  for (const c of PROTOCOL) assert.ok(c.auto || cmds.has(c.cmd), `no button for ${c.cmd}`);   // auto = only the site sends it
   for (const [, , k] of btns) { assert.ok(en['cmd.' + k], k); assert.ok(en['cmd.' + k + '_h'], k + '_h'); }
 });
 

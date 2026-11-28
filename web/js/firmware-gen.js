@@ -440,6 +440,8 @@ export const PROTOCOL = [
   { cmd: 'CAL TOF', motion: 'still', args: '[n] [true_mm]', usage: 'CAL TOF [n] [true_mm]', help: 'n readings per sensor -> noise, bias, dropouts', def: 'n = 100',
     replies: ['CAL TOF <sensor name> n <count> mean <mm> mm std <mm> mm min <mm> max <mm> dropouts <count> (<%>%)   (one line per sensor)',
       'CAL TOF <sensor name> bias vs <true mm> mm: <+/-mm> mm   (only when true_mm is given)', 'CAL: TOF done'] },
+  { cmd: 'CAL SET', motion: 'still', args: '<key> <value>', usage: 'SET <key> <value>', help: 'change a measured value at once: ticks_rev (ticks per wheel turn), wscale_l / wscale_r (wheel scale), track_w (effective track width, m); kept until the robot restarts (Robot Tuner sends it after "Use these values")', auto: true,
+    replies: ['OK SET <key> <value>', 'ERR SET: unknown key or value (ticks_rev, wscale_l, wscale_r, track_w; value > 0)'] },
   { cmd: 'PING', motion: 'still', usage: 'PING', help: 'is the robot there, and over which link? Robot Tuner sends it every few seconds', replies: ['PONG <usb or bluetooth> <sketch id>   (the link the PING came over; the generated sketch adds its 8-digit fingerprint, your own code may leave it out)'] },
   { cmd: 'STATUS', motion: 'still', usage: 'STATUS', help: 'loop period and reading age',
     replies: ['tof mm <sensor name> <mm> <sensor name> <mm> ...   (-1 = no valid reading)',
@@ -1214,6 +1216,17 @@ void creepTick() {
   if (d >= 2) { creepMoving = true; Serial.print(F("CREEP moving at PWM ")); Serial.println(creepP); }
   else if (creepP < PWM_MAX) { creepP = min(PWM_MAX, creepP + 2); creepOut(); }
 }
+// SET <key> <value>: Robot Tuner sends a measured value at once ("Use these values"), so the next run uses it without a
+// new upload. Kept until the robot restarts; the sketch made from the new settings keeps it for good.
+void setValue(const char* k, float v) {
+  bool ok = v > 0;
+  if (ok && strncmp_P(k, PSTR("TICKS_REV "), 10) == 0) ticks_per_rev = v;
+  else if (ok && strncmp_P(k, PSTR("WSCALE_L "), 9) == 0) wscale_l = v;
+  else if (ok && strncmp_P(k, PSTR("WSCALE_R "), 9) == 0) wscale_r = v;
+  else if (ok && strncmp_P(k, PSTR("TRACK_W "), 8) == 0) track_w = v;
+  else { Serial.println(F("ERR SET: unknown key or value (ticks_rev, wscale_l, wscale_r, track_w; value > 0)")); return; }
+  Serial.print(F("OK SET ")); while (*k && *k != ' ') Serial.print((char)tolower(*k++)); Serial.print(' '); Serial.println(v, 4);
+}
 void calTimed(unsigned long ms) {
   // open loop: no encoders needed. Measure the distance and divide by the time (minus about one time constant)
   setPwm(PWM_MAX, PWM_MAX); waitMs(ms); setPwm(0, 0);
@@ -1377,6 +1390,7 @@ void handle(const char* c) {
   else if (STARTS("CAL CREEP L")) creepStart(0, a2 > 0 ? (int)a2 : 20);
   else if (STARTS("CAL CREEP R")) creepStart(1, a2 > 0 ? (int)a2 : 20);
   else if (STARTS("CAL TOF")) calTof(a1 > 0 ? (int)a1 : 100, a2);
+  else if (STARTS("CAL SET")) setValue(sp1 ? sp1 + 1 : "", a2);
   else if (IS("CAL PING")) { Serial.print(F("PONG ")); Serial.print(cmdFromBt ? F("bluetooth ") : F("usb ")); Serial.println(SKETCH_ID); }
   else if (IS("STATUS")) status();
   else if (IS("LOAD SENSORS")) { motorsEnabled = false; setPwm(0, 0); Serial.println(F("OK profile SENSORS (motors off)")); }
