@@ -1,5 +1,5 @@
 // measure.js - 2. GUIDED MEASUREMENT over USB (Web Serial) with manual entry for every value.
-import { page, $, el, t, toast } from './common.js';
+import { $, el, t, toast } from './common.js';
 import { commandButtons, motionBadge } from './cmd-buttons.js';
 import { linkStatus, btHelp, connectButtons } from './link-status.js';
 import { measurementDone, guardLeave, saveRobotFile } from './save-reminder.js';
@@ -11,7 +11,9 @@ import { fmt } from './i18n.js';
 import { stepMedia } from './measure-media.js';
 import { BOARDS, normalizeHardware, sensorWireName, sketchTicks, isLowRes } from './firmware-gen.js';
 
-await page();
+// The Robot builder page builds the menu (builder.js -> page()). Here we only wait for it: if this file also called
+// page(), an older cached common.js (one that builds the menu on every call) would draw a second menu.
+await new Promise((res) => { if (document.querySelector('.app')) return res(); const mo = new MutationObserver(() => { if (document.querySelector('.app')) { mo.disconnect(); res(); } }); mo.observe(document.body, { childList: true, subtree: true }); });
 const link = new RobotLink();
 let R = loadRobot();
 const log = $('#log');
