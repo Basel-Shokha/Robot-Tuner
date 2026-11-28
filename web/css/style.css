@@ -366,3 +366,7 @@ table.gains thead th { background: var(--accent-soft); }
   .units-table td { display: inline; border: 0; padding: 0 6px 0 0; }
   .units-table td:last-child { display: block; }
 }
+input.unset { border-style: dashed; }
+input.unset::placeholder { color: var(--amber-ink); font-weight: 600; }
+.flash { outline: 3px solid var(--amber); outline-offset: 2px; animation: flash 1.2s ease-in-out 3; }
+@keyframes flash { 50% { outline-color: transparent; } }

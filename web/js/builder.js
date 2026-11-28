@@ -5,6 +5,8 @@ import { View, robotShapes, css, PALETTE } from './draw.js';
 import { BOARDS, pinLabel, pinTags, ENCODERS, DRIVERS, generateSketch, validateHardware, hasErrors, suggestPins, computedTicksPerRev, sketchTicks,
   isLowRes, edgesPerPulse, requiredLibraries, sensorWireName, normalizeHardware, defaultHardware, unoHardware } from './firmware-gen.js';
 import { choiceBar, mountOwn, isOwnMode } from './own-code-ui.js';
+import { robotToFile, fileToRobot, isRobotFile, allFields } from './robotfile.js';
+import { isSet } from './store.js';
 
 await page();
 let R = loadRobot();
@@ -23,14 +25,17 @@ function mark(path, tag = 'TYPED') { R.source[path] = tag; }
 function num(group, key, labelKey, unit, opts = {}) {
   const obj = typeof group === 'string' ? R[group] : group;
   const path = opts.path || `${group}.${key}`;
-  const inp = el('input', { type: 'number', step: opts.step || 'any', value: obj[key], min: opts.min });
+  const full = typeof group === 'string' ? `${group}.${key}` : `${opts.path}.${key}`;   // robot-file path of this value
+  const set = isSet(R, full);
+  const inp = el('input', { type: 'number', step: opts.step || 'any', value: set ? obj[key] : '', placeholder: 'N/A', min: opts.min, 'data-path': full });
   inp.addEventListener('input', () => {
     const v = parseFloat(inp.value);
     if (!Number.isFinite(v)) return;
-    obj[key] = v; mark(path); src.textContent = 'TYPED'; src.className = 'pill src'; commit();
+    obj[key] = v; mark(path); src.textContent = 'TYPED'; src.className = 'pill src'; inp.classList.remove('unset'); commit();
   });
-  const tag = R.source[path] || 'DEFAULT';
-  const src = el('span', { class: 'pill src ' + (tag === 'MEASURED' ? 'ok' : ''), text: tag, title: t('builder.source_hint') });
+  if (!set) inp.classList.add('unset');
+  const tag = set ? (R.source[path] || (R.all_set ? 'SET' : 'DATASHEET')) : 'N/A';
+  const src = el('span', { class: 'pill src ' + (tag === 'MEASURED' ? 'ok' : tag === 'N/A' ? 'warn' : ''), text: tag, title: t('builder.source_hint') });
   return el('label', { class: 'field' }, el('span', {}, el('span', { text: t(labelKey) }), unit ? el('span', { class: 'muted', text: ` (${unit})` }) : null, ' ', src), inp);
 }
 
@@ -50,7 +55,7 @@ function buildForms() {
   g.append(wheels);
   const cas = el('div', { class: 'card stack' }, el('h3', { text: t('builder.caster_h') }));
   const cb = el('input', { type: 'checkbox' }); cb.checked = R.caster.enabled;
-  cb.addEventListener('change', () => { R.caster.enabled = cb.checked; commit(); });
+  cb.addEventListener('change', () => { R.caster.enabled = cb.checked; mark('caster.enabled'); commit(); });
   cas.append(el('label', { class: 'toggle' }, cb, el('span', { text: t('builder.caster_on') })), num('caster', 'x_mm', 'builder.caster_x', 'mm'), num('caster', 'y_mm', 'builder.caster_y', 'mm'), num('caster', 'diameter_mm', 'builder.caster_d', 'mm'),
     el('small', { class: 'muted', text: t('builder.caster_note') }));
   if (R.drive === '2wd') g.append(cas);
@@ -93,12 +98,13 @@ function sensorCard(sen, i) {
   const type = el('select', {}, ...Object.keys(SENSOR_LIBRARY).map((k) => el('option', { value: k, text: t('sensor.' + k) })));
   type.value = sen.type;
   type.addEventListener('change', () => {
+    mark(`sensors.${i}.type`);
     const fresh = makeSensor(type.value, sen);
     Object.assign(sen, fresh, { x_mm: sen.x_mm, y_mm: sen.y_mm, angle_deg: sen.angle_deg, name: sen.name });
     commit(true);
   });
   const name = el('input', { value: sen.name || '', style: 'width:90px' });
-  name.addEventListener('input', () => { sen.name = name.value; commit(); });
+  name.addEventListener('input', () => { sen.name = name.value; mark(`sensors.${i}`); commit(); });
   const rm = el('button', { class: 'small', text: '✕', title: t('builder.remove'), onclick: () => { R.sensors.splice(i, 1); R.hardware.sensors.splice(i, 1); selected = -1; commit(true); } });
   if (R.sensors.length <= 1) rm.disabled = true;
   card.append(el('div', { class: 'row' }, el('b', { text: `#${i + 1}` }), name, type, el('span', { class: 'spacer' }), rm));
@@ -214,8 +220,18 @@ $$('[role="tab"]').forEach((b) => b.addEventListener('click', () => {
   $$('[role="tab"]').forEach((x) => x.setAttribute('aria-selected', x === b));
   $$('[data-panel]').forEach((p) => { p.hidden = p.dataset.panel !== b.dataset.tab; });
 }));
-$('#robot-name').addEventListener('input', (e) => { R.name = e.target.value; commit(); });
-$('#drive').addEventListener('change', (e) => { R.drive = e.target.value; if (R.drive === '4wd') R.caster.enabled = false; commit(true); fitRobot(); draw(); });
+$('#robot-name').addEventListener('input', (e) => { R.name = e.target.value; mark('name'); commit(); });
+$('#drive').addEventListener('change', (e) => { R.drive = e.target.value; mark('drive'); if (R.drive === '4wd') R.caster.enabled = false; commit(true); fitRobot(); draw(); });
+$('#exp-file').addEventListener('click', () => download(downloadName(R, '.robot.txt'), robotToFile(R)));
+$('#imp-file').addEventListener('click', async () => {
+  const f = await pickFile('.txt,.json,text/plain,application/json'); if (!f) return;
+  try {
+    if (/^\s*\{/.test(f.text)) R = migrate(JSON.parse(f.text));
+    else if (isRobotFile(f.text)) { const res = fileToRobot(f.text); R = res.robot; if (res.unknown.length) toast(t('builder.file_unknown', { keys: res.unknown.join(', ') }), 'warn'); }
+    else R = hardwareTxtToRobot(f.text, R);
+    commit(true); fitRobot(); draw(); toast(t('builder.imported', { name: f.name }), 'ok');
+  } catch (e) { toast(t('builder.import_err') + ' ' + e.message, 'bad'); }
+});
 $('#exp-json').addEventListener('click', () => download(downloadName(R, '.robot.json'), JSON.stringify(R, null, 2), 'application/json'));
 $('#imp-json').addEventListener('click', async () => {
   const f = await pickFile('.json,application/json'); if (!f) return;
@@ -250,6 +266,18 @@ function showTab(id) {
 }
 buildForms(); fitRobot(); commit();
 if (location.hash === '#firmware') showTab('firmware');
+// builder.html?set=<path>: a simulator page sent the student here to set a value -> open its tab, highlight it
+{
+  const want = new URLSearchParams(location.search).get('set');
+  const f = want && allFields(R).find((x) => x.path === want);
+  if (f) {
+    if (f.tab && f.tab !== 'top') showTab(f.tab);
+    const target = f.tab === 'top' ? $(f.path === 'drive' ? '#drive' : '#robot-name')
+      : ($(`[data-path="${CSS.escape(f.path)}"]`) || (f.sensor !== undefined ? $$('[data-panel="sensors"] .card')[f.sensor] : null));
+    if (target) { target.scrollIntoView({ block: 'center' }); target.classList.add('flash'); if (target.focus) target.focus({ preventScroll: true }); }
+    toast(t('builder.set_this', { name: f.key }), 'warn');
+  }
+}
 // "Generate code for my robot" / "I have my own code" (builder.html?own=1 adds the three own-code steps)
 {
   const own = isOwnMode(), head = $('.page-head') || $('h1');
@@ -269,15 +297,23 @@ function fwField(labelKey, control, noteKey) {
   const f = el('label', { class: 'field' }, el('span', { text: t(labelKey) }), control);
   return noteKey ? el('div', { class: 'stack' }, f, el('small', { class: 'muted', text: t(noteKey) })) : f;
 }
+// robot-file path of a value inside R.hardware (for "is it set")
+function hwPath(obj, key) {
+  const walk = (o, p) => { if (o === obj) return p; if (o && typeof o === 'object') for (const [k, v] of Object.entries(o)) { const r = walk(v, p + '.' + k); if (r) return r; } return null; };
+  const p = walk(R.hardware, 'hardware'); return p ? `${p}.${key}` : null;
+}
+function markHw(obj, key) { const p = hwPath(obj, key); if (p) mark(p); }
+// a board / driver / encoder choice fills in suggested pins: they count as set (SUGGESTED) until changed
+function markSuggested() { for (const f of allFields(R)) if (f.path.startsWith('hardware.') && !isSet(R, f.path)) R.source[f.path] = 'SUGGESTED'; }
 function pinSelect(obj, key, labelKey, vars) {
   const hw = R.hardware, B = BOARDS[hw.board];
   const opts = [[-1, '—'], ...B.pins.map((p) => [p, `${pinLabel(hw.board, p)}${pinTags(hw.board, p).length ? '  · ' + pinTags(hw.board, p).join(' ') : ''}`])];
-  const s = fwSel(opts, obj[key] ?? -1, (v) => { obj[key] = +v; fwChanged(false); });
+  const s = fwSel(opts, obj[key] ?? -1, (v) => { obj[key] = +v; markHw(obj, key); fwChanged(false); });
   return el('label', { class: 'field' }, el('span', { text: t(labelKey, vars) }), s);
 }
 function fwNum(obj, key, labelKey, step = 'any') {
   const inp = el('input', { type: 'number', step, value: obj[key] });
-  inp.addEventListener('input', () => { const v = parseFloat(inp.value); if (Number.isFinite(v)) { obj[key] = v; fwChanged(false, true); } });
+  inp.addEventListener('input', () => { const v = parseFloat(inp.value); if (Number.isFinite(v)) { obj[key] = v; markHw(obj, key); fwChanged(false, true); } });
   return fwField(labelKey, inp);
 }
 // ticks/rev follows the encoder description until it has been measured
@@ -290,7 +326,7 @@ function fwChanged(rebuild, ticks = false) {
   commit();
   if (rebuild) buildFirmware(); else fwTicksLine();
 }
-function signSel(obj, key, labelKey) { return fwField(labelKey, fwSel([[1, '+1'], [-1, '−1']], obj[key] < 0 ? -1 : 1, (v) => { obj[key] = +v; fwChanged(false); })); }
+function signSel(obj, key, labelKey) { return fwField(labelKey, fwSel([[1, '+1'], [-1, '−1']], obj[key] < 0 ? -1 : 1, (v) => { obj[key] = +v; markHw(obj, key); fwChanged(false); })); }
 
 function buildFirmware() {
   R.hardware = normalizeHardware(R.hardware, R.sensors.length);
@@ -301,15 +337,15 @@ function buildFirmware() {
   const pinRows = B.pins.map((p) => el('tr', {}, el('td', { class: 'num', text: pinLabel(hw.board, p) }), el('td', { text: pinTags(hw.board, p).join(', ') || t('fw.plain_io') })));
   box.append(el('div', { class: 'card stack' }, el('h3', { text: t('fw.board_h') }),
     fwField('fw.board', fwSel(Object.entries(BOARDS).map(([k, b]) => [k, b.label]), hw.board, (v) => {
-      hw.board = v; hw.i2c = { sda: BOARDS[v].i2c.sda, scl: BOARDS[v].i2c.scl };
-      R.hardware = suggestPins(R, hw, true).hw; fwChanged(true);
+      mark('hardware.board'); hw.board = v; hw.i2c = { sda: BOARDS[v].i2c.sda, scl: BOARDS[v].i2c.scl };
+      R.hardware = suggestPins(R, hw, true).hw; markSuggested(); fwChanged(true);
     }), 'fw.board_note.' + hw.board),
     el('details', {}, el('summary', { text: t('fw.pin_table') }), el('small', { class: 'muted', text: t('fw.pin_table_note.' + hw.board) }),
       el('table', {}, el('tr', {}, el('th', { text: t('fw.pin') }), el('th', { text: t('fw.can') })), ...pinRows))));
   // motor driver
   const d = hw.driver;
   const drv = el('div', { class: 'card stack' }, el('h3', { text: t('fw.driver_h') }),
-    fwField('fw.driver', fwSel(DRIVERS.map((k) => [k, t('fw.drv.' + k)]), d.type, (v) => { d.type = v; R.hardware = suggestPins(R, hw, true).hw; fwChanged(true); }), 'fw.drv_note.' + d.type));
+    fwField('fw.driver', fwSel(DRIVERS.map((k) => [k, t('fw.drv.' + k)]), d.type, (v) => { d.type = v; mark('hardware.driver.type'); R.hardware = suggestPins(R, hw, true).hw; markSuggested(); fwChanged(true); }), 'fw.drv_note.' + d.type));
   for (const [side, m] of [['L', d.left], ['R', d.right]]) {
     const sideTxt = t(side === 'L' ? 'fw.left' : 'fw.right');
     if (d.type === 'pwm_dir') drv.append(pinSelect(m, 'a', 'fw.pin_pwm', { s: sideTxt }), pinSelect(m, 'b', 'fw.pin_dir', { s: sideTxt }));
@@ -317,15 +353,15 @@ function buildFirmware() {
     if (d.type === 'en_in1_in2') drv.append(pinSelect(m, 'en', 'fw.pin_en', { s: sideTxt }), pinSelect(m, 'a', 'fw.pin_in1', { s: sideTxt }), pinSelect(m, 'b', 'fw.pin_in2', { s: sideTxt }));
   }
   if (d.type !== 'in1_in2') drv.append(pinSelect(d, 'stby', 'fw.pin_stby'));
-  if (d.type !== 'pwm_dir') drv.append(fwField('fw.stop', fwSel([['brake', t('fw.stop_brake')], ['coast', t('fw.stop_coast')]], d.stop, (v) => { d.stop = v; fwChanged(false); }), d.type === 'in1_in2' ? 'fw.stop_note_in12' : 'fw.stop_note_en'));
+  if (d.type !== 'pwm_dir') drv.append(fwField('fw.stop', fwSel([['brake', t('fw.stop_brake')], ['coast', t('fw.stop_coast')]], d.stop, (v) => { d.stop = v; mark('hardware.driver.stop'); fwChanged(false); }), d.type === 'in1_in2' ? 'fw.stop_note_in12' : 'fw.stop_note_en'));
   drv.append(el('div', { class: 'row' }, signSel(d, 'sign_l', 'fw.motor_sign_l'), signSel(d, 'sign_r', 'fw.motor_sign_r')), el('small', { class: 'muted', text: t('fw.sign_note') }));
   box.append(drv);
   // encoders
   const e = hw.encoder;
   const enc = el('div', { class: 'card stack' }, el('h3', { text: t('fw.enc_h') }),
-    fwField('fw.enc', fwSel(ENCODERS.map((k) => [k, t('fw.enc.' + k)]), e.type, (v) => { e.type = v; R.hardware = suggestPins(R, hw, true).hw; fwChanged(true, true); }), 'fw.enc_note.' + e.type));
+    fwField('fw.enc', fwSel(ENCODERS.map((k) => [k, t('fw.enc.' + k)]), e.type, (v) => { e.type = v; mark('hardware.encoder.type'); R.hardware = suggestPins(R, hw, true).hw; markSuggested(); fwChanged(true, true); }), 'fw.enc_note.' + e.type));
   if (e.type === 'quadrature' && B.arch === 'avr') {
-    enc.append(fwField('fw.avr_mode', fwSel([['x1', t('fw.avr_x1')], ['x4', t('fw.avr_x4')]], e.avr_mode, (v) => { e.avr_mode = v; R.hardware = suggestPins(R, hw, true).hw; fwChanged(true, true); })));
+    enc.append(fwField('fw.avr_mode', fwSel([['x1', t('fw.avr_x1')], ['x4', t('fw.avr_x4')]], e.avr_mode, (v) => { e.avr_mode = v; mark('hardware.encoder.avr_mode'); R.hardware = suggestPins(R, hw, true).hw; markSuggested(); fwChanged(true, true); })));
   }
   if (e.type === 'quadrature') {
     for (const [side, c] of [['L', e.left], ['R', e.right]]) {
@@ -336,7 +372,7 @@ function buildFirmware() {
   if (e.type === 'single') enc.append(pinSelect(e.left, 'a', 'fw.pin_enc', { s: t('fw.left') }), pinSelect(e.right, 'a', 'fw.pin_enc', { s: t('fw.right') }));
   if (e.type === 'as5600') {
     enc.append(fwField('fw.as5600_bus', fwSel([['mux', t('fw.as5600_mux')], ...(B.arch === 'esp32' ? [['two_buses', t('fw.as5600_two')]] : [])], e.as5600_bus,
-      (v) => { e.as5600_bus = v; R.hardware = suggestPins(R, hw, true).hw; fwChanged(true); })));
+      (v) => { e.as5600_bus = v; mark('hardware.encoder.as5600_bus'); R.hardware = suggestPins(R, hw, true).hw; markSuggested(); fwChanged(true); })));
     if (e.as5600_bus === 'mux') enc.append(el('div', { class: 'row' }, fwNum(e, 'mux_ch_l', 'fw.mux_ch_l', 1), fwNum(e, 'mux_ch_r', 'fw.mux_ch_r', 1)));
     else enc.append(pinSelect(e, 'sda2', 'fw.pin_sda2'), pinSelect(e, 'scl2', 'fw.pin_scl2'));
   }

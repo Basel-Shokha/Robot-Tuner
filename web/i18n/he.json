@@ -1060,5 +1060,11 @@
  "tour.numbers.conv": "",
  "footer.by": "",
  "builder.caster_y": "",
- "builder.caster_note": ""
+ "builder.caster_note": "",
+ "builder.robotfile_h": "",
+ "builder.robotfile_p": "",
+ "builder.export_file": "",
+ "builder.import_file": "",
+ "builder.file_unknown": "",
+ "builder.set_this": ""
 }

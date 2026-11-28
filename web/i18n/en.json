@@ -96,7 +96,7 @@
  "builder.start_h": "Start over",
  "builder.new_2wd": "New 2-wheel robot",
  "builder.new_4wd": "New 4-wheel skid-steer robot",
- "builder.reset_example": "Load the example robot",
+ "builder.reset_example": "Start over (nothing set)",
  "builder.new_name": "My robot",
  "builder.confirm_new": "Replace the current robot? Export it first if you want to keep it.",
  "builder.canvas_hint": "Drag: move view · wheel: zoom · drag a sensor: move it · Shift+drag: rotate it · Alt+drag: move the caster ball",
@@ -113,7 +113,7 @@
  "builder.chk_range": "A side sensor's maximum range is below 15 cm: in a wide corridor it will not see the wall.",
  "builder.imported": "Loaded {name}",
  "builder.import_err": "Could not read the file:",
- "builder.source_hint": "Where this value comes from: MEASURED (measurement wizard), TYPED (you), DATASHEET or DEFAULT",
+ "builder.source_hint": "Where the value comes from. N/A = not set yet (the drawing uses a placeholder). TYPED = you typed it, MEASURED = from the Measure page, IMPORTED = from a file, DATASHEET = from the sensor type.",
  "chk.ok": "OK",
  "chk.warn": "Check",
  "chk.bad": "Problem",
@@ -1058,5 +1058,11 @@
  "tour.numbers.conv": "Formulas with examples from your robot, for when your code uses other units.",
  "footer.by": "Made by Basel Shokha and Nicole Shaer, Technion.",
  "builder.caster_y": "Caster position y (+ = left of centre)",
- "builder.caster_note": "Measure from the middle of the wheel axle to the centre of the ball. Or drag the grey ball in the drawing (hold Alt if a sensor sits on top of it). It is drawn and saved in your robot file; the simulator does not need it to drive."
+ "builder.caster_note": "Measure from the middle of the wheel axle to the centre of the ball. Or drag the grey ball in the drawing (hold Alt if a sensor sits on top of it). It is drawn and saved in your robot file; the simulator does not need it to drive.",
+ "builder.robotfile_h": "Robot file (everything about your robot)",
+ "builder.robotfile_p": "One text file with every hardware value: body, wheels, caster ball, motors, encoders, sensors, timing, board and pins, and your PID gains. Values you have not set are written as N/A. Load it on any computer to get your robot back.",
+ "builder.export_file": "Save robot file",
+ "builder.import_file": "Load robot file",
+ "builder.file_unknown": "These lines were not understood and were skipped: {keys}",
+ "builder.set_this": "Set this value first: {name}"
 }
