@@ -102,7 +102,11 @@ void motorOut(int s, int u) {
   if (stopBrake) { if (u > 0) { analogWrite(pinA[s], PWM_MAX); analogWrite(pinB[s], PWM_MAX - d); } else { analogWrite(pinA[s], PWM_MAX - d); analogWrite(pinB[s], PWM_MAX); } }
   else { if (u > 0) { analogWrite(pinA[s], d); analogWrite(pinB[s], 0); } else { analogWrite(pinA[s], 0); analogWrite(pinB[s], d); } }
 }
+unsigned long notSetUpMs = 0;
 void setPwm(int l, int r) {
+  if (!configured && (l || r) && millis() - notSetUpMs > 2000) {   // say why nothing moves (at most every 2 s)
+    notSetUpMs = millis(); RT_IO.println(F("ERR not set up: the motors stay off until your robot's settings are saved (Robot Tuner: Firmware tab -> Send my robot's settings)"));
+  }
   if (!motorsEnabled || !configured) { l = 0; r = 0; }
   l = constrain(l, -PWM_MAX, PWM_MAX); r = constrain(r, -PWM_MAX, PWM_MAX);
   if (l) cmdDirL = l > 0 ? 1 : -1;
