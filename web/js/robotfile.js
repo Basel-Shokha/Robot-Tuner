@@ -186,8 +186,8 @@ export function fileToRobot(text) {
   for (let i = 0; i < n; i++) { const ty = kv[`sensor${i + 1}_type`]; if (ty && SENSOR_LIBRARY[ty]) r.sensors[i] = { ...makeSensor(ty), name: r.sensors[i].name }; }
   if (kv.drive === '2wd' || kv.drive === '4wd') r.drive = kv.drive;
   if (kv.caster === 'yes' || kv.caster === 'no') r.caster.enabled = kv.caster === 'yes';
-  if (kv.encoder_type) r.hardware.encoder.type = kv.encoder_type;
-  if (kv.motor_driver) r.hardware.driver.type = kv.motor_driver;
+  if (ENCODERS.includes(kv.encoder_type)) r.hardware.encoder.type = kv.encoder_type;
+  if (DRIVERS.includes(kv.motor_driver)) r.hardware.driver.type = kv.motor_driver;
   if (kv.board && BOARDS[kv.board]) r.hardware.board = kv.board;
   const unknown = [];
   const fields = allFields(r), known = new Set(fields.map((f) => f.key));
@@ -207,8 +207,9 @@ export function fileToRobot(text) {
 function srcKey(path) { const m = /^sensors\.(\d+)\.(x_mm|y_mm|angle_deg)$/.exec(path); return m ? `sensors.${m[1]}` : path; }
 
 /** our own robot, every value set (Simulation-To-Real-Life robot_hardware.txt): for tests and the example file */
-export function exampleRobot() {
+export function exampleRobot(hardware) {
   const r = defaultRobot();
+  if (hardware) r.hardware = hardware;
   r.name = 'Basel & Nicole robot (ESP32, DRV8833, 3x VL53L1X)';
   const measured = ['body.front_mm', 'body.rear_mm', 'body.width_mm', 'wheels.diameter_mm', 'wheels.width_mm', 'wheels.track_mm', 'wheels.x_mm',
     'wheels.track_effective_mm', 'wheels.ticks_per_rev', 'wheels.scale_l', 'wheels.scale_r', 'caster.x_mm', 'caster.diameter_mm', 'motor.max_speed_mps',
