@@ -219,6 +219,7 @@ function checks() {
 $$('[role="tab"]').forEach((b) => b.addEventListener('click', () => {
   $$('[role="tab"]').forEach((x) => x.setAttribute('aria-selected', x === b));
   $$('[data-panel]').forEach((p) => { p.hidden = p.dataset.panel !== b.dataset.tab; });
+  const tabs = $('.tabs'); if (tabs.getBoundingClientRect().top < 80) tabs.scrollIntoView({ block: 'start' });   // the new tab starts at its top
 }));
 $('#robot-name').addEventListener('input', (e) => { R.name = e.target.value; mark('name'); commit(); });
 $('#drive').addEventListener('change', (e) => { R.drive = e.target.value; mark('drive'); if (R.drive === '4wd') R.caster.enabled = false; commit(true); fitRobot(); draw(); });
